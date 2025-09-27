@@ -8,12 +8,18 @@ datasource db {
 }
 
 model TestTable {
-  id        String   @id @default(uuid())
-  name      String
-  data      Json
-  meta      Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  name       String
+  age        Int?
+  score      Float?
+  isActive   Boolean  @default(true)
+  readonly   Boolean  @default(false)
+  hash       String?
+  schemaHash String?
+  data       Json
+  meta       Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@map("test_tables")
 }

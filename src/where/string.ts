@@ -47,9 +47,52 @@ export function generateStringFilter(
     }
   }
 
+  if (filter.in !== undefined && Array.isArray(filter.in) && filter.in.length > 0) {
+    if (isCaseInsensitive) {
+      const lowercaseValues = filter.in.map(val => val.toLowerCase());
+      conditions.push(Prisma.sql`LOWER(${fieldRef}) IN (${Prisma.join(lowercaseValues, ', ')})`);
+    } else {
+      conditions.push(Prisma.sql`${fieldRef} IN (${Prisma.join(filter.in, ', ')})`);
+    }
+  }
+
+  if (filter.notIn !== undefined && Array.isArray(filter.notIn) && filter.notIn.length > 0) {
+    if (isCaseInsensitive) {
+      const lowercaseValues = filter.notIn.map(val => val.toLowerCase());
+      conditions.push(Prisma.sql`LOWER(${fieldRef}) NOT IN (${Prisma.join(lowercaseValues, ', ')})`);
+    } else {
+      conditions.push(Prisma.sql`${fieldRef} NOT IN (${Prisma.join(filter.notIn, ', ')})`);
+    }
+  }
+
+  if (filter.gt !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} > ${filter.gt}`);
+  }
+
+  if (filter.gte !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} >= ${filter.gte}`);
+  }
+
+  if (filter.lt !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} < ${filter.lt}`);
+  }
+
+  if (filter.lte !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} <= ${filter.lte}`);
+  }
+
+  if (filter.search !== undefined) {
+    // PostgreSQL full-text search using to_tsvector and plainto_tsquery
+    conditions.push(Prisma.sql`to_tsvector('english', ${fieldRef}) @@ plainto_tsquery('english', ${filter.search})`);
+  }
+
   if (filter.not !== undefined) {
     if (typeof filter.not === 'string') {
-      conditions.push(Prisma.sql`${fieldRef} != ${filter.not}`);
+      if (isCaseInsensitive) {
+        conditions.push(Prisma.sql`LOWER(${fieldRef}) != LOWER(${filter.not})`);
+      } else {
+        conditions.push(Prisma.sql`${fieldRef} != ${filter.not}`);
+      }
     } else {
       const notCondition = generateStringFilter(fieldRef, filter.not);
       conditions.push(Prisma.sql`NOT (${notCondition})`);

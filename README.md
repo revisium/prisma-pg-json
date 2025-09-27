@@ -20,6 +20,8 @@ npm install @revisium/prisma-pg-json
 
 ## Quick Start
 
+### Simple Example
+
 ```typescript
 import { PrismaClient } from '@prisma/client';
 import { buildQuery } from '@revisium/prisma-pg-json';
@@ -28,9 +30,19 @@ const prisma = new PrismaClient();
 
 const query = buildQuery({
   tableName: 'users',
+  fieldConfig: {
+    id: 'string',
+    name: 'string',
+    age: 'number',
+    isActive: 'boolean',
+  },
   where: {
     name: { contains: 'John', mode: 'insensitive' },
     age: { gte: 18 },
+    isActive: true,
+  },
+  orderBy: {
+    name: 'asc',
   },
   take: 10,
   skip: 0,
@@ -38,6 +50,84 @@ const query = buildQuery({
 
 const results = await prisma.$queryRaw(query);
 ```
+
+### Complex Example with JSON Filters, Wildcards, and Multiple Sorting
+
+```typescript
+import { PrismaClient } from '@prisma/client';
+import { buildQuery } from '@revisium/prisma-pg-json';
+
+const prisma = new PrismaClient();
+
+const query = buildQuery({
+  tableName: 'products',
+  fieldConfig: {
+    id: 'string',
+    name: 'string',
+    price: 'number',
+    createdAt: 'date',
+    metadata: 'json',
+  },
+  where: {
+    AND: [
+      {
+        price: { gte: 100, lte: 1000 },
+      },
+      {
+        OR: [
+          { name: { contains: 'laptop', mode: 'insensitive' } },
+          {
+            metadata: {
+              path: ['category'],
+              equals: 'Electronics',
+            },
+          },
+        ],
+      },
+      {
+        metadata: {
+          path: ['tags', '*', 'name'],
+          string_contains: 'premium',
+        },
+      },
+      {
+        metadata: {
+          path: ['reviews'],
+          array_contains: { rating: 5 },
+        },
+      },
+    ],
+  },
+  orderBy: [
+    {
+      metadata: {
+        path: ['priority'],
+        direction: 'desc',
+        type: 'int',
+      },
+    },
+    {
+      price: 'asc',
+    },
+    {
+      createdAt: 'desc',
+    },
+  ],
+  take: 20,
+  skip: 0,
+});
+
+const results = await prisma.$queryRaw(query);
+```
+
+This example demonstrates:
+
+- **Multiple filters**: Price range, text search, JSON field matching
+- **Logical operators**: Complex AND/OR combinations
+- **Wildcard paths**: Query nested arrays with `tags[*].name`
+- **Array operations**: Check if array contains specific objects
+- **Multiple sorting**: Sort by JSON field, price, and date with different directions
+- **Type casting**: Cast JSON values to specific PostgreSQL types
 
 ## Development
 
