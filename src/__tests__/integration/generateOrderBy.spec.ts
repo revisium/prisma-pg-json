@@ -22,25 +22,19 @@ describe('generateOrderBy function', () => {
 
     it('should generate ORDER BY for single field ascending', () => {
       const result = generateOrderBy('t', { name: 'asc' }, fieldConfig);
-      expect(result?.sql).toContain('ORDER BY');
-      expect(result?.sql).toContain('t."name"');
-      expect(result?.sql).toContain('ASC');
+      expect(result?.sql).toEqual('ORDER BY t."name" ASC');
     });
 
     it('should generate ORDER BY for single field descending', () => {
       const result = generateOrderBy('t', { name: 'desc' }, fieldConfig);
-      expect(result?.sql).toContain('ORDER BY');
-      expect(result?.sql).toContain('t."name"');
-      expect(result?.sql).toContain('DESC');
+      expect(result?.sql).toEqual('ORDER BY t."name" DESC');
     });
   });
 
   describe('Array format', () => {
     it('should handle array of order conditions', () => {
       const result = generateOrderBy('t', [{ name: 'asc' }, { age: 'desc' }], fieldConfig);
-      expect(result?.sql).toContain('ORDER BY');
-      expect(result?.sql).toContain('t."name" ASC');
-      expect(result?.sql).toContain('t."age" DESC');
+      expect(result?.sql).toEqual('ORDER BY t."name" ASC, t."age" DESC');
     });
 
     it('should handle empty array', () => {
@@ -50,9 +44,7 @@ describe('generateOrderBy function', () => {
 
     it('should skip empty objects in array', () => {
       const result = generateOrderBy('t', [{}, { name: 'asc' }, {}], fieldConfig);
-      expect(result?.sql).toContain('ORDER BY');
-      expect(result?.sql).toContain('t."name" ASC');
-      expect(result?.sql.split(',').length).toBe(1);
+      expect(result?.sql).toEqual('ORDER BY t."name" ASC');
     });
   });
 
@@ -69,10 +61,7 @@ describe('generateOrderBy function', () => {
         },
         fieldConfig,
       );
-      expect(result?.sql).toContain('ORDER BY');
-      expect(result?.sql).toContain('t."data"');
-      expect(result?.sql).toContain('profile,priority');
-      expect(result?.sql).toContain('::int');
+      expect(result?.sql).toEqual('ORDER BY (t."data"#>>\'{profile,priority}\')::int ASC');
     });
 
     it('should handle JSON aggregation in array', () => {
@@ -91,9 +80,12 @@ describe('generateOrderBy function', () => {
         ],
         fieldConfig,
       );
-      expect(result?.sql).toContain('ORDER BY');
-      expect(result?.sql).toContain('t."name" ASC');
-      expect(result?.sql).toContain('MAX');
+      expect(result?.sql).toEqual(
+        'ORDER BY t."name" ASC, (\n' +
+          "      SELECT MAX((elem#>>'{price}')::int)\n" +
+          '      FROM jsonb_array_elements((t."data"#>\'{items}\')::jsonb) AS elem\n' +
+          '    ) DESC',
+      );
     });
   });
 
@@ -114,18 +106,21 @@ describe('generateOrderBy function', () => {
         ],
         fieldConfig,
       );
-      expect(result?.sql).toContain('ORDER BY');
-      expect(result?.sql).toContain('users."name" ASC');
-      expect(result?.sql).toContain('users."age" DESC');
-      expect(result?.sql).toContain('users."data"');
-      expect(result?.sql).toContain('profile,rating');
-      expect(result?.sql).toContain('::float');
+      expect(result?.sql).toEqual(
+        'ORDER BY users."name" ASC, users."age" DESC, (users."data"#>>\'{profile,rating}\')::float DESC',
+      );
     });
   });
 
   describe('Invalid input handling', () => {
     it('should ignore invalid order directions', () => {
-      const result = generateOrderBy('t', { name: 'invalid' as any }, fieldConfig);
+      const result = generateOrderBy(
+        't',
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        { name: 'invalid' },
+        fieldConfig,
+      );
       expect(result).toBeNull();
     });
 
@@ -136,7 +131,7 @@ describe('generateOrderBy function', () => {
           name: {
             path: ['test'],
             direction: 'asc',
-          } as any,
+          },
         },
         fieldConfig,
       );
