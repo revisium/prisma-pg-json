@@ -1,4 +1,14 @@
-# @revisium/prisma-pg-json
+<div align="center">
+
+# Revisium CLI
+
+[![codecov](https://codecov.io/gh/revisium/prisma-pg-json/graph/badge.svg?token=Q798833A3W)](https://codecov.io/gh/revisium/prisma-pg-json)
+[![GitHub License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/revisium/prisma-pg-json/blob/master/LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/revisium/prisma-pg-json)](https://github.com/revisium/prisma-pg-json/releases)
+
+**Command-line interface for managing Revisium projects**
+
+</div>
 
 Type-safe PostgreSQL query builder for Prisma with advanced JSON/JSONB support and complex filtering.
 
