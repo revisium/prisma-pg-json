@@ -6,3 +6,4 @@ export { generateBooleanFilter } from './where/boolean';
 export { generateDateFilter } from './where/date';
 export { generateJsonFilter } from './where/json';
 export { generateOrderBy } from './orderBy';
+export { parseJsonPath, arrayToJsonPath, validateJsonPath } from './utils/parseJsonPath';
