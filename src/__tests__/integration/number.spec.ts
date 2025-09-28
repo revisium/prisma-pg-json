@@ -5,7 +5,13 @@ import { buildQuery } from '../../query-builder';
 
 describe('Number Filters', () => {
   let ids = { 'num-1': '', 'num-2': '', 'num-3': '', 'num-4': '', 'num-5': '' };
-  const fieldConfig = { age: 'number', score: 'number', name: 'string', id: 'string', createdAt: 'date' } as const;
+  const fieldConfig = {
+    age: 'number',
+    score: 'number',
+    name: 'string',
+    id: 'string',
+    createdAt: 'date',
+  } as const;
 
   beforeEach(async () => {
     ids = {

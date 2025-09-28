@@ -54,7 +54,7 @@ export type JsonFilter = {
   lte?: unknown;
   in?: unknown[];
   notIn?: unknown[];
-  array_contains?: unknown;
+  array_contains?: unknown[];
   array_starts_with?: unknown;
   array_ends_with?: unknown;
   mode?: 'default' | 'insensitive';
