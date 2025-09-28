@@ -56,6 +56,8 @@ export function generateWhere(
   return generateWhereClause(where, fieldConfig, tableAlias);
 }
 
+export { generateOrderBy } from './orderBy';
+
 function generateWhereClause(
   where: WhereConditions,
   fieldConfig: FieldConfig,

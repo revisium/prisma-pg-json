@@ -137,6 +137,21 @@ describe('ORDER BY', () => {
   });
 
   describe('Complex Ordering', () => {
+    it('should order by multiple fields using array format', async () => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig: { age: 'number', name: 'string' },
+        orderBy: [{ age: 'asc' }, { name: 'desc' }],
+        where: { age: { gte: 20 } },
+      });
+
+      const results = await prisma.$queryRaw<Array<{ name: string; age: number }>>(query);
+      expect(results.map((r) => ({ name: r.name, age: r.age }))).toEqual([
+        { name: 'Alice', age: 25 },
+        { name: 'Bob', age: 30 },
+      ]);
+    });
+
     it('should order by multiple fields', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
