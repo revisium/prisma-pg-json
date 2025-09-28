@@ -2,9 +2,32 @@ import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
+import { WhereConditionsTyped, OrderByConditions } from '../../../types';
 
 describe('JSON Array Operations', () => {
   let ids: Record<string, string> = {};
+
+  const fieldConfig = {
+    data: 'json',
+    createdAt: 'date',
+  } as const;
+
+  const testQuery = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedIds: string[],
+    orderBy?: OrderByConditions<typeof fieldConfig>,
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      where,
+      orderBy: orderBy || { createdAt: 'asc' },
+    });
+
+    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
+    expect(results.length).toBe(expectedIds.length);
+    expect(results.map((r) => r.id)).toEqual(expectedIds);
+  };
 
   beforeEach(async () => {
     ids = {
@@ -130,182 +153,94 @@ describe('JSON Array Operations', () => {
   });
 
   it('should handle array_contains operations', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['tags'], array_contains: ['typescript'] } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(1);
-
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['tags'], array_contains: ['react'] } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(1);
-
-    const query3 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['scores'], array_contains: [95] } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
-    expect(results3.length).toBe(3);
-
-    const query4 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['scores'], array_contains: [90] } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
-    expect(results4.length).toBe(3);
-
-    const query5 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['scores'], array_contains: [90, 85] } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results5 = await prisma.$queryRaw<{ id: string }[]>(query5);
-    expect(results5.length).toBe(2);
+    await testQuery({ data: { path: ['tags'], array_contains: ['typescript'] } }, [ids.user1]);
+    await testQuery({ data: { path: ['tags'], array_contains: ['react'] } }, [ids.user2]);
+    await testQuery({ data: { path: ['scores'], array_contains: [95] } }, [
+      ids.user1,
+      ids.user3,
+      ids.user5,
+    ]);
+    await testQuery({ data: { path: ['scores'], array_contains: [90] } }, [
+      ids.user1,
+      ids.user2,
+      ids.user3,
+    ]);
+    await testQuery({ data: { path: ['scores'], array_contains: [90, 85] } }, [
+      ids.user1,
+      ids.user2,
+    ]);
   });
 
   it('should handle array_contains with complex objects', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['products'],
           array_contains: [{ name: 'Product A', price: 99.99 }],
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(1);
+      [ids.user1],
+    );
 
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['reviews'],
           array_contains: [{ rating: 4.5, comment: 'Great!' }],
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(1);
+      [ids.user1],
+    );
   });
 
   it('should handle array_starts_with and array_ends_with', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['tags'], array_starts_with: 'admin' } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(3);
-
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['tags'], array_starts_with: 'user' } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(2); // User2, User4
-
-    const query3 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['tags'], array_ends_with: 'express' } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
-    expect(results3.length).toBe(1);
-
-    const query4 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['tags'], array_ends_with: 'react' } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
-    expect(results4.length).toBe(1);
-
-    const query5 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['scores'], array_starts_with: 85 } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results5 = await prisma.$queryRaw<{ id: string }[]>(query5);
-    expect(results5.length).toBe(1);
-
-    const query6 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: { data: { path: ['scores'], array_ends_with: 95 } },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results6 = await prisma.$queryRaw<{ id: string }[]>(query6);
-    expect(results6.length).toBe(2);
+    await testQuery({ data: { path: ['tags'], array_starts_with: 'admin' } }, [
+      ids.user1,
+      ids.user3,
+      ids.user5,
+    ]);
+    await testQuery({ data: { path: ['tags'], array_starts_with: 'user' } }, [
+      ids.user2,
+      ids.user4,
+    ]);
+    await testQuery({ data: { path: ['tags'], array_ends_with: 'express' } }, [ids.user3]);
+    await testQuery({ data: { path: ['tags'], array_ends_with: 'react' } }, [ids.user2]);
+    await testQuery({ data: { path: ['scores'], array_starts_with: 85 } }, [ids.user1]);
+    await testQuery({ data: { path: ['scores'], array_ends_with: 95 } }, [ids.user1, ids.user3]);
   });
 
   it('should handle array operations with case insensitive mode', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['tags'],
           array_contains: ['TYPESCRIPT'],
           mode: 'insensitive',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(1);
+      [ids.user1],
+    );
 
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['tags'],
           array_starts_with: 'Admin',
           mode: 'insensitive',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(3);
+      [ids.user1, ids.user3, ids.user5],
+    );
 
-    const query3 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['tags'],
           array_ends_with: 'EXPRESS',
           mode: 'insensitive',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
-    expect(results3.length).toBe(1);
+      [ids.user3],
+    );
   });
 });

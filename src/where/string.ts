@@ -84,7 +84,6 @@ export function generateStringFilter(
   }
 
   if (filter.search !== undefined) {
-    // PostgreSQL full-text search using to_tsvector and plainto_tsquery
     conditions.push(
       Prisma.sql`to_tsvector('english', ${fieldRef}) @@ plainto_tsquery('english', ${filter.search})`,
     );

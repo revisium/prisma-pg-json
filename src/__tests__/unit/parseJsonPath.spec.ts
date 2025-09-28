@@ -42,9 +42,18 @@ describe('JSON Path Utilities', () => {
         expect(parseJsonPath('items[42].value')).toEqual(['items', '42', 'value']);
       });
 
-      it('should parse negative index', () => {
-        expect(parseJsonPath('items[-1]')).toEqual(['items', '-1']);
-        expect(parseJsonPath('items[-1].name')).toEqual(['items', '-1', 'name']);
+      it('should convert -1 to last', () => {
+        expect(parseJsonPath('items[-1]')).toEqual(['items', 'last']);
+        expect(parseJsonPath('items[-1].name')).toEqual(['items', 'last', 'name']);
+      });
+
+      it('should throw error for other negative indexes', () => {
+        expect(() => parseJsonPath('items[-2]')).toThrow(
+          "Negative index -2 is not supported yet. Only -1 (converted to 'last') is supported.",
+        );
+        expect(() => parseJsonPath('items[-3]')).toThrow(
+          "Negative index -3 is not supported yet. Only -1 (converted to 'last') is supported.",
+        );
       });
 
       it('should parse nested arrays', () => {
@@ -138,9 +147,9 @@ describe('JSON Path Utilities', () => {
       );
     });
 
-    it('should handle negative indices correctly', () => {
-      expect(arrayToJsonPath(['items', '-1'])).toBe('items[-1]');
-      expect(arrayToJsonPath(['items', '-1', 'name'])).toBe('items[-1].name');
+    it('should handle last keyword correctly', () => {
+      expect(arrayToJsonPath(['items', 'last'])).toBe('items[last]');
+      expect(arrayToJsonPath(['items', 'last', 'name'])).toBe('items[last].name');
     });
 
     it('should handle segments with special characters', () => {
@@ -189,8 +198,16 @@ describe('JSON Path Utilities', () => {
 
     it('should handle valid bracket notation', () => {
       expect(validateJsonPath('items[0]')).toEqual({ isValid: true });
-      expect(validateJsonPath('items[-1]')).toEqual({ isValid: true });
+      expect(validateJsonPath('items[-1]')).toEqual({ isValid: true }); // -1 gets converted to 'last'
       expect(validateJsonPath('products[*].tags')).toEqual({ isValid: true });
+    });
+
+    it('should catch error for unsupported negative indexes', () => {
+      const result = validateJsonPath('items[-2]');
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe(
+        "Negative index -2 is not supported yet. Only -1 (converted to 'last') is supported.",
+      );
     });
   });
 });

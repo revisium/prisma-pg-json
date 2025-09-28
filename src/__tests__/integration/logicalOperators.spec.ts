@@ -2,6 +2,7 @@ import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
+import { WhereConditionsTyped } from '../../types';
 
 describe('Logical Operators', () => {
   let ids: Record<string, string> = {};
@@ -14,6 +15,22 @@ describe('Logical Operators', () => {
     name: 'string',
     data: 'json',
   } as const;
+
+  const testQuery = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedIds: string[],
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      orderBy: { createdAt: 'asc' },
+      where,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
+    expect(results.length).toBe(expectedIds.length);
+    expect(results.map((r) => r.id)).toEqual(expectedIds);
+  };
 
   beforeEach(async () => {
     ids = {
@@ -82,27 +99,18 @@ describe('Logical Operators', () => {
 
   describe('AND Logic', () => {
     it('should handle multiple conditions with implicit AND', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           age: { gte: 25 },
           isActive: true,
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(3);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic1, ids.logic3, ids.logic4].sort());
+        [ids.logic1, ids.logic3, ids.logic4],
+      );
     });
 
     it('should handle explicit AND array', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           AND: [
             { age: { gte: 30 } },
             {
@@ -113,19 +121,13 @@ describe('Logical Operators', () => {
             },
           ],
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(1);
-      expect(results.map((r) => r.id)).toEqual([ids.logic3]);
+        [ids.logic3],
+      );
     });
 
     it('should handle nested AND conditions', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           AND: [
             { isActive: true },
             {
@@ -146,36 +148,24 @@ describe('Logical Operators', () => {
             },
           ],
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic1, ids.logic3].sort());
+        [ids.logic1, ids.logic3],
+      );
     });
   });
 
   describe('OR Logic', () => {
     it('should handle OR with different data types', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           OR: [{ age: { lt: 27 } }, { name: 'Bob' }],
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic1, ids.logic2].sort());
+        [ids.logic1, ids.logic2],
+      );
     });
 
     it('should handle OR with string operations', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           OR: [
             { name: { contains: 'ice' } },
             {
@@ -186,71 +176,47 @@ describe('Logical Operators', () => {
             },
           ],
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic1, ids.logic4].sort());
+        [ids.logic1, ids.logic4],
+      );
     });
 
     it('should handle empty OR array', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           name: { contains: 'a' },
           OR: [],
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic3, ids.logic4].sort());
+        [ids.logic3, ids.logic4],
+      );
     });
   });
 
   describe('NOT Logic', () => {
     it('should handle NOT with string operations', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           NOT: {
             name: { contains: 'a' },
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic1, ids.logic2].sort());
+        [ids.logic1, ids.logic2],
+      );
     });
 
     it('should handle NOT with numeric comparisons', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           NOT: {
             age: { gte: 30 },
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic1, ids.logic4].sort());
+        [ids.logic1, ids.logic4],
+      );
     });
 
     it('should handle NOT with JSON filters', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           NOT: {
             data: {
               path: ['department'],
@@ -258,21 +224,15 @@ describe('Logical Operators', () => {
             },
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic2, ids.logic4].sort());
+        [ids.logic2, ids.logic4],
+      );
     });
   });
 
   describe('Complex Logical Combinations', () => {
     it('should handle deeply nested logical combinations', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           AND: [
             {
               OR: [{ age: { lt: 30 } }, { isActive: false }],
@@ -287,19 +247,13 @@ describe('Logical Operators', () => {
             },
           ],
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic1, ids.logic2].sort());
+        [ids.logic1, ids.logic2],
+      );
     });
 
     it('should handle multiple OR conditions with AND', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           isActive: true,
           OR: [
             {
@@ -321,27 +275,16 @@ describe('Logical Operators', () => {
             },
           ],
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic1, ids.logic4].sort());
+        [ids.logic1, ids.logic4],
+      );
     });
 
     it('should handle array of NOT conditions', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where: {
+      await testQuery(
+        {
           NOT: [{ age: { lt: 27 } }, { name: 'Charlie' }],
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(4);
-      expect(results.map((r) => r.id).sort()).toEqual(
-        [ids.logic1, ids.logic2, ids.logic3, ids.logic4].sort(),
+        [ids.logic1, ids.logic2, ids.logic3, ids.logic4],
       );
     });
   });

@@ -2,9 +2,32 @@ import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
+import { WhereConditionsTyped, OrderByConditions } from '../../../types';
 
 describe('Deep Nested JSON Operations', () => {
   let ids: Record<string, string> = {};
+
+  const fieldConfig = {
+    data: 'json',
+    createdAt: 'date',
+  } as const;
+
+  const testQuery = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedIds: string[],
+    orderBy?: OrderByConditions<typeof fieldConfig>,
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      where,
+      orderBy: orderBy || { createdAt: 'asc' },
+    });
+
+    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
+    expect(results.length).toBe(expectedIds.length);
+    expect(results.map((r) => r.id)).toEqual(expectedIds);
+  };
 
   beforeEach(async () => {
     ids = {
@@ -92,156 +115,116 @@ describe('Deep Nested JSON Operations', () => {
   });
 
   it('should handle deeply nested path operations', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'profile', 'name'],
           string_contains: 'Profile',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(5);
+      [ids.user1, ids.user2, ids.user3, ids.user4, ids.user5],
+    );
 
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'profile', 'settings', 'theme'],
           equals: 'dark',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(2);
+      [ids.user1, ids.user3],
+    );
   });
 
   it('should handle nested path with comparisons', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'age'],
           gte: 30,
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(3);
+      [ids.user1, ids.user2, ids.user4],
+    );
   });
 
   it('should handle nested path string operations', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'profile', 'name'],
           string_contains: 'Alice',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(1);
+      [ids.user1],
+    );
 
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'profile', 'name'],
           string_ends_with: 'Profile',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(5);
+      [ids.user1, ids.user2, ids.user3, ids.user4, ids.user5],
+    );
   });
 
   it('should handle multiple levels of nesting with various operators', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'profile', 'settings', 'theme'],
           string_contains: 'dark',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(2);
+      [ids.user1, ids.user3],
+    );
 
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'profile', 'settings', 'theme'],
           not: 'dark',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(3);
+      [ids.user2, ids.user4, ids.user5],
+    );
   });
 
   it('should handle nested numeric fields', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'age'],
           lt: 30,
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(2);
+      [ids.user3, ids.user5],
+    );
 
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'age'],
           gt: 30,
           lt: 40,
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(1);
+      [ids.user1],
+    );
   });
 
   it('should handle nested case insensitive operations', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['user', 'profile', 'settings', 'theme'],
           equals: 'DARK',
           mode: 'insensitive',
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(2);
+      [ids.user1, ids.user3],
+    );
   });
 });

@@ -2,9 +2,55 @@ import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
+import { WhereConditionsTyped } from '../../../types';
 
 describe('Array Contains Multiple Elements', () => {
   let ids: Record<string, string> = {};
+
+  const fieldConfig = {
+    data: 'json',
+    createdAt: 'date',
+  } as const;
+
+  const testQuery = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedIds: string[],
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      where,
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const results = await prisma.$queryRaw<Array<{ id: string; name: string }>>(query);
+    expect(results.length).toBe(expectedIds.length);
+    expect(results.map((r) => r.id)).toEqual(expectedIds);
+    return results;
+  };
+
+
+  const testQueryWithNames = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedNames: string[],
+  ) => {
+    const expectedIds = expectedNames.map((name) => {
+      const testKey = name.toLowerCase().replace(' ', '');
+      return ids[testKey];
+    });
+    const results = await testQuery(where, expectedIds);
+    expect(results.map((r) => r.name)).toEqual(expectedNames);
+  };
+
+  const testQueryWithSingleName = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedName: string,
+  ) => {
+    const testKey = expectedName.toLowerCase().replace(' ', '');
+    const expectedId = ids[testKey];
+    const results = await testQuery(where, [expectedId]);
+    expect(results[0].name).toBe(expectedName);
+  };
 
   beforeEach(async () => {
     ids = {
@@ -24,6 +70,7 @@ describe('Array Contains Multiple Elements', () => {
             tags: ['admin', 'user', 'typescript'],
             scores: [85, 90, 95],
           },
+          createdAt: new Date('2025-01-01T00:00:00.000Z'),
         },
         {
           id: ids.test2,
@@ -32,6 +79,7 @@ describe('Array Contains Multiple Elements', () => {
             tags: ['admin', 'moderator'],
             scores: [90, 95],
           },
+          createdAt: new Date('2025-01-02T00:00:00.000Z'),
         },
         {
           id: ids.test3,
@@ -40,6 +88,7 @@ describe('Array Contains Multiple Elements', () => {
             tags: ['user', 'typescript'],
             scores: [85, 100],
           },
+          createdAt: new Date('2025-01-03T00:00:00.000Z'),
         },
         {
           id: ids.test4,
@@ -48,6 +97,7 @@ describe('Array Contains Multiple Elements', () => {
             tags: ['admin'],
             scores: [75, 80],
           },
+          createdAt: new Date('2025-01-04T00:00:00.000Z'),
         },
         {
           id: ids.test5,
@@ -61,6 +111,7 @@ describe('Array Contains Multiple Elements', () => {
               ],
             },
           },
+          createdAt: new Date('2025-01-05T00:00:00.000Z'),
         },
       ],
     });
@@ -68,132 +119,96 @@ describe('Array Contains Multiple Elements', () => {
 
   describe('Single element', () => {
     it('should find records with array containing one string element', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithNames(
+        {
           data: {
             path: ['tags'],
             array_contains: ['typescript'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.name).sort()).toEqual(['Test 1', 'Test 3']);
+        ['Test 1', 'Test 3'],
+      );
     });
 
     it('should find records with array containing one number element', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithSingleName(
+        {
           data: {
             path: ['scores'],
             array_contains: [100],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(1);
-      expect(results[0].name).toBe('Test 3');
+        'Test 3',
+      );
     });
   });
 
   describe('Multiple elements (AND logic)', () => {
     it('should find records with array containing ALL specified string elements', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithSingleName(
+        {
           data: {
             path: ['tags'],
             array_contains: ['admin', 'user'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(1);
-      expect(results[0].name).toBe('Test 1');
+        'Test 1',
+      );
     });
 
     it('should find records with array containing ALL specified number elements', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithNames(
+        {
           data: {
             path: ['scores'],
             array_contains: [90, 95],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.name).sort()).toEqual(['Test 1', 'Test 2']);
+        ['Test 1', 'Test 2'],
+      );
     });
 
     it('should find records with array containing ALL three elements', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithSingleName(
+        {
           data: {
             path: ['tags'],
             array_contains: ['admin', 'user', 'typescript'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(1);
-      expect(results[0].name).toBe('Test 1');
+        'Test 1',
+      );
     });
 
     it('should return empty when not all elements are present', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQuery(
+        {
           data: {
             path: ['tags'],
             array_contains: ['admin', 'nonexistent'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(0);
+        [],
+      );
     });
   });
 
   describe('Nested arrays (array as element)', () => {
     it('should find records where array contains another array as element', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithSingleName(
+        {
           data: {
             path: ['nested', 'items'],
             array_contains: [[1, 2]],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(1);
-      expect(results[0].name).toBe('Test 5');
+        'Test 5',
+      );
     });
 
     it('should find records where array contains multiple arrays as elements', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithSingleName(
+        {
           data: {
             path: ['nested', 'items'],
             array_contains: [
@@ -202,47 +217,35 @@ describe('Array Contains Multiple Elements', () => {
             ],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(1);
-      expect(results[0].name).toBe('Test 5');
+        'Test 5',
+      );
     });
 
     it('should return empty when nested array element not found', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQuery(
+        {
           data: {
             path: ['nested', 'items'],
             array_contains: [[7, 8]],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(0);
+        [],
+      );
     });
   });
 
   describe('Case insensitive mode', () => {
     it('should support case insensitive search for single element', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithNames(
+        {
           data: {
             path: ['tags'],
             array_contains: ['TYPESCRIPT'],
             mode: 'insensitive',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.name).sort()).toEqual(['Test 1', 'Test 3']);
+        ['Test 1', 'Test 3'],
+      );
     });
 
     it('should handle values with single quotes (SQL injection protection)', async () => {
@@ -255,12 +258,13 @@ describe('Array Contains Multiple Elements', () => {
           data: {
             tags: ["admin's tag", 'user'],
           },
+          createdAt: new Date('2025-01-01T00:00:00.000Z'),
         },
       });
 
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig,
         where: {
           data: {
             path: ['tags'],
@@ -270,8 +274,9 @@ describe('Array Contains Multiple Elements', () => {
         },
       });
 
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
+      const results = await prisma.$queryRaw<Array<{ id: string; name: string }>>(query);
       expect(results.length).toBe(1);
+      expect(results[0].id).toBe(testId);
       expect(results[0].name).toBe('Test with quote');
     });
 
@@ -314,6 +319,7 @@ describe('Array Contains Multiple Elements', () => {
                 ],
               },
             },
+            createdAt: new Date('2025-01-01T00:00:00.000Z'),
           },
           {
             id: ids.quest2,
@@ -323,6 +329,7 @@ describe('Array Contains Multiple Elements', () => {
                 items: [{ item_id: 'staff', tags: ['weapon', 'magic'] }],
               },
             },
+            createdAt: new Date('2025-01-02T00:00:00.000Z'),
           },
           {
             id: ids.quest3,
@@ -332,162 +339,120 @@ describe('Array Contains Multiple Elements', () => {
                 items: [{ item_id: 'potion', tags: ['consumable', 'healing'] }],
               },
             },
+            createdAt: new Date('2025-01-03T00:00:00.000Z'),
           },
         ],
       });
     });
 
     it('should find with wildcard and single element', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithNames(
+        {
           data: {
             path: ['rewards', 'items', '*', 'tags'],
             array_contains: ['weapon'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.name).sort()).toEqual(['Quest 1', 'Quest 2']);
+        ['Quest 1', 'Quest 2'],
+      );
     });
 
     it('should find with wildcard and multiple elements', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithSingleName(
+        {
           data: {
             path: ['rewards', 'items', '*', 'tags'],
             array_contains: ['weapon', 'melee'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(1);
-      expect(results[0].name).toBe('Quest 1');
+        'Quest 1',
+      );
     });
   });
 
   describe('Edge cases', () => {
     it('should find array containing elements plus additional items', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithSingleName(
+        {
           data: {
             path: ['tags'],
             array_contains: ['admin', 'user'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(1);
-      expect(results[0].name).toBe('Test 1');
+        'Test 1',
+      );
     });
 
     it('should find regardless of element order in search', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithSingleName(
+        {
           data: {
             path: ['tags'],
             array_contains: ['user', 'admin'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(1);
-      expect(results[0].name).toBe('Test 1');
+        'Test 1',
+      );
     });
 
     it('should find array with exact elements', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithSingleName(
+        {
           data: {
             path: ['tags'],
             array_contains: ['admin', 'moderator'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(1);
-      expect(results[0].name).toBe('Test 2');
+        'Test 2',
+      );
     });
 
     it('should return empty when one element is missing', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQuery(
+        {
           data: {
             path: ['tags'],
             array_contains: ['admin', 'moderator', 'typescript'],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(0);
+        [],
+      );
     });
 
     it('should work with numbers regardless of order', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithNames(
+        {
           data: {
             path: ['scores'],
             array_contains: [95, 90],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.name).sort()).toEqual(['Test 1', 'Test 2']);
+        ['Test 1', 'Test 2'],
+      );
     });
 
     it('should find superset arrays', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQueryWithNames(
+        {
           data: {
             path: ['scores'],
             array_contains: [85],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.name).sort()).toEqual(['Test 1', 'Test 3']);
+        ['Test 1', 'Test 3'],
+      );
     });
 
     it('should not find subset arrays', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
+      await testQuery(
+        {
           data: {
             path: ['scores'],
             array_contains: [75, 80, 85, 90],
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
-      expect(results.length).toBe(0);
+        [],
+      );
     });
   });
 
@@ -505,7 +470,7 @@ describe('Array Contains Multiple Elements', () => {
             },
           },
         });
-      }).toThrow('processArrayContains: value must be an array');
+      }).toThrow('array_contains value must be an array');
     });
 
     it('should throw error when array_contains receives empty array', async () => {
@@ -520,7 +485,7 @@ describe('Array Contains Multiple Elements', () => {
             },
           },
         });
-      }).toThrow('processArrayContains: value array cannot be empty');
+      }).toThrow('array_contains requires a non-empty array value');
     });
   });
 });

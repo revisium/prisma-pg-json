@@ -2,6 +2,7 @@ import './setup';
 import { nanoid } from 'nanoid';
 import { prisma } from './setup';
 import { buildQuery } from '../../query-builder';
+import { WhereConditionsTyped } from '../../types';
 
 describe('Number Filters', () => {
   let ids = { 'num-1': '', 'num-2': '', 'num-3': '', 'num-4': '', 'num-5': '' };
@@ -12,6 +13,22 @@ describe('Number Filters', () => {
     id: 'string',
     createdAt: 'date',
   } as const;
+
+  const testQuery = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedIds: string[],
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      orderBy: { createdAt: 'asc' },
+      where,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
+    expect(results.length).toBe(expectedIds.length);
+    expect(results.map((r) => r.id)).toEqual(expectedIds);
+  };
 
   beforeEach(async () => {
     ids = {
@@ -69,183 +86,68 @@ describe('Number Filters', () => {
   });
 
   it('should filter by exact number', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { age: 30 },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(1);
-    expect(results.map((r) => r.id)).toEqual([ids['num-2']]);
+    await testQuery({ age: 30 }, [ids['num-2']]);
   });
 
   it('should filter by equals operator', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { age: { equals: 25 } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(1);
-    expect(results.map((r) => r.id)).toEqual([ids['num-1']]);
+    await testQuery({ age: { equals: 25 } }, [ids['num-1']]);
   });
 
   it('should filter by greater than', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string', createdAt: 'date' },
-      orderBy: { createdAt: 'asc' },
-      where: { age: { gt: 30 } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(1);
-    expect(results.map((r) => r.id)).toEqual([ids['num-4']]);
+    await testQuery({ age: { gt: 30 } }, [ids['num-4']]);
   });
 
   it('should filter by greater than or equal', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { age: { gte: 30 } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(2);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['num-2'], ids['num-4']].sort());
+    await testQuery({ age: { gte: 30 } }, [ids['num-2'], ids['num-4']]);
   });
 
   it('should filter by less than', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { age: { lt: 30 } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(2);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['num-1'], ids['num-3']].sort());
+    await testQuery({ age: { lt: 30 } }, [ids['num-1'], ids['num-3']]);
   });
 
   it('should filter by less than or equal', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { age: { lte: 30 } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(3);
-    expect(results.map((r) => r.id).sort()).toEqual(
-      [ids['num-1'], ids['num-2'], ids['num-3']].sort(),
-    );
+    await testQuery({ age: { lte: 30 } }, [ids['num-1'], ids['num-2'], ids['num-3']]);
   });
 
   it('should filter by range (gte and lte)', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: {
+    await testQuery(
+      {
         age: {
           gte: 20,
           lte: 35,
         },
       },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(2);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['num-1'], ids['num-2']].sort());
+      [ids['num-1'], ids['num-2']],
+    );
   });
 
   it('should filter by in operator', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { age: { in: [18, 30, 45] } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(3);
-    expect(results.map((r) => r.id).sort()).toEqual(
-      [ids['num-2'], ids['num-3'], ids['num-4']].sort(),
-    );
+    await testQuery({ age: { in: [18, 30, 45] } }, [ids['num-2'], ids['num-3'], ids['num-4']]);
   });
 
   it('should filter by notIn operator', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { age: { notIn: [18, 45] } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(2);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['num-1'], ids['num-2']].sort());
+    await testQuery({ age: { notIn: [18, 45] } }, [ids['num-1'], ids['num-2']]);
   });
 
   it('should filter by not equals', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { age: { not: 30 } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(3);
-    expect(results.map((r) => r.id).sort()).toEqual(
-      [ids['num-1'], ids['num-3'], ids['num-4']].sort(),
-    );
+    await testQuery({ age: { not: 30 } }, [ids['num-1'], ids['num-3'], ids['num-4']]);
   });
 
   it('should filter by not filter object', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { age: { not: { gte: 30 } } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(2);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['num-1'], ids['num-3']].sort());
+    await testQuery({ age: { not: { gte: 30 } } }, [ids['num-1'], ids['num-3']]);
   });
 
   it('should filter float numbers', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { score: { gte: 90.0 } },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(2);
+    await testQuery({ score: { gte: 90.0 } }, [ids['num-2'], ids['num-4']]);
   });
 
   it('should combine number filters with other filters', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      where: {
+    await testQuery(
+      {
         name: { contains: 'e' },
         age: { gte: 20 },
       },
-    });
-
-    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-    expect(results.length).toBe(1);
-    expect(results.map((r) => r.id)).toEqual([ids['num-1']]);
+      [ids['num-1']],
+    );
   });
 });

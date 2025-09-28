@@ -2,6 +2,7 @@ import './setup';
 import { nanoid } from 'nanoid';
 import { prisma } from './setup';
 import { buildQuery } from '../../query-builder';
+import { WhereConditionsTyped } from '../../types';
 
 describe('Boolean Filters', () => {
   let ids = {
@@ -18,6 +19,23 @@ describe('Boolean Filters', () => {
     createdAt: 'date',
     name: 'string',
   } as const;
+
+  const testQuery = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedIds: string[],
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      orderBy: { createdAt: 'asc' },
+      where,
+    });
+
+    const results = await prisma.$queryRaw<{ id: string }[]>(query);
+    expect(results.length).toBe(expectedIds.length);
+    expect(results.map((r) => r.id)).toEqual(expectedIds);
+  };
+
 
   beforeEach(async () => {
     ids = {
@@ -70,123 +88,53 @@ describe('Boolean Filters', () => {
   });
 
   it('should filter by true value', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { isActive: true },
-    });
-
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(2);
-    expect(results.map((r) => r.id)).toEqual([ids['bool-1'], ids['bool-2']]);
+    await testQuery({ isActive: true }, [ids['bool-1'], ids['bool-2']]);
   });
 
   it('should filter by false value', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { isActive: false },
-    });
-
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(3);
-    expect(results.map((r) => r.id)).toEqual([ids['bool-3'], ids['bool-4'], ids['bool-5']]);
+    await testQuery({ isActive: false }, [ids['bool-3'], ids['bool-4'], ids['bool-5']]);
   });
 
   it('should filter by equals true', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { isActive: { equals: true } },
-    });
-
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(2);
-    expect(results.map((r) => r.id)).toEqual([ids['bool-1'], ids['bool-2']]);
+    await testQuery({ isActive: { equals: true } }, [ids['bool-1'], ids['bool-2']]);
   });
 
   it('should filter by equals false', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { isActive: { equals: false } },
-    });
-
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(3);
-    expect(results.map((r) => r.id)).toEqual([ids['bool-3'], ids['bool-4'], ids['bool-5']]);
+    await testQuery({ isActive: { equals: false } }, [ids['bool-3'], ids['bool-4'], ids['bool-5']]);
   });
 
   it('should filter by not true', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { isActive: { not: true } },
-    });
-
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(3);
-    expect(results.map((r) => r.id)).toEqual([ids['bool-3'], ids['bool-4'], ids['bool-5']]);
+    await testQuery({ isActive: { not: true } }, [ids['bool-3'], ids['bool-4'], ids['bool-5']]);
   });
 
   it('should filter by not false', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { isActive: { not: false } },
-    });
-
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(2);
-    expect(results.map((r) => r.id)).toEqual([ids['bool-1'], ids['bool-2']]);
+    await testQuery({ isActive: { not: false } }, [ids['bool-1'], ids['bool-2']]);
   });
 
   it('should filter by not equals filter', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: { isActive: { not: { equals: true } } },
-    });
-
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(3);
-    expect(results.map((r) => r.id)).toEqual([ids['bool-3'], ids['bool-4'], ids['bool-5']]);
+    await testQuery({ isActive: { not: { equals: true } } }, [
+      ids['bool-3'],
+      ids['bool-4'],
+      ids['bool-5'],
+    ]);
   });
 
   it('should combine with AND operator', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      where: {
+    await testQuery(
+      {
         AND: [{ isActive: true }, { name: { contains: 'User 1' } }],
       },
-    });
-
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(1);
-    expect(results.map((r) => r.id)).toEqual([ids['bool-1']]);
+      [ids['bool-1']],
+    );
   });
 
   it('should combine with OR operator', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig,
-      orderBy: { createdAt: 'asc' },
-      where: {
+    await testQuery(
+      {
         isActive: false,
         OR: [{ name: { contains: 'User 1' } }, { name: { contains: 'User 2' } }],
       },
-    });
-
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(2);
-    expect(results.map((r) => r.id)).toEqual([ids['bool-3'], ids['bool-4']]);
+      [ids['bool-3'], ids['bool-4']],
+    );
   });
 });

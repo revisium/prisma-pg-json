@@ -1,31 +1,89 @@
 /**
- * Parse JSON Path string or array into normalized array format
+ * Convert path to PostgreSQL JSON Path format
  *
  * @param path - JSON path as string or array
- * @returns Normalized path array
+ * @returns PostgreSQL JSON Path string ($.path.format)
  *
  * @example
- * parseJsonPath('user.profile.email') // ['user', 'profile', 'email']
- * parseJsonPath('items[0].name') // ['items', '0', 'name']
- * parseJsonPath('products[*].tags') // ['products', '*', 'tags']
- * parseJsonPath(['user', 'email']) // ['user', 'email'] (unchanged)
+ * convertToJsonPath('user.profile.email') // '$.user.profile.email'
+ * convertToJsonPath('items[0].name') // '$.items[0].name'
+ * convertToJsonPath('products[*].tags') // '$.products[*].tags'
+ * convertToJsonPath(['user', 'email']) // '$.user.email'
+ * convertToJsonPath(['items', '0', 'name']) // '$.items[0].name'
+ * convertToJsonPath(['products', '*', 'tags']) // '$.products[*].tags'
  */
-export function parseJsonPath(path: string | string[]): string[] {
-  if (Array.isArray(path)) {
-    return path;
+export function convertToJsonPath(path: string | string[]): string {
+  let normalizedPath: string[];
+
+  if (typeof path === 'string') {
+    if (path.startsWith('$.')) {
+      return path;
+    }
+
+    if (!path || path.trim() === '') {
+      throw new Error('JSON path cannot be empty');
+    }
+
+    if (path === '$') {
+      throw new Error('Root path $ is not supported');
+    }
+
+    normalizedPath = parseStringPath(path);
+  } else {
+    normalizedPath = path.map((segment) => {
+      if (typeof segment === 'string' && /^-\d+$/.test(segment)) {
+        const index = parseInt(segment, 10);
+        if (index === -1) {
+          return 'last';
+        } else {
+          throw new Error(
+            `Negative index ${index} is not supported yet. Only -1 (converted to 'last') is supported.`,
+          );
+        }
+      }
+      return segment;
+    });
   }
 
-  if (!path || path.trim() === '') {
+  if (normalizedPath.length === 0) {
     throw new Error('JSON path cannot be empty');
   }
 
-  let normalizedPath = path;
+  return (
+    '$.' +
+    normalizedPath
+      .map((segment) => {
+        if (segment === '*') {
+          return '[*]';
+        }
+        if (segment === 'last') {
+          return '[last]';
+        }
+        if (/^-?\d+$/.test(segment)) {
+          return `[${segment}]`;
+        }
+        return segment;
+      })
+      .join('.')
+      .replace(/\.\[/g, '[')
+  ); // Fix .[ to [
+}
 
-  if (normalizedPath.startsWith('$.')) {
-    normalizedPath = normalizedPath.substring(2);
-  } else if (normalizedPath === '$') {
+function parseStringPath(path: string): string[] {
+  if (!path || typeof path !== 'string') {
+    throw new Error('JSON path cannot be empty');
+  }
+
+  const trimmedPath = path.trim();
+  if (!trimmedPath) {
+    throw new Error('JSON path cannot be empty');
+  }
+
+  if (trimmedPath === '$') {
     throw new Error('Root path $ is not supported');
   }
+
+  const normalizedPath = trimmedPath.startsWith('$.') ? trimmedPath.substring(2) : trimmedPath;
 
   if (!normalizedPath.includes('.') && !normalizedPath.includes('[')) {
     return [normalizedPath];
@@ -48,10 +106,15 @@ export function parseJsonPath(path: string | string[]): string[] {
       bracketContent = '';
     } else if (char === ']') {
       if (inBrackets) {
-        if (bracketContent === '-1') {
-          pathParts.push('-1');
-        } else if (bracketContent === '*') {
-          pathParts.push('*');
+        if (/^-\d+$/.test(bracketContent)) {
+          const index = parseInt(bracketContent, 10);
+          if (index === -1) {
+            pathParts.push('last');
+          } else {
+            throw new Error(
+              `Negative index ${index} is not supported yet. Only -1 (converted to 'last') is supported.`,
+            );
+          }
         } else {
           pathParts.push(bracketContent);
         }
@@ -72,7 +135,6 @@ export function parseJsonPath(path: string | string[]): string[] {
     }
   }
 
-  // Check for unclosed brackets
   if (inBrackets) {
     throw new Error('Unclosed bracket in JSON path');
   }
@@ -84,30 +146,19 @@ export function parseJsonPath(path: string | string[]): string[] {
   return pathParts;
 }
 
-/**
- * Convert array path back to JSON Path string format
- *
- * @param pathArray - Array of path segments
- * @returns JSON path string
- *
- * @example
- * arrayToJsonPath(['user', 'email']) // 'user.email'
- * arrayToJsonPath(['items', '0', 'name']) // 'items[0].name'
- * arrayToJsonPath(['products', '*', 'tags']) // 'products[*].tags'
- * arrayToJsonPath(['items', '-1']) // 'items[-1]'
- */
+export function parseJsonPath(path: string | string[]): string[] {
+  if (Array.isArray(path)) {
+    return path;
+  }
+  return parseStringPath(path);
+}
+
 export function arrayToJsonPath(pathArray: string[]): string {
   return pathArray
     .map((segment) => {
-      // Handle numeric indices (including negative)
-      if (/^-?\d+$/.test(segment)) {
-        return `[${segment}]`;
-      }
-      // Handle wildcards
-      if (segment === '*') {
-        return '[*]';
-      }
-      // Handle segments that need bracket notation (contain dots, brackets, or quotes)
+      if (segment === '*') return '[*]';
+      if (segment === 'last') return '[last]';
+      if (/^-?\d+$/.test(segment)) return `[${segment}]`;
       if (
         segment.includes('.') ||
         segment.includes('[') ||

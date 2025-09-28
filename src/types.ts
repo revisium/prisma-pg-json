@@ -58,7 +58,6 @@ export type JsonFilter = {
   array_starts_with?: unknown;
   array_ends_with?: unknown;
   mode?: 'default' | 'insensitive';
-  [key: string]: unknown; // Allow dynamic property access
 };
 
 export type FieldFilterType<T extends FieldType> = T extends 'string'
