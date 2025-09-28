@@ -104,9 +104,10 @@ function processAggregation(
     const aggregationFunc = aggregation.toUpperCase();
     const basePathSql = `{${basePath.join(',')}}`;
 
-    const elemAccess = subPath.length > 0
-      ? Prisma.sql`elem#>>'{${Prisma.raw(subPath.join(','))}}'`
-      : Prisma.sql`elem`;
+    const elemAccess =
+      subPath.length > 0
+        ? Prisma.sql`elem#>>'{${Prisma.raw(subPath.join(','))}}'`
+        : Prisma.sql`elem`;
 
     return Prisma.sql`(
       SELECT ${Prisma.raw(aggregationFunc)}((${elemAccess})::${Prisma.raw(type)})

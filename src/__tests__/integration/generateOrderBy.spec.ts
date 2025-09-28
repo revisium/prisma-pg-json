@@ -32,7 +32,11 @@ describe('generateOrderBy function', () => {
 
   describe('Array format', () => {
     it('should handle array of order conditions', () => {
-      const result = generateOrderBy({ tableAlias: 't', orderBy: [{ name: 'asc' }, { age: 'desc' }], fieldConfig });
+      const result = generateOrderBy({
+        tableAlias: 't',
+        orderBy: [{ name: 'asc' }, { age: 'desc' }],
+        fieldConfig,
+      });
       expect(result?.sql).toEqual('ORDER BY t."name" ASC, t."age" DESC');
     });
 
@@ -42,7 +46,11 @@ describe('generateOrderBy function', () => {
     });
 
     it('should skip empty objects in array', () => {
-      const result = generateOrderBy({ tableAlias: 't', orderBy: [{}, { name: 'asc' }, {}], fieldConfig });
+      const result = generateOrderBy({
+        tableAlias: 't',
+        orderBy: [{}, { name: 'asc' }, {}],
+        fieldConfig,
+      });
       expect(result?.sql).toEqual('ORDER BY t."name" ASC');
     });
   });
@@ -159,19 +167,31 @@ describe('generateOrderByClauses function', () => {
     });
 
     it('should generate clauses for single field ascending', () => {
-      const result = generateOrderByClauses({ tableAlias: 't', orderBy: { name: 'asc' }, fieldConfig });
+      const result = generateOrderByClauses({
+        tableAlias: 't',
+        orderBy: { name: 'asc' },
+        fieldConfig,
+      });
       expect(result?.sql).toEqual('t."name" ASC');
     });
 
     it('should generate clauses for single field descending', () => {
-      const result = generateOrderByClauses({ tableAlias: 't', orderBy: { name: 'desc' }, fieldConfig });
+      const result = generateOrderByClauses({
+        tableAlias: 't',
+        orderBy: { name: 'desc' },
+        fieldConfig,
+      });
       expect(result?.sql).toEqual('t."name" DESC');
     });
   });
 
   describe('Array format', () => {
     it('should handle array of order conditions', () => {
-      const result = generateOrderByClauses({ tableAlias: 't', orderBy: [{ name: 'asc' }, { age: 'desc' }], fieldConfig });
+      const result = generateOrderByClauses({
+        tableAlias: 't',
+        orderBy: [{ name: 'asc' }, { age: 'desc' }],
+        fieldConfig,
+      });
       expect(result?.sql).toEqual('t."name" ASC, t."age" DESC');
     });
 
@@ -181,7 +201,11 @@ describe('generateOrderByClauses function', () => {
     });
 
     it('should skip empty objects in array', () => {
-      const result = generateOrderByClauses({ tableAlias: 't', orderBy: [{}, { name: 'asc' }, {}], fieldConfig });
+      const result = generateOrderByClauses({
+        tableAlias: 't',
+        orderBy: [{}, { name: 'asc' }, {}],
+        fieldConfig,
+      });
       expect(result?.sql).toEqual('t."name" ASC');
     });
   });

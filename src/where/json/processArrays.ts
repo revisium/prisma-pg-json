@@ -21,7 +21,11 @@ export function processIn(
   return Prisma.sql`(${Prisma.join(conditions, ' OR ')})`;
 }
 
-export function processNotIn(jsonbPath: Prisma.Sql, values: unknown[], _path: string[]): Prisma.Sql {
+export function processNotIn(
+  jsonbPath: Prisma.Sql,
+  values: unknown[],
+  _path: string[],
+): Prisma.Sql {
   if (values.length === 0) {
     return Prisma.sql`TRUE`;
   }
