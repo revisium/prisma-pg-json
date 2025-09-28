@@ -1,10 +1,20 @@
 import './setup';
+import { FieldConfig } from '../../types';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
 
 describe('Logical Operators', () => {
   let ids: Record<string, string> = {};
+
+  const fieldConfig: FieldConfig = {
+    isActive: 'boolean',
+    id: 'string',
+    createdAt: 'date',
+    age: 'number',
+    name: 'string',
+    data: 'json',
+  };
 
   beforeEach(async () => {
     ids = {
@@ -75,7 +85,7 @@ describe('Logical Operators', () => {
     it('should handle multiple conditions with implicit AND', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { age: 'number', isActive: 'boolean', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           age: { gte: 25 },
@@ -91,7 +101,7 @@ describe('Logical Operators', () => {
     it('should handle explicit AND array', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { age: 'number', data: 'json', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           AND: [
@@ -114,7 +124,7 @@ describe('Logical Operators', () => {
     it('should handle nested AND conditions', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json', isActive: 'boolean', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           AND: [
@@ -149,7 +159,7 @@ describe('Logical Operators', () => {
     it('should handle OR with different data types', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { age: 'number', name: 'string', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           OR: [{ age: { lt: 27 } }, { name: 'Bob' }],
@@ -164,7 +174,7 @@ describe('Logical Operators', () => {
     it('should handle OR with string operations', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { name: 'string', data: 'json', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           OR: [
@@ -187,7 +197,7 @@ describe('Logical Operators', () => {
     it('should handle empty OR array', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { name: 'string', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           name: { contains: 'a' },
@@ -205,7 +215,7 @@ describe('Logical Operators', () => {
     it('should handle NOT with string operations', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { name: 'string', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           NOT: {
@@ -222,7 +232,7 @@ describe('Logical Operators', () => {
     it('should handle NOT with numeric comparisons', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { age: 'number', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           NOT: {
@@ -239,7 +249,7 @@ describe('Logical Operators', () => {
     it('should handle NOT with JSON filters', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           NOT: {
@@ -261,7 +271,7 @@ describe('Logical Operators', () => {
     it('should handle deeply nested logical combinations', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { age: 'number', isActive: 'boolean', data: 'json', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           AND: [
@@ -288,7 +298,7 @@ describe('Logical Operators', () => {
     it('should handle multiple OR conditions with AND', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { name: 'string', data: 'json', isActive: 'boolean', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           isActive: true,
@@ -322,7 +332,7 @@ describe('Logical Operators', () => {
     it('should handle array of NOT conditions', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { age: 'number', name: 'string', id: 'string' },
+        fieldConfig,
         orderBy: { createdAt: 'asc' },
         where: {
           NOT: [{ age: { lt: 27 } }, { name: 'Charlie' }],
@@ -331,7 +341,9 @@ describe('Logical Operators', () => {
 
       const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
       expect(results.length).toBe(4);
-      expect(results.map((r) => r.id).sort()).toEqual([ids.logic1, ids.logic2, ids.logic3, ids.logic4].sort());
+      expect(results.map((r) => r.id).sort()).toEqual(
+        [ids.logic1, ids.logic2, ids.logic3, ids.logic4].sort(),
+      );
     });
   });
 });

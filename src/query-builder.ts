@@ -9,7 +9,9 @@ import { generateOrderBy } from './orderBy';
 
 const DEFAULT_FIELD_CONFIG: FieldConfig = {};
 
-export function buildQuery(options: QueryBuilderOptions): Prisma.Sql {
+export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
+  options: QueryBuilderOptions<TConfig>,
+): Prisma.Sql {
   const {
     tableName,
     tableAlias = tableName.substring(0, 1),

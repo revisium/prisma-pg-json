@@ -1,10 +1,12 @@
 import './setup';
 import { nanoid } from 'nanoid';
+import { FieldConfig } from '../../types';
 import { prisma } from './setup';
 import { buildQuery } from '../../query-builder';
 
 describe('Number Filters', () => {
   let ids = { 'num-1': '', 'num-2': '', 'num-3': '', 'num-4': '', 'num-5': '' };
+  const fieldConfig: FieldConfig = { age: 'number', id: 'string', createdAt: 'date' };
 
   beforeEach(async () => {
     ids = {
@@ -64,7 +66,7 @@ describe('Number Filters', () => {
   it('should filter by exact number', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { age: 30 },
     });
@@ -77,7 +79,7 @@ describe('Number Filters', () => {
   it('should filter by equals operator', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { age: { equals: 25 } },
     });
@@ -90,7 +92,7 @@ describe('Number Filters', () => {
   it('should filter by greater than', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig: { age: 'number', id: 'string', createdAt: 'date' },
       orderBy: { createdAt: 'asc' },
       where: { age: { gt: 30 } },
     });
@@ -103,7 +105,7 @@ describe('Number Filters', () => {
   it('should filter by greater than or equal', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { age: { gte: 30 } },
     });
@@ -116,7 +118,7 @@ describe('Number Filters', () => {
   it('should filter by less than', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { age: { lt: 30 } },
     });
@@ -129,7 +131,7 @@ describe('Number Filters', () => {
   it('should filter by less than or equal', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { age: { lte: 30 } },
     });
@@ -144,7 +146,7 @@ describe('Number Filters', () => {
   it('should filter by range (gte and lte)', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         age: {
@@ -162,7 +164,7 @@ describe('Number Filters', () => {
   it('should filter by in operator', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { age: { in: [18, 30, 45] } },
     });
@@ -177,7 +179,7 @@ describe('Number Filters', () => {
   it('should filter by notIn operator', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { age: { notIn: [18, 45] } },
     });
@@ -190,7 +192,7 @@ describe('Number Filters', () => {
   it('should filter by not equals', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { age: { not: 30 } },
     });
@@ -205,7 +207,7 @@ describe('Number Filters', () => {
   it('should filter by not filter object', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { age: { not: { gte: 30 } } },
     });
@@ -218,7 +220,7 @@ describe('Number Filters', () => {
   it('should filter float numbers', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { score: 'number', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { score: { gte: 90.0 } },
     });
@@ -230,7 +232,7 @@ describe('Number Filters', () => {
   it('should combine number filters with other filters', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { age: 'number', name: 'string' },
+      fieldConfig,
       where: {
         name: { contains: 'e' },
         age: { gte: 20 },
