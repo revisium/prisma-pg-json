@@ -392,6 +392,7 @@ describe('JSON Filters Integration', () => {
               nestedArrays: [['nested1', 'nested2']],
               mixedArray: [1, 'string', { key: 'value' }],
             },
+            createdAt: new Date('2025-01-01T00:00:00.000Z'),
           },
           {
             id: ids.user2,
@@ -407,6 +408,7 @@ describe('JSON Filters Integration', () => {
                 },
               ],
             },
+            createdAt: new Date('2025-01-02T00:00:00.000Z'),
           },
           {
             id: ids.user3,
@@ -422,6 +424,7 @@ describe('JSON Filters Integration', () => {
                 },
               ],
             },
+            createdAt: new Date('2025-01-03T00:00:00.000Z'),
           },
           {
             id: ids.user4,
@@ -437,6 +440,7 @@ describe('JSON Filters Integration', () => {
                 },
               ],
             },
+            createdAt: new Date('2025-01-04T00:00:00.000Z'),
           },
           {
             id: ids.user5,
@@ -452,6 +456,7 @@ describe('JSON Filters Integration', () => {
                 },
               ],
             },
+            createdAt: new Date('2025-01-05T00:00:00.000Z'),
           },
         ],
       });
@@ -460,32 +465,36 @@ describe('JSON Filters Integration', () => {
     it('should handle array_contains operations', async () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['tags'], array_contains: 'typescript' } },
+        orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['tags'], array_contains: 'react' } },
+        orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['scores'], array_contains: 95 } },
+        orderBy: { createdAt: 'asc' },
       });
       const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(3);
 
       const query4 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['scores'], array_contains: 90 } },
+        orderBy: { createdAt: 'asc' },
       });
       const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(3);
@@ -494,26 +503,28 @@ describe('JSON Filters Integration', () => {
     it('should handle array_contains with complex objects', async () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['products'],
             array_contains: { name: 'Product A', price: 99.99 },
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['reviews'],
             array_contains: { rating: 4.5, comment: 'Great!' },
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
@@ -522,48 +533,54 @@ describe('JSON Filters Integration', () => {
     it('should handle array_starts_with and array_ends_with', async () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['tags'], array_starts_with: 'admin' } },
+        orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(3);
 
       const query2 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['tags'], array_starts_with: 'user' } },
+        orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(2); // User2, User4
 
       const query3 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['tags'], array_ends_with: 'express' } },
+        orderBy: { createdAt: 'asc' },
       });
       const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
 
       const query4 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['tags'], array_ends_with: 'react' } },
+        orderBy: { createdAt: 'asc' },
       });
       const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(1);
 
       const query5 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['scores'], array_starts_with: 85 } },
+        orderBy: { createdAt: 'asc' },
       });
       const results5 = await prisma.$queryRaw<{ id: string }[]>(query5);
       expect(results5.length).toBe(1);
 
       const query6 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: { data: { path: ['scores'], array_ends_with: 95 } },
+        orderBy: { createdAt: 'asc' },
       });
       const results6 = await prisma.$queryRaw<{ id: string }[]>(query6);
       expect(results6.length).toBe(2);
@@ -572,7 +589,7 @@ describe('JSON Filters Integration', () => {
     it('should handle array operations with case insensitive mode', async () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['tags'],
@@ -580,13 +597,14 @@ describe('JSON Filters Integration', () => {
             mode: 'insensitive',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['tags'],
@@ -594,13 +612,14 @@ describe('JSON Filters Integration', () => {
             mode: 'insensitive',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(3);
 
       const query3 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['tags'],
@@ -608,6 +627,7 @@ describe('JSON Filters Integration', () => {
             mode: 'insensitive',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
@@ -640,6 +660,7 @@ describe('JSON Filters Integration', () => {
                 age: 35,
               },
             },
+            createdAt: new Date('2025-01-01T00:00:00.000Z'),
           },
           {
             id: ids.user2,
@@ -653,6 +674,7 @@ describe('JSON Filters Integration', () => {
                 age: 30,
               },
             },
+            createdAt: new Date('2025-01-02T00:00:00.000Z'),
           },
           {
             id: ids.user3,
@@ -666,6 +688,7 @@ describe('JSON Filters Integration', () => {
                 age: 25,
               },
             },
+            createdAt: new Date('2025-01-03T00:00:00.000Z'),
           },
           {
             id: ids.user4,
@@ -679,6 +702,7 @@ describe('JSON Filters Integration', () => {
                 age: 40,
               },
             },
+            createdAt: new Date('2025-01-04T00:00:00.000Z'),
           },
           {
             id: ids.user5,
@@ -692,6 +716,7 @@ describe('JSON Filters Integration', () => {
                 age: 28,
               },
             },
+            createdAt: new Date('2025-01-05T00:00:00.000Z'),
           },
         ],
       });
@@ -700,26 +725,28 @@ describe('JSON Filters Integration', () => {
     it('should handle deeply nested path operations', async () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'profile', 'name'],
             string_contains: 'Profile',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(5);
 
       const query2 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'profile', 'settings', 'theme'],
             equals: 'dark',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(2);
@@ -728,13 +755,14 @@ describe('JSON Filters Integration', () => {
     it('should handle nested path with comparisons', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'age'],
             gte: 30,
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results = await prisma.$queryRaw<{ id: string }[]>(query);
       expect(results.length).toBe(3);
@@ -743,26 +771,28 @@ describe('JSON Filters Integration', () => {
     it('should handle nested path string operations', async () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'profile', 'name'],
             string_contains: 'Alice',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'profile', 'name'],
             string_ends_with: 'Profile',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(5);
@@ -771,26 +801,28 @@ describe('JSON Filters Integration', () => {
     it('should handle multiple levels of nesting with various operators', async () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'profile', 'settings', 'theme'],
             string_contains: 'dark',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(2);
 
       const query2 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'profile', 'settings', 'theme'],
             not: 'dark',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(3);
@@ -799,20 +831,21 @@ describe('JSON Filters Integration', () => {
     it('should handle nested numeric fields', async () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'age'],
             lt: 30,
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(2);
 
       const query2 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'age'],
@@ -820,6 +853,7 @@ describe('JSON Filters Integration', () => {
             lt: 40,
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
@@ -828,7 +862,7 @@ describe('JSON Filters Integration', () => {
     it('should handle nested case insensitive operations', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['user', 'profile', 'settings', 'theme'],
@@ -836,6 +870,7 @@ describe('JSON Filters Integration', () => {
             mode: 'insensitive',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results = await prisma.$queryRaw<{ id: string }[]>(query);
       expect(results.length).toBe(2);
@@ -894,6 +929,7 @@ describe('JSON Filters Integration', () => {
                 },
               ],
             },
+            createdAt: new Date('2025-01-01T00:00:00.000Z'),
           },
           {
             id: ids.user2,
@@ -922,6 +958,7 @@ describe('JSON Filters Integration', () => {
                 },
               ],
             },
+            createdAt: new Date('2025-01-02T00:00:00.000Z'),
           },
           {
             id: ids.user3,
@@ -950,6 +987,7 @@ describe('JSON Filters Integration', () => {
                 },
               ],
             },
+            createdAt: new Date('2025-01-03T00:00:00.000Z'),
           },
           {
             id: ids.user4,
@@ -978,6 +1016,7 @@ describe('JSON Filters Integration', () => {
                 },
               ],
             },
+            createdAt: new Date('2025-01-04T00:00:00.000Z'),
           },
           {
             id: ids.user5,
@@ -1006,6 +1045,7 @@ describe('JSON Filters Integration', () => {
                 },
               ],
             },
+            createdAt: new Date('2025-01-05T00:00:00.000Z'),
           },
         ],
       });
@@ -1014,39 +1054,42 @@ describe('JSON Filters Integration', () => {
     it('should filter by field in array of objects using wildcard', async () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['products', '*', 'name'],
             equals: 'Product A',
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['products', '*', 'price'],
             gt: 100,
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(4); // User2,3,4,5 (User1 has 99.99)
 
       const query3 = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig: { data: 'json', createdAt: 'date' },
         where: {
           data: {
             path: ['products', '*', 'price'],
             lt: 100,
           },
         },
+        orderBy: { createdAt: 'asc' },
       });
       const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
