@@ -101,6 +101,12 @@ describe('JSON Path Utilities', () => {
         expect(parseJsonPath('.')).toEqual([]);
         expect(parseJsonPath('...')).toEqual([]);
       });
+
+      it('should throw error for unclosed brackets', () => {
+        expect(() => parseJsonPath('items[')).toThrow('Unclosed bracket in JSON path');
+        expect(() => parseJsonPath('data.items[0')).toThrow('Unclosed bracket in JSON path');
+        expect(() => parseJsonPath('products[*')).toThrow('Unclosed bracket in JSON path');
+      });
     });
   });
 
@@ -131,6 +137,21 @@ describe('JSON Path Utilities', () => {
         'data.products[0].tags[*]',
       );
     });
+
+    it('should handle negative indices correctly', () => {
+      expect(arrayToJsonPath(['items', '-1'])).toBe('items[-1]');
+      expect(arrayToJsonPath(['items', '-1', 'name'])).toBe('items[-1].name');
+    });
+
+    it('should handle segments with special characters', () => {
+      expect(arrayToJsonPath(['user', 'profile.data'])).toBe('user["profile.data"]');
+      expect(arrayToJsonPath(['items', 'field[0]'])).toBe('items["field[0]"]');
+      expect(arrayToJsonPath(['data', 'field]with]brackets'])).toBe('data["field]with]brackets"]');
+    });
+
+    it('should escape quotes in segment names', () => {
+      expect(arrayToJsonPath(['user', 'field"with"quotes'])).toBe('user["field\\"with\\"quotes"]');
+    });
   });
 
   describe('validateJsonPath', () => {
@@ -150,6 +171,26 @@ describe('JSON Path Utilities', () => {
       const result = validateJsonPath('');
       expect(result.isValid).toBe(false);
       expect(result.error).toBeTruthy();
+    });
+
+    it('should detect unclosed brackets', () => {
+      const result1 = validateJsonPath('items[');
+      expect(result1.isValid).toBe(false);
+      expect(result1.error).toBe('Unclosed bracket in JSON path');
+
+      const result2 = validateJsonPath('data.items[0');
+      expect(result2.isValid).toBe(false);
+      expect(result2.error).toBe('Unclosed bracket in JSON path');
+
+      const result3 = validateJsonPath('products[*');
+      expect(result3.isValid).toBe(false);
+      expect(result3.error).toBe('Unclosed bracket in JSON path');
+    });
+
+    it('should handle valid bracket notation', () => {
+      expect(validateJsonPath('items[0]')).toEqual({ isValid: true });
+      expect(validateJsonPath('items[-1]')).toEqual({ isValid: true });
+      expect(validateJsonPath('products[*].tags')).toEqual({ isValid: true });
     });
   });
 });

@@ -1,3 +1,15 @@
+/**
+ * Parse JSON Path string or array into normalized array format
+ *
+ * @param path - JSON path as string or array
+ * @returns Normalized path array
+ *
+ * @example
+ * parseJsonPath('user.profile.email') // ['user', 'profile', 'email']
+ * parseJsonPath('items[0].name') // ['items', '0', 'name']
+ * parseJsonPath('products[*].tags') // ['products', '*', 'tags']
+ * parseJsonPath(['user', 'email']) // ['user', 'email'] (unchanged)
+ */
 export function parseJsonPath(path: string | string[]): string[] {
   if (Array.isArray(path)) {
     return path;
@@ -60,6 +72,11 @@ export function parseJsonPath(path: string | string[]): string[] {
     }
   }
 
+  // Check for unclosed brackets
+  if (inBrackets) {
+    throw new Error('Unclosed bracket in JSON path');
+  }
+
   if (currentPart) {
     pathParts.push(currentPart);
   }
@@ -67,14 +84,37 @@ export function parseJsonPath(path: string | string[]): string[] {
   return pathParts;
 }
 
+/**
+ * Convert array path back to JSON Path string format
+ *
+ * @param pathArray - Array of path segments
+ * @returns JSON path string
+ *
+ * @example
+ * arrayToJsonPath(['user', 'email']) // 'user.email'
+ * arrayToJsonPath(['items', '0', 'name']) // 'items[0].name'
+ * arrayToJsonPath(['products', '*', 'tags']) // 'products[*].tags'
+ * arrayToJsonPath(['items', '-1']) // 'items[-1]'
+ */
 export function arrayToJsonPath(pathArray: string[]): string {
   return pathArray
     .map((segment) => {
-      if (/^\d+$/.test(segment)) {
+      // Handle numeric indices (including negative)
+      if (/^-?\d+$/.test(segment)) {
         return `[${segment}]`;
       }
+      // Handle wildcards
       if (segment === '*') {
         return '[*]';
+      }
+      // Handle segments that need bracket notation (contain dots, brackets, or quotes)
+      if (
+        segment.includes('.') ||
+        segment.includes('[') ||
+        segment.includes(']') ||
+        segment.includes('"')
+      ) {
+        return `["${segment.replace(/"/g, '\\"')}"]`;
       }
       return segment;
     })
@@ -82,6 +122,18 @@ export function arrayToJsonPath(pathArray: string[]): string {
     .replace(/\.\[/g, '[');
 }
 
+/**
+ * Validate JSON Path string syntax
+ *
+ * @param path - JSON path string to validate
+ * @returns Validation result with error message if invalid
+ *
+ * @example
+ * validateJsonPath('user.email') // { isValid: true }
+ * validateJsonPath('items[0].name') // { isValid: true }
+ * validateJsonPath('items[') // { isValid: false, error: 'Unclosed bracket in JSON path' }
+ * validateJsonPath('') // { isValid: false, error: 'JSON path cannot be empty' }
+ */
 export function validateJsonPath(path: string): {
   isValid: boolean;
   error?: string;
