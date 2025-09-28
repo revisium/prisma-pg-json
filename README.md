@@ -6,7 +6,7 @@
 [![GitHub License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/revisium/prisma-pg-json/blob/master/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/revisium/prisma-pg-json)](https://github.com/revisium/prisma-pg-json/releases)
 
-**Command-line interface for managing Revisium projects**
+**Type-safe PostgreSQL JSON query builder for Prisma**
 
 </div>
 
