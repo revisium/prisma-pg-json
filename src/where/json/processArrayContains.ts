@@ -26,10 +26,10 @@ export function processArrayContains(
       );
     }
     const lowerValue = (value[0] as string).toLowerCase();
-    return Prisma.sql`(EXISTS (
+    return Prisma.sql`(JSONB_TYPEOF((${jsonbPath})::jsonb) = ${'array'} AND EXISTS (
       SELECT 1 FROM jsonb_array_elements_text((${jsonbPath})::jsonb) AS elem
       WHERE LOWER(elem) = ${lowerValue}
-    ) AND JSONB_TYPEOF((${jsonbPath})::jsonb) = ${'array'})`;
+    ))`;
   }
 
   // PostgreSQL @> checks if left array contains ALL right elements

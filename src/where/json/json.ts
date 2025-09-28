@@ -172,7 +172,7 @@ export function generateJsonFilter(
   }
 
   // Build JSON path for operations using PostgreSQL array syntax
-  const pathArray = Prisma.sql`ARRAY[${Prisma.join(path.map((p) => Prisma.sql`${p}`))}]::text[]`;
+  const pathArray = Prisma.sql`ARRAY[${Prisma.join(path.map((p: string) => Prisma.sql`${p}`))}]::text[]`;
   const jsonTextPath = Prisma.sql`${fieldRef}#>>${pathArray}`;
   const jsonbPath = Prisma.sql`${fieldRef}#>${pathArray}`;
 
