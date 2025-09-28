@@ -41,12 +41,12 @@ export function generateDateFilter(
   }
 
   if (filter.in !== undefined && Array.isArray(filter.in) && filter.in.length > 0) {
-    const values = filter.in.map(val => typeof val === 'string' ? new Date(val) : val);
+    const values = filter.in.map((val) => (typeof val === 'string' ? new Date(val) : val));
     conditions.push(Prisma.sql`${fieldRef} IN (${Prisma.join(values, ', ')})`);
   }
 
   if (filter.notIn !== undefined && Array.isArray(filter.notIn) && filter.notIn.length > 0) {
-    const values = filter.notIn.map(val => typeof val === 'string' ? new Date(val) : val);
+    const values = filter.notIn.map((val) => (typeof val === 'string' ? new Date(val) : val));
     conditions.push(Prisma.sql`${fieldRef} NOT IN (${Prisma.join(values, ', ')})`);
   }
 

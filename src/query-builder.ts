@@ -1,5 +1,11 @@
 import { Prisma } from '@prisma/client';
-import { QueryBuilderOptions, FieldConfig, FieldType, JsonFilter, GenerateWhereParams } from './types';
+import {
+  QueryBuilderOptions,
+  FieldConfig,
+  FieldType,
+  JsonFilter,
+  GenerateWhereParams,
+} from './types';
 import { generateStringFilter } from './where/string';
 import { generateNumberFilter } from './where/number';
 import { generateBooleanFilter } from './where/boolean';
@@ -34,12 +40,20 @@ export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
   let sql = Prisma.sql`SELECT ${fieldList} FROM "${Prisma.raw(tableName)}" ${Prisma.raw(tableAlias)}`;
 
   if (where) {
-    const whereClause = generateWhereClause({ where, fieldConfig: fieldConfig as TConfig, tableAlias });
+    const whereClause = generateWhereClause({
+      where,
+      fieldConfig: fieldConfig as TConfig,
+      tableAlias,
+    });
     sql = Prisma.sql`${sql} WHERE ${whereClause}`;
   }
 
   if (orderBy) {
-    const orderByClause = generateOrderBy({ tableAlias, orderBy, fieldConfig: fieldConfig as TConfig });
+    const orderByClause = generateOrderBy({
+      tableAlias,
+      orderBy,
+      fieldConfig: fieldConfig as TConfig,
+    });
     if (orderByClause) {
       sql = Prisma.sql`${sql} ${orderByClause}`;
     }
@@ -90,7 +104,9 @@ function generateWhereClause<TConfig extends FieldConfig = FieldConfig>(
   }
 
   if (where.OR && Array.isArray(where.OR) && where.OR.length > 0) {
-    const orConditions = where.OR.map((cond) => generateWhereClause({ where: cond, fieldConfig, tableAlias }));
+    const orConditions = where.OR.map((cond) =>
+      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
+    );
     conditions.push(Prisma.sql`(${Prisma.join(orConditions, ' OR ')})`);
   }
 

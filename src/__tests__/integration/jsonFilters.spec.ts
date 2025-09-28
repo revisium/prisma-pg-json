@@ -466,7 +466,7 @@ describe('JSON Filters Integration', () => {
       const query1 = buildQuery({
         tableName: 'test_tables',
         fieldConfig: { data: 'json', createdAt: 'date' },
-        where: { data: { path: ['tags'], array_contains: 'typescript' } },
+        where: { data: { path: ['tags'], array_contains: ['typescript'] } },
         orderBy: { createdAt: 'asc' },
       });
       const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
@@ -475,7 +475,7 @@ describe('JSON Filters Integration', () => {
       const query2 = buildQuery({
         tableName: 'test_tables',
         fieldConfig: { data: 'json', createdAt: 'date' },
-        where: { data: { path: ['tags'], array_contains: 'react' } },
+        where: { data: { path: ['tags'], array_contains: ['react'] } },
         orderBy: { createdAt: 'asc' },
       });
       const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
@@ -484,7 +484,7 @@ describe('JSON Filters Integration', () => {
       const query3 = buildQuery({
         tableName: 'test_tables',
         fieldConfig: { data: 'json', createdAt: 'date' },
-        where: { data: { path: ['scores'], array_contains: 95 } },
+        where: { data: { path: ['scores'], array_contains: [95] } },
         orderBy: { createdAt: 'asc' },
       });
       const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
@@ -493,11 +493,20 @@ describe('JSON Filters Integration', () => {
       const query4 = buildQuery({
         tableName: 'test_tables',
         fieldConfig: { data: 'json', createdAt: 'date' },
-        where: { data: { path: ['scores'], array_contains: 90 } },
+        where: { data: { path: ['scores'], array_contains: [90] } },
         orderBy: { createdAt: 'asc' },
       });
       const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(3);
+
+      const query5 = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig: { data: 'json', createdAt: 'date' },
+        where: { data: { path: ['scores'], array_contains: [90, 85] } },
+        orderBy: { createdAt: 'asc' },
+      });
+      const results5 = await prisma.$queryRaw<{ id: string }[]>(query5);
+      expect(results5.length).toBe(2);
     });
 
     it('should handle array_contains with complex objects', async () => {
@@ -507,7 +516,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['products'],
-            array_contains: { name: 'Product A', price: 99.99 },
+            array_contains: [{ name: 'Product A', price: 99.99 }],
           },
         },
         orderBy: { createdAt: 'asc' },
@@ -521,7 +530,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['reviews'],
-            array_contains: { rating: 4.5, comment: 'Great!' },
+            array_contains: [{ rating: 4.5, comment: 'Great!' }],
           },
         },
         orderBy: { createdAt: 'asc' },
@@ -593,7 +602,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['tags'],
-            array_contains: 'TYPESCRIPT',
+            array_contains: ['TYPESCRIPT'],
             mode: 'insensitive',
           },
         },
@@ -1187,7 +1196,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['products', '*', 'tags'],
-            array_contains: 'featured',
+            array_contains: ['featured'],
           },
         },
       });
@@ -1200,7 +1209,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['products', '*', 'tags'],
-            array_contains: 'premium',
+            array_contains: ['premium'],
           },
         },
       });
@@ -1213,7 +1222,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['reviews', '*', 'keywords'],
-            array_contains: 'excellent',
+            array_contains: ['excellent'],
           },
         },
       });
@@ -1310,7 +1319,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['products', '*', 'tags'],
-            array_contains: 'FEATURED',
+            array_contains: ['FEATURED'],
             mode: 'insensitive',
           },
         },
@@ -1627,7 +1636,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['products', '*', 'relatedItems', '*', 'tags'],
-            array_contains: 'premium',
+            array_contains: ['premium'],
           },
         },
       });
@@ -1640,7 +1649,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['products', '*', 'relatedItems', '*', 'tags'],
-            array_contains: 'featured',
+            array_contains: ['featured'],
           },
         },
       });
@@ -1653,7 +1662,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['products', '*', 'relatedItems', '*', 'tags'],
-            array_contains: 'budget',
+            array_contains: ['budget'],
           },
         },
       });
@@ -1750,7 +1759,7 @@ describe('JSON Filters Integration', () => {
         where: {
           data: {
             path: ['products', '*', 'relatedItems', '*', 'tags'],
-            array_contains: 'PREMIUM',
+            array_contains: ['PREMIUM'],
             mode: 'insensitive',
           },
         },

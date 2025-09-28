@@ -48,12 +48,28 @@ function generateArrayConditionSql(
   arrayPath: string,
 ): string {
   switch (operator) {
-    case 'array_contains':
-      if (isInsensitive && typeof value === 'string') {
-        return `(${arrayPath} @> '${JSON.stringify([value])}'::jsonb OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(${arrayPath}) AS arr_elem WHERE LOWER(arr_elem) = '${value.toLowerCase()}'))`;
-      } else {
-        return `${arrayPath} @> '${JSON.stringify([value])}'::jsonb`;
+    case 'array_contains': {
+      if (!Array.isArray(value)) {
+        throw new Error('array_contains: value must be an array');
       }
+      if (value.length === 0) {
+        throw new Error('array_contains: value array cannot be empty');
+      }
+      if (isInsensitive) {
+        if (value.length > 1) {
+          throw new Error(
+            'array_contains: insensitive mode with multiple elements not supported yet',
+          );
+        }
+        if (typeof value[0] === 'string') {
+          return `EXISTS (SELECT 1 FROM jsonb_array_elements_text(${arrayPath}) AS arr_elem WHERE LOWER(arr_elem) = '${value[0].toLowerCase()}')`;
+        } else {
+          throw new Error('array_contains: insensitive mode only supports strings');
+        }
+      } else {
+        return `${arrayPath} @> '${JSON.stringify(value)}'::jsonb`;
+      }
+    }
 
     case 'array_starts_with':
       if (isInsensitive && typeof value === 'string') {
