@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { OrderByConditions, JsonOrderByInput, FieldType } from '../types';
 import { parseJsonPath } from './parseJsonPath';
 
-export function generateOrderBy(
+export function generateOrderByClauses(
   tableAlias: string,
   orderBy: OrderByConditions | OrderByConditions[] | undefined,
   fieldConfig: Record<string, FieldType>,
@@ -40,7 +40,21 @@ export function generateOrderBy(
     return null;
   }
 
-  return Prisma.sql`ORDER BY ${Prisma.join(orderClauses, ', ')}`;
+  return Prisma.join(orderClauses, ', ');
+}
+
+export function generateOrderBy(
+  tableAlias: string,
+  orderBy: OrderByConditions | OrderByConditions[] | undefined,
+  fieldConfig: Record<string, FieldType>,
+): Prisma.Sql | null {
+  const clauses = generateOrderByClauses(tableAlias, orderBy, fieldConfig);
+
+  if (!clauses) {
+    return null;
+  }
+
+  return Prisma.sql`ORDER BY ${clauses}`;
 }
 
 function processJsonField(fieldRef: Prisma.Sql, jsonOrder: JsonOrderByInput): Prisma.Sql {

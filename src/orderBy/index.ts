@@ -1,2 +1,2 @@
-export { generateOrderBy } from './generateOrderBy';
+export { generateOrderBy, generateOrderByClauses } from './generateOrderBy';
 export { parseJsonPath } from './parseJsonPath';
