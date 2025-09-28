@@ -48,13 +48,17 @@ export function buildQuery(options: QueryBuilderOptions): Prisma.Sql {
   return sql;
 }
 
-export function generateWhere(params: GenerateWhereParams): Prisma.Sql {
+export function generateWhere<TConfig extends FieldConfig = FieldConfig>(
+  params: GenerateWhereParams<TConfig>,
+): Prisma.Sql {
   return generateWhereClause(params);
 }
 
 export { generateOrderBy, generateOrderByClauses } from './orderBy';
 
-function generateWhereClause(params: GenerateWhereParams): Prisma.Sql {
+function generateWhereClause<TConfig extends FieldConfig = FieldConfig>(
+  params: GenerateWhereParams<TConfig>,
+): Prisma.Sql {
   const { where, fieldConfig, tableAlias } = params;
   const conditions: Prisma.Sql[] = [];
 

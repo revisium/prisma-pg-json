@@ -61,6 +61,22 @@ export type JsonFilter = {
   [key: string]: unknown; // Allow dynamic property access
 };
 
+export type FieldFilterType<T extends FieldType> =
+  T extends 'string' ? string | StringFilter :
+  T extends 'number' ? number | NumberFilter :
+  T extends 'boolean' ? boolean | BooleanFilter :
+  T extends 'date' ? string | Date | DateFilter :
+  T extends 'json' ? JsonFilter :
+  never;
+
+export type WhereConditionsTyped<TConfig extends FieldConfig> = {
+  [K in keyof TConfig]?: FieldFilterType<TConfig[K]>;
+} & {
+  AND?: WhereConditionsTyped<TConfig>[];
+  OR?: WhereConditionsTyped<TConfig>[];
+  NOT?: WhereConditionsTyped<TConfig> | WhereConditionsTyped<TConfig>[];
+};
+
 export type WhereConditions = {
   [field: string]: unknown;
   AND?: WhereConditions[];
@@ -94,6 +110,14 @@ export interface JsonOrderByInput {
   aggregation?: 'first' | 'last' | 'min' | 'max' | 'avg';
 }
 
+export type FieldOrderByType<T extends FieldType> =
+  T extends 'json' ? JsonOrderByInput | OrderByDirection :
+  OrderByDirection;
+
+export type OrderByConditionsTyped<TConfig extends FieldConfig> = {
+  [K in keyof TConfig]?: FieldOrderByType<TConfig[K]>;
+};
+
 export type OrderByConditions = {
   [fieldName: string]: 'asc' | 'desc' | JsonOrderByInput;
 };
@@ -109,14 +133,14 @@ export interface QueryBuilderOptions {
   orderBy?: OrderByConditions | OrderByConditions[];
 }
 
-export interface GenerateWhereParams {
-  where: WhereConditions;
-  fieldConfig: FieldConfig;
+export interface GenerateWhereParams<TConfig extends FieldConfig = FieldConfig> {
+  where: WhereConditionsTyped<TConfig> | WhereConditions;
+  fieldConfig: TConfig;
   tableAlias: string;
 }
 
-export interface GenerateOrderByParams {
+export interface GenerateOrderByParams<TConfig extends FieldConfig = FieldConfig> {
   tableAlias: string;
-  orderBy: OrderByConditions | OrderByConditions[] | undefined;
-  fieldConfig: Record<string, FieldType>;
+  orderBy: OrderByConditionsTyped<TConfig> | OrderByConditionsTyped<TConfig>[] | OrderByConditions | OrderByConditions[] | undefined;
+  fieldConfig: TConfig;
 }
