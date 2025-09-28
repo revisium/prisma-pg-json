@@ -106,5 +106,5 @@ export interface QueryBuilderOptions {
   take?: number;
   skip?: number;
   where?: WhereConditions;
-  orderBy?: OrderByConditions;
+  orderBy?: OrderByConditions | OrderByConditions[];
 }

@@ -4,27 +4,34 @@ import { parseJsonPath } from './parseJsonPath';
 
 export function generateOrderBy(
   tableAlias: string,
-  orderBy: OrderByConditions | undefined,
+  orderBy: OrderByConditions | OrderByConditions[] | undefined,
   fieldConfig: Record<string, FieldType>,
 ): Prisma.Sql | null {
-  if (!orderBy || Object.keys(orderBy).length === 0) {
+  if (!orderBy) {
     return null;
   }
 
+  const orderArray = Array.isArray(orderBy) ? orderBy : [orderBy];
   const orderClauses: Prisma.Sql[] = [];
 
-  for (const [fieldName, orderValue] of Object.entries(orderBy)) {
-    if (typeof orderValue === 'string') {
-      if (orderValue === 'asc' || orderValue === 'desc') {
-        const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
-        const direction = orderValue.toUpperCase();
-        orderClauses.push(Prisma.sql`${fieldRef} ${Prisma.raw(direction)}`);
-      }
-    } else if (typeof orderValue === 'object' && orderValue) {
-      const fieldType = fieldConfig[fieldName];
-      if (fieldType === 'json') {
-        const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
-        orderClauses.push(processJsonField(fieldRef, orderValue as JsonOrderByInput));
+  for (const orderCondition of orderArray) {
+    if (!orderCondition || Object.keys(orderCondition).length === 0) {
+      continue;
+    }
+
+    for (const [fieldName, orderValue] of Object.entries(orderCondition)) {
+      if (typeof orderValue === 'string') {
+        if (orderValue === 'asc' || orderValue === 'desc') {
+          const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
+          const direction = orderValue.toUpperCase();
+          orderClauses.push(Prisma.sql`${fieldRef} ${Prisma.raw(direction)}`);
+        }
+      } else if (typeof orderValue === 'object' && orderValue) {
+        const fieldType = fieldConfig[fieldName];
+        if (fieldType === 'json') {
+          const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
+          orderClauses.push(processJsonField(fieldRef, orderValue as JsonOrderByInput));
+        }
       }
     }
   }
