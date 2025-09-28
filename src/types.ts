@@ -61,12 +61,33 @@ export type JsonFilter = {
   [key: string]: unknown; // Allow dynamic property access
 };
 
-export type WhereConditions = {
-  [field: string]: unknown;
-  AND?: WhereConditions[];
-  OR?: WhereConditions[];
-  NOT?: WhereConditions | WhereConditions[];
+export type FieldFilterType<T extends FieldType> = T extends 'string'
+  ? string | StringFilter
+  : T extends 'number'
+    ? number | NumberFilter
+    : T extends 'boolean'
+      ? boolean | BooleanFilter
+      : T extends 'date'
+        ? string | Date | DateFilter
+        : T extends 'json'
+          ? JsonFilter
+          : never;
+
+type WhereFieldConditions<TConfig extends FieldConfig> = {
+  [K in keyof TConfig]?: FieldFilterType<TConfig[K]>;
 };
+
+type WhereLogicalOperators<TConfig extends FieldConfig> = {
+  AND?: WhereConditionsTyped<TConfig>[];
+  OR?: WhereConditionsTyped<TConfig>[];
+  NOT?: WhereConditionsTyped<TConfig> | WhereConditionsTyped<TConfig>[];
+};
+
+export type WhereConditionsTyped<TConfig extends FieldConfig> = WhereFieldConditions<TConfig> &
+  WhereLogicalOperators<TConfig>;
+
+export type WhereConditions<TConfig extends FieldConfig = FieldConfig> =
+  WhereConditionsTyped<TConfig>;
 
 export type OrderByDirection = 'asc' | 'desc';
 
@@ -94,29 +115,36 @@ export interface JsonOrderByInput {
   aggregation?: 'first' | 'last' | 'min' | 'max' | 'avg';
 }
 
-export type OrderByConditions = {
-  [fieldName: string]: 'asc' | 'desc' | JsonOrderByInput;
+export type FieldOrderByType<T extends FieldType> = T extends 'json'
+  ? JsonOrderByInput | OrderByDirection
+  : OrderByDirection;
+
+export type OrderByConditionsTyped<TConfig extends FieldConfig> = {
+  [K in keyof TConfig]?: FieldOrderByType<TConfig[K]>;
 };
 
-export interface QueryBuilderOptions {
+export type OrderByConditions<TConfig extends FieldConfig = FieldConfig> =
+  OrderByConditionsTyped<TConfig>;
+
+export interface QueryBuilderOptions<TConfig extends FieldConfig = FieldConfig> {
   tableName: string;
   tableAlias?: string;
   fields?: string[];
-  fieldConfig?: FieldConfig;
+  fieldConfig?: TConfig;
   take?: number;
   skip?: number;
-  where?: WhereConditions;
-  orderBy?: OrderByConditions | OrderByConditions[];
+  where?: WhereConditions<TConfig>;
+  orderBy?: OrderByConditions<TConfig> | OrderByConditions<TConfig>[];
 }
 
-export interface GenerateWhereParams {
-  where: WhereConditions;
-  fieldConfig: FieldConfig;
+export interface GenerateWhereParams<TConfig extends FieldConfig = FieldConfig> {
+  where: WhereConditions<TConfig>;
+  fieldConfig: TConfig;
   tableAlias: string;
 }
 
-export interface GenerateOrderByParams {
+export interface GenerateOrderByParams<TConfig extends FieldConfig = FieldConfig> {
   tableAlias: string;
-  orderBy: OrderByConditions | OrderByConditions[] | undefined;
-  fieldConfig: Record<string, FieldType>;
+  orderBy: OrderByConditions<TConfig> | OrderByConditions<TConfig>[] | undefined;
+  fieldConfig: TConfig;
 }

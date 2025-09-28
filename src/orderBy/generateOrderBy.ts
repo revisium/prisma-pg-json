@@ -1,8 +1,10 @@
 import { Prisma } from '@prisma/client';
-import { JsonOrderByInput, GenerateOrderByParams } from '../types';
+import { JsonOrderByInput, GenerateOrderByParams, FieldConfig } from '../types';
 import { parseJsonPath } from './parseJsonPath';
 
-export function generateOrderByClauses(params: GenerateOrderByParams): Prisma.Sql | null {
+export function generateOrderByClauses<TConfig extends FieldConfig = FieldConfig>(
+  params: GenerateOrderByParams<TConfig>,
+): Prisma.Sql | null {
   const { tableAlias, orderBy, fieldConfig } = params;
   if (!orderBy) {
     return null;
@@ -40,8 +42,10 @@ export function generateOrderByClauses(params: GenerateOrderByParams): Prisma.Sq
   return Prisma.join(orderClauses, ', ');
 }
 
-export function generateOrderBy(params: GenerateOrderByParams): Prisma.Sql | null {
-  const clauses = generateOrderByClauses(params);
+export function generateOrderBy<TConfig extends FieldConfig = FieldConfig>(
+  params: GenerateOrderByParams<TConfig>,
+): Prisma.Sql | null {
+  const clauses = generateOrderByClauses<TConfig>(params);
 
   if (!clauses) {
     return null;

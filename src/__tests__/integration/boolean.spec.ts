@@ -12,6 +12,13 @@ describe('Boolean Filters', () => {
     'bool-5': '',
   };
 
+  const fieldConfig = {
+    isActive: 'boolean',
+    id: 'string',
+    createdAt: 'date',
+    name: 'string',
+  } as const;
+
   beforeEach(async () => {
     ids = {
       'bool-1': nanoid(),
@@ -65,7 +72,7 @@ describe('Boolean Filters', () => {
   it('should filter by true value', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { isActive: 'boolean', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { isActive: true },
     });
@@ -78,7 +85,7 @@ describe('Boolean Filters', () => {
   it('should filter by false value', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { isActive: 'boolean', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { isActive: false },
     });
@@ -91,7 +98,7 @@ describe('Boolean Filters', () => {
   it('should filter by equals true', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { isActive: 'boolean', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { isActive: { equals: true } },
     });
@@ -104,7 +111,7 @@ describe('Boolean Filters', () => {
   it('should filter by equals false', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { isActive: 'boolean', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { isActive: { equals: false } },
     });
@@ -117,7 +124,7 @@ describe('Boolean Filters', () => {
   it('should filter by not true', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { isActive: 'boolean', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { isActive: { not: true } },
     });
@@ -130,7 +137,7 @@ describe('Boolean Filters', () => {
   it('should filter by not false', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { isActive: 'boolean', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { isActive: { not: false } },
     });
@@ -143,7 +150,7 @@ describe('Boolean Filters', () => {
   it('should filter by not equals filter', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { isActive: 'boolean', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { isActive: { not: { equals: true } } },
     });
@@ -156,7 +163,7 @@ describe('Boolean Filters', () => {
   it('should combine with AND operator', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { isActive: 'boolean', name: 'string' },
+      fieldConfig,
       where: {
         AND: [{ isActive: true }, { name: { contains: 'User 1' } }],
       },
@@ -170,7 +177,7 @@ describe('Boolean Filters', () => {
   it('should combine with OR operator', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { isActive: 'boolean', name: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         isActive: false,

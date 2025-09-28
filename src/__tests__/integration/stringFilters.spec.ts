@@ -12,6 +12,14 @@ describe('String Filters Integration', () => {
     'str-5': '',
   };
 
+  const fieldConfig = {
+    id: 'string',
+    name: 'string',
+    hash: 'string',
+    schemaHash: 'string',
+    createdAt: 'date',
+  } as const;
+
   beforeEach(async () => {
     ids = {
       'str-1': nanoid(),
@@ -70,7 +78,7 @@ describe('String Filters Integration', () => {
   it('should handle string equals', async () => {
     const query1 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: 'json-test-aa1' },
     });
@@ -80,7 +88,7 @@ describe('String Filters Integration', () => {
 
     const query2 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { equals: 'json-test-cc1' } },
     });
@@ -92,7 +100,7 @@ describe('String Filters Integration', () => {
   it('should handle string contains', async () => {
     const query1 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { contains: 'json-test-a' } },
     });
@@ -102,7 +110,7 @@ describe('String Filters Integration', () => {
 
     const query2 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { contains: 'test-b' } },
     });
@@ -114,7 +122,7 @@ describe('String Filters Integration', () => {
   it('should handle string startsWith', async () => {
     const query1 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { startsWith: 'json-test-a' } },
     });
@@ -124,7 +132,7 @@ describe('String Filters Integration', () => {
 
     const query2 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { startsWith: 'json-test-b' } },
     });
@@ -134,7 +142,7 @@ describe('String Filters Integration', () => {
 
     const query3 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { startsWith: 'json-test-c' } },
     });
@@ -146,7 +154,7 @@ describe('String Filters Integration', () => {
   it('should handle string endsWith', async () => {
     const query1 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { endsWith: 'aa1' } },
     });
@@ -156,7 +164,7 @@ describe('String Filters Integration', () => {
 
     const query2 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { endsWith: 'aA2' } },
     });
@@ -168,7 +176,7 @@ describe('String Filters Integration', () => {
   it('should handle string in array', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         name: {
@@ -184,7 +192,7 @@ describe('String Filters Integration', () => {
   it('should handle string notIn array', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         name: {
@@ -194,13 +202,15 @@ describe('String Filters Integration', () => {
     });
     const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
     expect(results.length).toBe(3);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['str-2'], ids['str-3'], ids['str-4']].sort());
+    expect(results.map((r) => r.id).sort()).toEqual(
+      [ids['str-2'], ids['str-3'], ids['str-4']].sort(),
+    );
   });
 
   it('should handle string gt operation', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { hash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { hash: { gt: '3' } },
     });
@@ -212,43 +222,49 @@ describe('String Filters Integration', () => {
   it('should handle string gte operation', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { hash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { hash: { gte: '3' } },
     });
     const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
     expect(results.length).toBe(3);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['str-3'], ids['str-4'], ids['str-5']].sort());
+    expect(results.map((r) => r.id).sort()).toEqual(
+      [ids['str-3'], ids['str-4'], ids['str-5']].sort(),
+    );
   });
 
   it('should handle string lt operation', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { hash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { hash: { lt: '4' } },
     });
     const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
     expect(results.length).toBe(3);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['str-1'], ids['str-2'], ids['str-3']].sort());
+    expect(results.map((r) => r.id).sort()).toEqual(
+      [ids['str-1'], ids['str-2'], ids['str-3']].sort(),
+    );
   });
 
   it('should handle string lte operation', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { hash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { hash: { lte: '4' } },
     });
     const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
     expect(results.length).toBe(4);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['str-1'], ids['str-2'], ids['str-3'], ids['str-4']].sort());
+    expect(results.map((r) => r.id).sort()).toEqual(
+      [ids['str-1'], ids['str-2'], ids['str-3'], ids['str-4']].sort(),
+    );
   });
 
   it('should handle string range (gt + lt)', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { hash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         hash: {
@@ -265,7 +281,7 @@ describe('String Filters Integration', () => {
   it('should handle string range (gte + lt)', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { hash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         hash: {
@@ -282,7 +298,7 @@ describe('String Filters Integration', () => {
   it('should handle string range (gt + lte)', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { hash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         hash: {
@@ -293,13 +309,15 @@ describe('String Filters Integration', () => {
     });
     const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
     expect(results.length).toBe(3);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['str-3'], ids['str-4'], ids['str-5']].sort());
+    expect(results.map((r) => r.id).sort()).toEqual(
+      [ids['str-3'], ids['str-4'], ids['str-5']].sort(),
+    );
   });
 
   it('should handle string range (gte + lte)', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { hash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         hash: {
@@ -310,13 +328,15 @@ describe('String Filters Integration', () => {
     });
     const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
     expect(results.length).toBe(4);
-    expect(results.map((r) => r.id).sort()).toEqual([ids['str-1'], ids['str-2'], ids['str-3'], ids['str-4']].sort());
+    expect(results.map((r) => r.id).sort()).toEqual(
+      [ids['str-1'], ids['str-2'], ids['str-3'], ids['str-4']].sort(),
+    );
   });
 
   it('should handle string case insensitive mode', async () => {
     const query1 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { contains: 'aa', mode: 'insensitive' } },
     });
@@ -326,7 +346,7 @@ describe('String Filters Integration', () => {
 
     const query2 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { startsWith: 'JSON-TEST-A', mode: 'insensitive' } },
     });
@@ -336,7 +356,7 @@ describe('String Filters Integration', () => {
 
     const query3 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { endsWith: 'AA1', mode: 'insensitive' } },
     });
@@ -346,7 +366,7 @@ describe('String Filters Integration', () => {
 
     const query4 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { equals: 'JSON-TEST-AA1', mode: 'insensitive' } },
     });
@@ -356,17 +376,19 @@ describe('String Filters Integration', () => {
 
     const query5 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { not: 'JSON-TEST-AA1', mode: 'insensitive' } },
     });
     const results5 = await prisma.$queryRaw<Array<{ id: string }>>(query5);
     expect(results5.length).toBe(4);
-    expect(results5.map((r) => r.id).sort()).toEqual([ids['str-2'], ids['str-3'], ids['str-4'], ids['str-5']].sort());
+    expect(results5.map((r) => r.id).sort()).toEqual(
+      [ids['str-2'], ids['str-3'], ids['str-4'], ids['str-5']].sort(),
+    );
 
     const query6 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         name: { notIn: ['JSON-TEST-AA1', 'JSON-TEST-AA2'], mode: 'insensitive' },
@@ -378,7 +400,7 @@ describe('String Filters Integration', () => {
 
     const query7 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: {
         name: { in: ['JSON-TEST-AA1', 'JSON-TEST-AA2'], mode: 'insensitive' },
@@ -392,39 +414,48 @@ describe('String Filters Integration', () => {
   it('should handle string not operation', async () => {
     const query = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { name: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { name: { not: 'json-test-aa1' } },
     });
     const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
     expect(results.length).toBe(4);
-    expect(results.map((r) => r.id)).toEqual([ids['str-2'], ids['str-3'], ids['str-4'], ids['str-5']]);
+    expect(results.map((r) => r.id)).toEqual([
+      ids['str-2'],
+      ids['str-3'],
+      ids['str-4'],
+      ids['str-5'],
+    ]);
   });
 
   it('should handle string search operation', async () => {
     const query1 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { schemaHash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { schemaHash: { search: 'cat' } },
     });
     const results1 = await prisma.$queryRaw<Array<{ id: string }>>(query1);
     expect(results1.length).toBe(3);
-    expect(results1.map((r) => r.id).sort()).toEqual([ids['str-1'], ids['str-2'], ids['str-4']].sort());
+    expect(results1.map((r) => r.id).sort()).toEqual(
+      [ids['str-1'], ids['str-2'], ids['str-4']].sort(),
+    );
 
     const query2 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { schemaHash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { schemaHash: { search: 'dog' } },
     });
     const results2 = await prisma.$queryRaw<Array<{ id: string }>>(query2);
     expect(results2.length).toBe(3);
-    expect(results2.map((r) => r.id).sort()).toEqual([ids['str-1'], ids['str-3'], ids['str-4']].sort());
+    expect(results2.map((r) => r.id).sort()).toEqual(
+      [ids['str-1'], ids['str-3'], ids['str-4']].sort(),
+    );
 
     const query3 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { schemaHash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { schemaHash: { search: 'cat | dog' } },
     });
@@ -434,7 +465,7 @@ describe('String Filters Integration', () => {
 
     const query4 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { schemaHash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { schemaHash: { search: 'CAT | DOG' } },
     });
@@ -444,7 +475,7 @@ describe('String Filters Integration', () => {
 
     const query5 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { schemaHash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { schemaHash: { search: 'cat & dog' } },
     });
@@ -454,7 +485,7 @@ describe('String Filters Integration', () => {
 
     const query6 = buildQuery({
       tableName: 'test_tables',
-      fieldConfig: { schemaHash: 'string', id: 'string' },
+      fieldConfig,
       orderBy: { createdAt: 'asc' },
       where: { schemaHash: { search: 'CAT & DOG' } },
     });

@@ -9,7 +9,9 @@ import { generateOrderBy } from './orderBy';
 
 const DEFAULT_FIELD_CONFIG: FieldConfig = {};
 
-export function buildQuery(options: QueryBuilderOptions): Prisma.Sql {
+export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
+  options: QueryBuilderOptions<TConfig>,
+): Prisma.Sql {
   const {
     tableName,
     tableAlias = tableName.substring(0, 1),
@@ -32,12 +34,12 @@ export function buildQuery(options: QueryBuilderOptions): Prisma.Sql {
   let sql = Prisma.sql`SELECT ${fieldList} FROM "${Prisma.raw(tableName)}" ${Prisma.raw(tableAlias)}`;
 
   if (where) {
-    const whereClause = generateWhereClause({ where, fieldConfig, tableAlias });
+    const whereClause = generateWhereClause({ where, fieldConfig: fieldConfig as TConfig, tableAlias });
     sql = Prisma.sql`${sql} WHERE ${whereClause}`;
   }
 
   if (orderBy) {
-    const orderByClause = generateOrderBy({ tableAlias, orderBy, fieldConfig });
+    const orderByClause = generateOrderBy({ tableAlias, orderBy, fieldConfig: fieldConfig as TConfig });
     if (orderByClause) {
       sql = Prisma.sql`${sql} ${orderByClause}`;
     }
@@ -48,13 +50,17 @@ export function buildQuery(options: QueryBuilderOptions): Prisma.Sql {
   return sql;
 }
 
-export function generateWhere(params: GenerateWhereParams): Prisma.Sql {
+export function generateWhere<TConfig extends FieldConfig = FieldConfig>(
+  params: GenerateWhereParams<TConfig>,
+): Prisma.Sql {
   return generateWhereClause(params);
 }
 
 export { generateOrderBy, generateOrderByClauses } from './orderBy';
 
-function generateWhereClause(params: GenerateWhereParams): Prisma.Sql {
+function generateWhereClause<TConfig extends FieldConfig = FieldConfig>(
+  params: GenerateWhereParams<TConfig>,
+): Prisma.Sql {
   const { where, fieldConfig, tableAlias } = params;
   const conditions: Prisma.Sql[] = [];
 

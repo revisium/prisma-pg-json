@@ -1,13 +1,12 @@
 import './setup';
 import { generateOrderBy, generateOrderByClauses } from '../../query-builder';
-import { FieldConfig } from '../../types';
 
 describe('generateOrderBy function', () => {
-  const fieldConfig: FieldConfig = {
+  const fieldConfig = {
     name: 'string',
     age: 'number',
     data: 'json',
-  };
+  } as const;
 
   describe('Basic functionality', () => {
     it('should return null for undefined orderBy', () => {
@@ -127,6 +126,7 @@ describe('generateOrderBy function', () => {
     it('should handle non-JSON field with JSON order syntax', () => {
       const result = generateOrderBy({
         tableAlias: 't',
+        // @ts-expect-error - testing invalid usage
         orderBy: {
           name: {
             path: ['test'],
@@ -141,11 +141,11 @@ describe('generateOrderBy function', () => {
 });
 
 describe('generateOrderByClauses function', () => {
-  const fieldConfig: FieldConfig = {
+  const fieldConfig = {
     name: 'string',
     age: 'number',
     data: 'json',
-  };
+  } as const;
 
   describe('Basic functionality', () => {
     it('should return null for undefined orderBy', () => {
@@ -265,6 +265,7 @@ describe('generateOrderByClauses function', () => {
     it('should handle non-JSON field with JSON order syntax', () => {
       const result = generateOrderByClauses({
         tableAlias: 't',
+        // @ts-expect-error - testing invalid usage
         orderBy: {
           name: {
             path: ['test'],
