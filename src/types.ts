@@ -108,3 +108,15 @@ export interface QueryBuilderOptions {
   where?: WhereConditions;
   orderBy?: OrderByConditions | OrderByConditions[];
 }
+
+export interface GenerateWhereParams {
+  where: WhereConditions;
+  fieldConfig: FieldConfig;
+  tableAlias: string;
+}
+
+export interface GenerateOrderByParams {
+  tableAlias: string;
+  orderBy: OrderByConditions | OrderByConditions[] | undefined;
+  fieldConfig: Record<string, FieldType>;
+}
