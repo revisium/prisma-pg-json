@@ -10,8 +10,6 @@
 
 </div>
 
-Type-safe PostgreSQL query builder for Prisma with advanced JSON/JSONB support and complex filtering.
-
 ## Overview
 
 A universal query builder that generates parameterized SQL queries for PostgreSQL through Prisma, with special focus on JSON/JSONB operations that go beyond standard Prisma capabilities.
