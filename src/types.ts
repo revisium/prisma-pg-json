@@ -73,20 +73,21 @@ export type FieldFilterType<T extends FieldType> = T extends 'string'
           ? JsonFilter
           : never;
 
-export type WhereConditionsTyped<TConfig extends FieldConfig> = {
+type WhereFieldConditions<TConfig extends FieldConfig> = {
   [K in keyof TConfig]?: FieldFilterType<TConfig[K]>;
-} & {
+};
+
+type WhereLogicalOperators<TConfig extends FieldConfig> = {
   AND?: WhereConditionsTyped<TConfig>[];
   OR?: WhereConditionsTyped<TConfig>[];
   NOT?: WhereConditionsTyped<TConfig> | WhereConditionsTyped<TConfig>[];
 };
 
-export type WhereConditions = {
-  [field: string]: unknown;
-  AND?: WhereConditions[];
-  OR?: WhereConditions[];
-  NOT?: WhereConditions | WhereConditions[];
-};
+export type WhereConditionsTyped<TConfig extends FieldConfig> = WhereFieldConditions<TConfig> &
+  WhereLogicalOperators<TConfig>;
+
+export type WhereConditions<TConfig extends FieldConfig = FieldConfig> =
+  WhereConditionsTyped<TConfig>;
 
 export type OrderByDirection = 'asc' | 'desc';
 
@@ -122,6 +123,9 @@ export type OrderByConditionsTyped<TConfig extends FieldConfig> = {
   [K in keyof TConfig]?: FieldOrderByType<TConfig[K]>;
 };
 
+export type OrderByConditions<TConfig extends FieldConfig = FieldConfig> =
+  OrderByConditionsTyped<TConfig>;
+
 export interface QueryBuilderOptions<TConfig extends FieldConfig = FieldConfig> {
   tableName: string;
   tableAlias?: string;
@@ -129,18 +133,18 @@ export interface QueryBuilderOptions<TConfig extends FieldConfig = FieldConfig> 
   fieldConfig?: TConfig;
   take?: number;
   skip?: number;
-  where?: WhereConditionsTyped<TConfig>;
-  orderBy?: OrderByConditionsTyped<TConfig> | OrderByConditionsTyped<TConfig>[];
+  where?: WhereConditions<TConfig>;
+  orderBy?: OrderByConditions<TConfig> | OrderByConditions<TConfig>[];
 }
 
 export interface GenerateWhereParams<TConfig extends FieldConfig = FieldConfig> {
-  where: WhereConditionsTyped<TConfig> | WhereConditions;
+  where: WhereConditions<TConfig>;
   fieldConfig: TConfig;
   tableAlias: string;
 }
 
 export interface GenerateOrderByParams<TConfig extends FieldConfig = FieldConfig> {
   tableAlias: string;
-  orderBy: OrderByConditionsTyped<TConfig> | OrderByConditionsTyped<TConfig>[] | undefined;
+  orderBy: OrderByConditions<TConfig> | OrderByConditions<TConfig>[] | undefined;
   fieldConfig: TConfig;
 }

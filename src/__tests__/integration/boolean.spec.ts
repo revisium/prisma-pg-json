@@ -1,6 +1,5 @@
 import './setup';
 import { nanoid } from 'nanoid';
-import { FieldConfig } from '../../types';
 import { prisma } from './setup';
 import { buildQuery } from '../../query-builder';
 
@@ -13,12 +12,12 @@ describe('Boolean Filters', () => {
     'bool-5': '',
   };
 
-  const fieldConfig: FieldConfig = {
+  const fieldConfig = {
     isActive: 'boolean',
     id: 'string',
     createdAt: 'date',
     name: 'string',
-  };
+  } as const;
 
   beforeEach(async () => {
     ids = {

@@ -1,12 +1,11 @@
 import './setup';
 import { nanoid } from 'nanoid';
-import { FieldConfig } from '../../types';
 import { prisma } from './setup';
 import { buildQuery } from '../../query-builder';
 
 describe('Number Filters', () => {
   let ids = { 'num-1': '', 'num-2': '', 'num-3': '', 'num-4': '', 'num-5': '' };
-  const fieldConfig: FieldConfig = { age: 'number', id: 'string', createdAt: 'date' };
+  const fieldConfig = { age: 'number', score: 'number', name: 'string', id: 'string', createdAt: 'date' } as const;
 
   beforeEach(async () => {
     ids = {

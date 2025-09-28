@@ -1,5 +1,4 @@
 import './setup';
-import { FieldConfig } from '../../types';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
@@ -7,14 +6,14 @@ import { buildQuery } from '../../query-builder';
 describe('Logical Operators', () => {
   let ids: Record<string, string> = {};
 
-  const fieldConfig: FieldConfig = {
+  const fieldConfig = {
     isActive: 'boolean',
     id: 'string',
     createdAt: 'date',
     age: 'number',
     name: 'string',
     data: 'json',
-  };
+  } as const;
 
   beforeEach(async () => {
     ids = {

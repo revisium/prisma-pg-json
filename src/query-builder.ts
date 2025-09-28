@@ -34,12 +34,12 @@ export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
   let sql = Prisma.sql`SELECT ${fieldList} FROM "${Prisma.raw(tableName)}" ${Prisma.raw(tableAlias)}`;
 
   if (where) {
-    const whereClause = generateWhereClause({ where, fieldConfig, tableAlias });
+    const whereClause = generateWhereClause({ where, fieldConfig: fieldConfig as TConfig, tableAlias });
     sql = Prisma.sql`${sql} WHERE ${whereClause}`;
   }
 
   if (orderBy) {
-    const orderByClause = generateOrderBy({ tableAlias, orderBy, fieldConfig });
+    const orderByClause = generateOrderBy({ tableAlias, orderBy, fieldConfig: fieldConfig as TConfig });
     if (orderByClause) {
       sql = Prisma.sql`${sql} ${orderByClause}`;
     }

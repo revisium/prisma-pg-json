@@ -1,6 +1,5 @@
 import './setup';
 import { nanoid } from 'nanoid';
-import { FieldConfig } from 'src/types';
 import { prisma } from './setup';
 import { buildQuery } from '../../query-builder';
 
@@ -13,11 +12,13 @@ describe('String Filters Integration', () => {
     'str-5': '',
   };
 
-  const fieldConfig: FieldConfig = {
+  const fieldConfig = {
     id: 'string',
     name: 'string',
+    hash: 'string',
+    schemaHash: 'string',
     createdAt: 'date',
-  };
+  } as const;
 
   beforeEach(async () => {
     ids = {
