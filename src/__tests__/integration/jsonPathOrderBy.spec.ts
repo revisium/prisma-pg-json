@@ -1,12 +1,23 @@
 import './setup';
 import { prisma } from './setup';
+import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
 
 describe('JSON Path ORDER BY Integration', () => {
+  let ids: Record<string, string> = {};
+
   beforeEach(async () => {
+    ids = {
+      complex1: nanoid(),
+      complex2: nanoid(),
+      complex3: nanoid(),
+      complex4: nanoid(),
+      complex5: nanoid(),
+    };
     await prisma.testTable.createMany({
       data: [
         {
+          id: ids.complex1,
           name: 'complex-1',
           readonly: false,
           data: {
@@ -17,6 +28,7 @@ describe('JSON Path ORDER BY Integration', () => {
           },
         },
         {
+          id: ids.complex2,
           name: 'complex-2',
           readonly: true,
           data: {
@@ -27,6 +39,7 @@ describe('JSON Path ORDER BY Integration', () => {
           },
         },
         {
+          id: ids.complex3,
           name: 'complex-3',
           readonly: false,
           data: {
@@ -37,6 +50,7 @@ describe('JSON Path ORDER BY Integration', () => {
           },
         },
         {
+          id: ids.complex4,
           name: 'complex-4',
           readonly: false,
           data: {
@@ -47,6 +61,7 @@ describe('JSON Path ORDER BY Integration', () => {
           },
         },
         {
+          id: ids.complex5,
           name: 'complex-5',
           readonly: true,
           data: {
@@ -278,12 +293,21 @@ describe('JSON Path ORDER BY Integration', () => {
   });
 
   describe('Complex JSON Path Aggregations', () => {
+    let ids: Record<string, string> = {};
+
     beforeEach(async () => {
+      ids = {
+        user1: nanoid(),
+        user2: nanoid(),
+        user3: nanoid(),
+      };
+
       // Add more complex data for aggregation tests
       await prisma.testTable.deleteMany({});
       await prisma.testTable.createMany({
         data: [
           {
+            id: ids.user1,
             name: 'user1',
             data: {
               scores: [85, 90, 95],
@@ -294,6 +318,7 @@ describe('JSON Path ORDER BY Integration', () => {
             },
           },
           {
+            id: ids.user2,
             name: 'user2',
             data: {
               scores: [75, 80, 85],
@@ -304,6 +329,7 @@ describe('JSON Path ORDER BY Integration', () => {
             },
           },
           {
+            id: ids.user3,
             name: 'user3',
             data: {
               scores: [95, 100],

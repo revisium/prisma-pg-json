@@ -1,13 +1,25 @@
 import './setup';
 import { prisma } from './setup';
+import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
 
 describe('JSON Filters Integration', () => {
   describe('Basic JSON Path Operations', () => {
+    let ids: Record<string, string> = {};
+
     beforeEach(async () => {
+      ids = {
+        user1: nanoid(),
+        user2: nanoid(),
+        user3: nanoid(),
+        user4: nanoid(),
+        user5: nanoid(),
+      };
+
       await prisma.testTable.createMany({
         data: [
           {
+            id: ids.user1,
             name: 'Alice',
             data: {
               name: 'Alice',
@@ -24,8 +36,10 @@ describe('JSON Filters Integration', () => {
               },
             },
             meta: {},
+            createdAt: new Date('2025-01-01T00:00:00.000Z'),
           },
           {
+            id: ids.user2,
             name: 'Bob',
             data: {
               name: 'Bob',
@@ -42,8 +56,10 @@ describe('JSON Filters Integration', () => {
               },
             },
             meta: {},
+            createdAt: new Date('2025-01-02T00:00:00.000Z'),
           },
           {
+            id: ids.user3,
             name: 'Charlie',
             data: {
               name: 'Charlie',
@@ -60,8 +76,10 @@ describe('JSON Filters Integration', () => {
               },
             },
             meta: {},
+            createdAt: new Date('2025-01-03T00:00:00.000Z'),
           },
           {
+            id: ids.user4,
             name: 'Diana',
             data: {
               name: 'Diana',
@@ -78,8 +96,10 @@ describe('JSON Filters Integration', () => {
               },
             },
             meta: {},
+            createdAt: new Date('2025-01-04T00:00:00.000Z'),
           },
           {
+            id: ids.user5,
             name: 'Eve',
             data: {
               name: 'Eve',
@@ -96,6 +116,7 @@ describe('JSON Filters Integration', () => {
               },
             },
             meta: {},
+            createdAt: new Date('2025-01-05T00:00:00.000Z'),
           },
         ],
       });
@@ -107,7 +128,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['name'], equals: 'Alice' } },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -115,7 +136,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['age'], equals: 35 } },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -123,7 +144,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['age'], equals: 30 } },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
 
       const query4 = buildQuery({
@@ -131,7 +152,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['isActive'], equals: true } },
       });
-      const results4 = await prisma.$queryRaw<unknown[]>(query4);
+      const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(3);
 
       const query5 = buildQuery({
@@ -139,7 +160,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['isActive'], equals: false } },
       });
-      const results5 = await prisma.$queryRaw<unknown[]>(query5);
+      const results5 = await prisma.$queryRaw<{ id: string }[]>(query5);
       expect(results5.length).toBe(2);
 
       const query6 = buildQuery({
@@ -152,7 +173,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results6 = await prisma.$queryRaw<unknown[]>(query6);
+      const results6 = await prisma.$queryRaw<{ id: string }[]>(query6);
       expect(results6.length).toBe(2);
     });
 
@@ -162,7 +183,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['title'], string_contains: 'Developer' } },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(3);
 
       const query2 = buildQuery({
@@ -170,7 +191,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['title'], string_starts_with: 'Senior' } },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -178,7 +199,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['title'], string_ends_with: 'Developer' } },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(3);
     });
 
@@ -188,7 +209,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['age'], gt: 30 } },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(2);
 
       const query2 = buildQuery({
@@ -196,7 +217,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['age'], gte: 30 } },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(3);
 
       const query3 = buildQuery({
@@ -204,7 +225,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['age'], lt: 30 } },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(2);
 
       const query4 = buildQuery({
@@ -212,7 +233,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['age'], lte: 30 } },
       });
-      const results4 = await prisma.$queryRaw<unknown[]>(query4);
+      const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(3);
 
       const query5 = buildQuery({
@@ -220,7 +241,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['age'], gt: 25, lt: 35 } },
       });
-      const results5 = await prisma.$queryRaw<unknown[]>(query5);
+      const results5 = await prisma.$queryRaw<{ id: string }[]>(query5);
       expect(results5.length).toBe(3); // Bob(30), Diana(28), Eve(32)
 
       const query6 = buildQuery({
@@ -228,7 +249,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['age'], gte: 25, lte: 35 } },
       });
-      const results6 = await prisma.$queryRaw<unknown[]>(query6);
+      const results6 = await prisma.$queryRaw<{ id: string }[]>(query6);
       expect(results6.length).toBe(5);
     });
 
@@ -238,7 +259,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['name'], not: 'Alice' } },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(4);
 
       const query2 = buildQuery({
@@ -246,7 +267,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['category'], not: 'admin' } },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(3);
     });
 
@@ -258,7 +279,7 @@ describe('JSON Filters Integration', () => {
           data: { path: ['name'], equals: 'alice', mode: 'insensitive' },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -272,7 +293,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(3);
 
       const query3 = buildQuery({
@@ -286,7 +307,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
 
       const query4 = buildQuery({
@@ -300,7 +321,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results4 = await prisma.$queryRaw<unknown[]>(query4);
+      const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(3);
     });
 
@@ -310,16 +331,27 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { meta: 'json' },
         where: { meta: { path: [], equals: {} } },
       });
-      const results = await prisma.$queryRaw<unknown[]>(query);
+      const results = await prisma.$queryRaw<{ id: string }[]>(query);
       expect(results.length).toBe(5);
     });
   });
 
   describe('JSON Array Operations', () => {
+    let ids: Record<string, string> = {};
+
     beforeEach(async () => {
+      ids = {
+        user1: nanoid(),
+        user2: nanoid(),
+        user3: nanoid(),
+        user4: nanoid(),
+        user5: nanoid(),
+      };
+
       await prisma.testTable.createMany({
         data: [
           {
+            id: ids.user1,
             name: 'User1',
             data: {
               tags: ['admin', 'user', 'typescript'],
@@ -362,6 +394,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user2,
             name: 'User2',
             data: {
               tags: ['user', 'react'],
@@ -376,6 +409,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user3,
             name: 'User3',
             data: {
               tags: ['admin', 'moderator', 'express'],
@@ -390,6 +424,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user4,
             name: 'User4',
             data: {
               tags: ['user', 'node'],
@@ -404,6 +439,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user5,
             name: 'User5',
             data: {
               tags: ['admin', 'supervisor'],
@@ -427,7 +463,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['tags'], array_contains: 'typescript' } },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -435,7 +471,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['tags'], array_contains: 'react' } },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -443,7 +479,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['scores'], array_contains: 95 } },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(3);
 
       const query4 = buildQuery({
@@ -451,7 +487,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['scores'], array_contains: 90 } },
       });
-      const results4 = await prisma.$queryRaw<unknown[]>(query4);
+      const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(3);
     });
 
@@ -466,7 +502,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -479,7 +515,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
     });
 
@@ -489,7 +525,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['tags'], array_starts_with: 'admin' } },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(3);
 
       const query2 = buildQuery({
@@ -497,7 +533,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['tags'], array_starts_with: 'user' } },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(2); // User2, User4
 
       const query3 = buildQuery({
@@ -505,7 +541,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['tags'], array_ends_with: 'express' } },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
 
       const query4 = buildQuery({
@@ -513,7 +549,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['tags'], array_ends_with: 'react' } },
       });
-      const results4 = await prisma.$queryRaw<unknown[]>(query4);
+      const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(1);
 
       const query5 = buildQuery({
@@ -521,7 +557,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['scores'], array_starts_with: 85 } },
       });
-      const results5 = await prisma.$queryRaw<unknown[]>(query5);
+      const results5 = await prisma.$queryRaw<{ id: string }[]>(query5);
       expect(results5.length).toBe(1);
 
       const query6 = buildQuery({
@@ -529,7 +565,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: ['scores'], array_ends_with: 95 } },
       });
-      const results6 = await prisma.$queryRaw<unknown[]>(query6);
+      const results6 = await prisma.$queryRaw<{ id: string }[]>(query6);
       expect(results6.length).toBe(2);
     });
 
@@ -545,7 +581,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -559,7 +595,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(3);
 
       const query3 = buildQuery({
@@ -573,16 +609,27 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
     });
   });
 
   describe('Deep Nested JSON Operations', () => {
+    let ids: Record<string, string> = {};
+
     beforeEach(async () => {
+      ids = {
+        user1: nanoid(),
+        user2: nanoid(),
+        user3: nanoid(),
+        user4: nanoid(),
+        user5: nanoid(),
+      };
+
       await prisma.testTable.createMany({
         data: [
           {
+            id: ids.user1,
             name: 'User1',
             data: {
               user: {
@@ -595,6 +642,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user2,
             name: 'User2',
             data: {
               user: {
@@ -607,6 +655,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user3,
             name: 'User3',
             data: {
               user: {
@@ -619,6 +668,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user4,
             name: 'User4',
             data: {
               user: {
@@ -631,6 +681,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user5,
             name: 'User5',
             data: {
               user: {
@@ -657,7 +708,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(5);
 
       const query2 = buildQuery({
@@ -670,7 +721,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(2);
     });
 
@@ -685,7 +736,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results = await prisma.$queryRaw<unknown[]>(query);
+      const results = await prisma.$queryRaw<{ id: string }[]>(query);
       expect(results.length).toBe(3);
     });
 
@@ -700,7 +751,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -713,7 +764,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(5);
     });
 
@@ -728,7 +779,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(2);
 
       const query2 = buildQuery({
@@ -741,7 +792,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(3);
     });
 
@@ -756,7 +807,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(2);
 
       const query2 = buildQuery({
@@ -770,7 +821,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
     });
 
@@ -786,16 +837,27 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results = await prisma.$queryRaw<unknown[]>(query);
+      const results = await prisma.$queryRaw<{ id: string }[]>(query);
       expect(results.length).toBe(2);
     });
   });
 
   describe('Array Wildcard Operations (path with "*")', () => {
+    let ids: Record<string, string> = {};
+
     beforeEach(async () => {
+      ids = {
+        user1: nanoid(),
+        user2: nanoid(),
+        user3: nanoid(),
+        user4: nanoid(),
+        user5: nanoid(),
+      };
+
       await prisma.testTable.createMany({
         data: [
           {
+            id: ids.user1,
             name: 'User1',
             data: {
               products: [
@@ -834,6 +896,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user2,
             name: 'User2',
             data: {
               products: [
@@ -861,6 +924,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user3,
             name: 'User3',
             data: {
               products: [
@@ -888,6 +952,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user4,
             name: 'User4',
             data: {
               products: [
@@ -915,6 +980,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user5,
             name: 'User5',
             data: {
               products: [
@@ -956,7 +1022,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -969,7 +1035,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(4); // User2,3,4,5 (User1 has 99.99)
 
       const query3 = buildQuery({
@@ -982,7 +1048,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
     });
 
@@ -997,7 +1063,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(5);
 
       const query2 = buildQuery({
@@ -1010,7 +1076,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -1023,7 +1089,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
     });
 
@@ -1038,7 +1104,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(3);
 
       const query2 = buildQuery({
@@ -1051,7 +1117,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(2);
     });
 
@@ -1067,7 +1133,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results = await prisma.$queryRaw<unknown[]>(query);
+      const results = await prisma.$queryRaw<{ id: string }[]>(query);
       expect(results.length).toBe(5);
     });
 
@@ -1082,7 +1148,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(2);
 
       const query2 = buildQuery({
@@ -1095,7 +1161,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(2);
 
       const query3 = buildQuery({
@@ -1108,7 +1174,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(2);
     });
 
@@ -1123,7 +1189,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -1136,7 +1202,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -1149,7 +1215,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(2);
     });
 
@@ -1164,7 +1230,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -1177,7 +1243,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(2);
 
       const query3 = buildQuery({
@@ -1190,7 +1256,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(2);
     });
 
@@ -1206,7 +1272,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(2);
 
       const query2 = buildQuery({
@@ -1220,7 +1286,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -1234,16 +1300,27 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(2);
     });
   });
 
   describe('Nested Wildcard Operations (path with multiple "*")', () => {
+    let ids: Record<string, string> = {};
+
     beforeEach(async () => {
+      ids = {
+        user1: nanoid(),
+        user2: nanoid(),
+        user3: nanoid(),
+        user4: nanoid(),
+        user5: nanoid(),
+      };
+
       await prisma.testTable.createMany({
         data: [
           {
+            id: ids.user1,
             name: 'User1',
             data: {
               products: [
@@ -1268,6 +1345,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user2,
             name: 'User2',
             data: {
               products: [
@@ -1292,6 +1370,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user3,
             name: 'User3',
             data: {
               products: [
@@ -1316,6 +1395,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user4,
             name: 'User4',
             data: {
               products: [
@@ -1334,6 +1414,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user5,
             name: 'User5',
             data: {
               products: [
@@ -1366,7 +1447,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -1379,7 +1460,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -1392,7 +1473,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(5);
     });
 
@@ -1407,7 +1488,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(2);
 
       const query2 = buildQuery({
@@ -1420,7 +1501,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -1434,7 +1515,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(2);
     });
 
@@ -1450,7 +1531,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(5);
 
       const query2 = buildQuery({
@@ -1464,7 +1545,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
     });
 
@@ -1479,7 +1560,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(5);
 
       const query2 = buildQuery({
@@ -1492,7 +1573,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(3);
     });
 
@@ -1507,7 +1588,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(3);
 
       const query2 = buildQuery({
@@ -1520,7 +1601,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(3);
 
       const query3 = buildQuery({
@@ -1533,7 +1614,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
     });
 
@@ -1548,7 +1629,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(2);
 
       const query2 = buildQuery({
@@ -1561,7 +1642,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(2);
 
       const query3 = buildQuery({
@@ -1574,7 +1655,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(1);
     });
 
@@ -1589,7 +1670,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -1602,7 +1683,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -1615,7 +1696,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(2);
     });
 
@@ -1631,7 +1712,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(3);
 
       const query2 = buildQuery({
@@ -1645,7 +1726,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(2);
 
       const query3 = buildQuery({
@@ -1659,16 +1740,27 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(2);
     });
   });
 
   describe('JSON Path String Syntax', () => {
+    let ids: Record<string, string> = {};
+
     beforeEach(async () => {
+      ids = {
+        user1: nanoid(),
+        user2: nanoid(),
+        user3: nanoid(),
+        user4: nanoid(),
+        user5: nanoid(),
+      };
+
       await prisma.testTable.createMany({
         data: [
           {
+            id: ids.user1,
             name: 'User1',
             data: {
               category: 'admin',
@@ -1692,6 +1784,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user2,
             name: 'User2',
             data: {
               category: 'admin',
@@ -1712,6 +1805,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user3,
             name: 'User3',
             data: {
               category: 'user',
@@ -1732,6 +1826,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user4,
             name: 'User4',
             data: {
               category: 'user',
@@ -1752,6 +1847,7 @@ describe('JSON Filters Integration', () => {
             },
           },
           {
+            id: ids.user5,
             name: 'User5',
             data: {
               category: 'user',
@@ -1781,7 +1877,7 @@ describe('JSON Filters Integration', () => {
         fieldConfig: { data: 'json' },
         where: { data: { path: 'category', equals: 'admin' } },
       });
-      const results = await prisma.$queryRaw<unknown[]>(query);
+      const results = await prisma.$queryRaw<{ id: string }[]>(query);
       expect(results.length).toBe(2);
     });
 
@@ -1796,7 +1892,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -1809,7 +1905,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
 
       const query3 = buildQuery({
@@ -1822,7 +1918,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(2);
 
       const query4 = buildQuery({
@@ -1835,7 +1931,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results4 = await prisma.$queryRaw<unknown[]>(query4);
+      const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(2);
     });
 
@@ -1850,7 +1946,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(4);
 
       const query2 = buildQuery({
@@ -1863,7 +1959,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(5);
 
       const query3 = buildQuery({
@@ -1876,7 +1972,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results3 = await prisma.$queryRaw<unknown[]>(query3);
+      const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
       expect(results3.length).toBe(5);
 
       const query4 = buildQuery({
@@ -1889,7 +1985,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results4 = await prisma.$queryRaw<unknown[]>(query4);
+      const results4 = await prisma.$queryRaw<{ id: string }[]>(query4);
       expect(results4.length).toBe(2);
     });
 
@@ -1904,7 +2000,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -1917,7 +2013,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(5);
     });
 
@@ -1932,7 +2028,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -1945,7 +2041,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
     });
 
@@ -1961,7 +2057,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(5);
     });
 
@@ -1976,7 +2072,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results1 = await prisma.$queryRaw<unknown[]>(query1);
+      const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
       expect(results1.length).toBe(1);
 
       const query2 = buildQuery({
@@ -1989,7 +2085,7 @@ describe('JSON Filters Integration', () => {
           },
         },
       });
-      const results2 = await prisma.$queryRaw<unknown[]>(query2);
+      const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
       expect(results2.length).toBe(1);
     });
   });

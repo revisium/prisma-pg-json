@@ -1,12 +1,21 @@
 import './setup';
 import { prisma } from './setup';
+import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
 
 describe('ORDER BY', () => {
+  let ids: Record<string, string> = {};
+
   beforeEach(async () => {
+    ids = {
+      charlie: nanoid(),
+      alice: nanoid(),
+      bob: nanoid(),
+    };
     await prisma.testTable.createMany({
       data: [
         {
+          id: ids.charlie,
           name: 'Charlie',
           age: 18,
           score: 85.5,
@@ -16,6 +25,7 @@ describe('ORDER BY', () => {
           },
         },
         {
+          id: ids.alice,
           name: 'Alice',
           age: 25,
           score: 95.0,
@@ -25,6 +35,7 @@ describe('ORDER BY', () => {
           },
         },
         {
+          id: ids.bob,
           name: 'Bob',
           age: 30,
           score: 75.3,
