@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { QueryBuilderOptions, WhereConditions, FieldConfig, FieldType, JsonFilter } from './types';
+import { QueryBuilderOptions, FieldConfig, FieldType, JsonFilter, GenerateWhereParams } from './types';
 import { generateStringFilter } from './where/string';
 import { generateNumberFilter } from './where/number';
 import { generateBooleanFilter } from './where/boolean';
@@ -32,12 +32,12 @@ export function buildQuery(options: QueryBuilderOptions): Prisma.Sql {
   let sql = Prisma.sql`SELECT ${fieldList} FROM "${Prisma.raw(tableName)}" ${Prisma.raw(tableAlias)}`;
 
   if (where) {
-    const whereClause = generateWhereClause(where, fieldConfig, tableAlias);
+    const whereClause = generateWhereClause({ where, fieldConfig, tableAlias });
     sql = Prisma.sql`${sql} WHERE ${whereClause}`;
   }
 
   if (orderBy) {
-    const orderByClause = generateOrderBy(tableAlias, orderBy, fieldConfig);
+    const orderByClause = generateOrderBy({ tableAlias, orderBy, fieldConfig });
     if (orderByClause) {
       sql = Prisma.sql`${sql} ${orderByClause}`;
     }
@@ -48,21 +48,14 @@ export function buildQuery(options: QueryBuilderOptions): Prisma.Sql {
   return sql;
 }
 
-export function generateWhere(
-  where: WhereConditions,
-  fieldConfig: FieldConfig,
-  tableAlias: string,
-): Prisma.Sql {
-  return generateWhereClause(where, fieldConfig, tableAlias);
+export function generateWhere(params: GenerateWhereParams): Prisma.Sql {
+  return generateWhereClause(params);
 }
 
-export { generateOrderBy } from './orderBy';
+export { generateOrderBy, generateOrderByClauses } from './orderBy';
 
-function generateWhereClause(
-  where: WhereConditions,
-  fieldConfig: FieldConfig,
-  tableAlias: string,
-): Prisma.Sql {
+function generateWhereClause(params: GenerateWhereParams): Prisma.Sql {
+  const { where, fieldConfig, tableAlias } = params;
   const conditions: Prisma.Sql[] = [];
 
   for (const [key, value] of Object.entries(where)) {
@@ -85,20 +78,20 @@ function generateWhereClause(
 
   if (where.AND && Array.isArray(where.AND) && where.AND.length > 0) {
     const andConditions = where.AND.map((cond) =>
-      generateWhereClause(cond, fieldConfig, tableAlias),
+      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
     );
     conditions.push(Prisma.sql`(${Prisma.join(andConditions, ' AND ')})`);
   }
 
   if (where.OR && Array.isArray(where.OR) && where.OR.length > 0) {
-    const orConditions = where.OR.map((cond) => generateWhereClause(cond, fieldConfig, tableAlias));
+    const orConditions = where.OR.map((cond) => generateWhereClause({ where: cond, fieldConfig, tableAlias }));
     conditions.push(Prisma.sql`(${Prisma.join(orConditions, ' OR ')})`);
   }
 
   if (where.NOT) {
     const notConditions = Array.isArray(where.NOT) ? where.NOT : [where.NOT];
     const notClauses = notConditions.map((cond) =>
-      generateWhereClause(cond, fieldConfig, tableAlias),
+      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
     );
     conditions.push(Prisma.sql`NOT (${Prisma.join(notClauses, ' AND ')})`);
   }
