@@ -12,18 +12,35 @@
 
 ## Overview
 
-A universal query builder that generates parameterized SQL queries for PostgreSQL through Prisma, with special focus on JSON/JSONB operations that go beyond standard Prisma capabilities.
+A universal query builder that extends Prisma's capabilities while preserving familiar WHERE and ORDER BY API. Generate parameterized SQL queries for PostgreSQL through `$queryRaw` with advanced JSON/JSONB operations that standard Prisma doesn't support.
+
+**Goal**: Replicate Prisma's query interface using `$queryRaw` while adding powerful JSON functionality.
 
 ## Features
 
-- 🎯 **Type-safe** - Full TypeScript support with configurable field types
+- 🎯 **Prisma-compatible API** - Familiar `where` and `orderBy` syntax from Prisma
 - 🔍 **JSON Path queries** - Access nested data with `['key', 'nested']` or wildcard patterns
 - 🌟 **Wildcard support** - Query arrays with `*`, array indices `[0]`, `[-1]`
-- 🚀 **Advanced JSON sorting** - Order by nested JSON fields with type casting
-- 🔧 **Complex filters** - String, number, boolean, date, and JSON filters
-- 🎨 **Logical operators** - AND, OR, NOT combinations
+- 🚀 **JSON sorting** - Order by nested JSON fields with type casting and aggregations
+- 🔧 **Extended filters** - All Prisma filters plus advanced JSON operations
+- 🎨 **Logical operators** - AND, OR, NOT combinations just like Prisma
 - 📦 **Prisma native** - Uses `Prisma.Sql` for safe parameterized queries
-- ⚡ **Universal** - Works with any table structure
+- ⚡ **Universal** - Works with any table structure, not schema-dependent
+
+## Prisma vs prisma-pg-json
+
+| Feature | Standard Prisma | This Library |
+|---------|----------------|--------------|
+| **Basic filters** | `contains`, `gt`, `gte`, `in`, etc. | ✅ Same API |
+| **Logical operators** | `AND`, `OR`, `NOT` | ✅ Same API |
+| **JSON field access** | `metadata: { path: ['key'], equals: 'value' }` | ✅ Same + wildcards |
+| **JSON array queries** | Limited | ✅ `path: ['tags', '*', 'name']` |
+| **Array indices** | ❌ Not supported | ✅ `path: ['items', 0]` or `'items[0]'` |
+| **Negative indices** | ❌ Not supported | ✅ `path: ['items', -1]` or `'items[-1]'` |
+| **JSON sorting** | ❌ Not supported | ✅ With type casting and aggregations |
+| **Wildcard paths** | ❌ Not supported | ✅ `'tags[*].name'` syntax |
+| **Path formats** | Array only | ✅ Array `['a', 'b']` or string `'a.b'` |
+| **Query method** | ORM methods | `$queryRaw` with generated SQL |
 
 ## Installation
 
@@ -38,14 +55,14 @@ npm install @revisium/prisma-pg-json
 The library provides two main functions for building WHERE and ORDER BY clauses:
 
 ```typescript
-import { generateWhere, generateOrderBy } from '@revisium/prisma-pg-json';
+import { generateWhere, generateOrderBy, FieldConfig } from '@revisium/prisma-pg-json';
 import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Define your field types
-const fieldConfig = {
-  id: 'string',
+// Define your field types (FieldConfig maps field names to types)
+const fieldConfig: FieldConfig = {
+  id: 'string',        // FieldType = 'string' | 'number' | 'boolean' | 'date' | 'json'
   name: 'string',
   age: 'number',
   isActive: 'boolean',
@@ -241,52 +258,89 @@ const orderByClause = generateOrderBy({
 
 ### Filter Types
 
+Complete list of available filters for each field type:
+
 #### String Filters
 ```typescript
 name: {
-  contains: 'john',
-  mode: 'insensitive'  // Case-insensitive
+  equals: 'john',              // Exact match
+  not: 'admin',                // Not equal
+  contains: 'john',            // Contains substring
+  startsWith: 'mr',            // Starts with
+  endsWith: 'gmail.com',       // Ends with
+  in: ['active', 'pending'],   // In array
+  notIn: ['deleted', 'banned'], // Not in array
+  mode: 'insensitive'          // Case-insensitive (works with contains, startsWith, endsWith)
 }
-email: { startsWith: 'admin@' }
-status: { in: ['active', 'pending'] }
 ```
 
 #### Number Filters
 ```typescript
-age: { gte: 18, lte: 65 }
-price: { gt: 100 }
-quantity: { in: [1, 5, 10] }
-```
-
-#### Date Filters
-```typescript
-createdAt: {
-  gte: new Date('2024-01-01'),
-  lt: new Date('2025-01-01')
+age: {
+  equals: 25,                  // Exact match
+  not: 0,                      // Not equal
+  gt: 18,                      // Greater than
+  gte: 18,                     // Greater than or equal
+  lt: 65,                      // Less than
+  lte: 65,                     // Less than or equal
+  in: [18, 25, 30],           // In array
+  notIn: [0, 999]             // Not in array
 }
 ```
 
 #### Boolean Filters
 ```typescript
-isActive: true
-isDeleted: { not: true }
+isActive: true,                // Direct boolean value
+isDeleted: {
+  equals: false,               // Explicit equals
+  not: true                    // Not equal
+}
+```
+
+#### Date Filters
+```typescript
+createdAt: {
+  equals: new Date('2024-01-01'),  // Exact date
+  not: new Date('2024-01-01'),     // Not equal
+  gt: new Date('2024-01-01'),      // After date
+  gte: new Date('2024-01-01'),     // After or equal
+  lt: new Date('2025-01-01'),      // Before date
+  lte: new Date('2025-01-01'),     // Before or equal
+  in: [date1, date2],              // In array
+  notIn: [date3, date4]            // Not in array
+}
 ```
 
 #### JSON Filters
 ```typescript
 metadata: {
-  path: ['config', 'enabled'],
-  equals: true
-}
+  path: ['config', 'enabled'],     // Required: JSON path
 
-metadata: {
-  path: ['tags', '*'],
-  string_contains: 'urgent'
-}
+  // Value comparisons
+  equals: true,                    // Exact match
+  not: false,                      // Not equal
 
-metadata: {
-  path: ['items'],
-  array_length: { gte: 5 }
+  // String operations (on JSON strings)
+  string_contains: 'text',         // Contains substring
+  string_startsWith: 'prefix',     // Starts with
+  string_endsWith: 'suffix',       // Ends with
+
+  // Number operations (on JSON numbers)
+  number_gt: 10,                   // Greater than
+  number_gte: 10,                  // Greater than or equal
+  number_lt: 100,                  // Less than
+  number_lte: 100,                 // Less than or equal
+
+  // Array operations
+  array_contains: { key: 'value' }, // Array contains object
+  array_length: { gte: 5 },        // Array length comparison
+
+  // Existence checks
+  path_exists: true,               // Path exists in JSON
+
+  // Array/object membership
+  in: ['value1', 'value2'],        // Value in array
+  notIn: ['value3', 'value4']      // Value not in array
 }
 ```
 
