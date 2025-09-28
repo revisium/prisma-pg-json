@@ -140,7 +140,7 @@ const whereClause = generateWhere({
     // Array indices with string notation
     metadata: {
       path: 'items[0].price',
-      number_gte: 100
+      gte: 100
     },
 
     // Negative indices (from end)
@@ -152,7 +152,7 @@ const whereClause = generateWhere({
     // Negative indices with string notation
     metadata: {
       path: 'reviews[-1].rating',
-      number_gte: 4
+      gte: 4
     },
 
     // Array contains object
@@ -314,7 +314,7 @@ createdAt: {
 #### JSON Filters
 ```typescript
 metadata: {
-  path: ['config', 'enabled'],     // Required: JSON path
+  path: ['config', 'enabled'],     // Required: JSON path (string | string[])
 
   // Value comparisons
   equals: true,                    // Exact match
@@ -322,25 +322,26 @@ metadata: {
 
   // String operations (on JSON strings)
   string_contains: 'text',         // Contains substring
-  string_startsWith: 'prefix',     // Starts with
-  string_endsWith: 'suffix',       // Ends with
+  string_starts_with: 'prefix',   // Starts with
+  string_ends_with: 'suffix',     // Ends with
 
-  // Number operations (on JSON numbers)
-  number_gt: 10,                   // Greater than
-  number_gte: 10,                  // Greater than or equal
-  number_lt: 100,                  // Less than
-  number_lte: 100,                 // Less than or equal
+  // Number/Date operations (on JSON numbers/dates)
+  gt: 10,                          // Greater than
+  gte: 10,                         // Greater than or equal
+  lt: 100,                         // Less than
+  lte: 100,                        // Less than or equal
 
-  // Array operations
-  array_contains: { key: 'value' }, // Array contains object
-  array_length: { gte: 5 },        // Array length comparison
-
-  // Existence checks
-  path_exists: true,               // Path exists in JSON
+  // Array operations (for JSON arrays)
+  array_contains: ['value1', 'value2'],    // Array contains ALL specified elements (always array)
+  array_starts_with: 'first_value',       // First array element equals value
+  array_ends_with: 'last_value',          // Last array element equals value
 
   // Array/object membership
   in: ['value1', 'value2'],        // Value in array
-  notIn: ['value3', 'value4']      // Value not in array
+  notIn: ['value3', 'value4'],     // Value not in array
+
+  // Case sensitivity (works with string operations)
+  mode: 'insensitive'              // Case-insensitive matching
 }
 ```
 
