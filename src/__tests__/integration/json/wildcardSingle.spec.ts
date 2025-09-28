@@ -472,4 +472,54 @@ describe('Array Wildcard Operations (path with "*")', () => {
     const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
     expect(results3.length).toBe(2);
   });
+
+  it('should handle wildcard array operations with single quotes (SQL injection protection)', async () => {
+    await prisma.testTable.deleteMany();
+    const testId = nanoid();
+    await prisma.testTable.create({
+      data: {
+        id: testId,
+        name: 'Test with quotes',
+        data: {
+          products: [
+            {
+              name: 'Product A',
+              tags: ["user's choice", 'featured'],
+            },
+          ],
+        },
+        createdAt: new Date('2025-01-01T00:00:00.000Z'),
+      },
+    });
+
+    const query1 = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig: { data: 'json' },
+      where: {
+        data: {
+          path: ['products', '*', 'tags'],
+          array_contains: ["user's choice"],
+          mode: 'insensitive',
+        },
+      },
+    });
+    const results1 = await prisma.$queryRaw<{ id: string; name: string }[]>(query1);
+    expect(results1.length).toBe(1);
+    expect(results1[0].name).toBe('Test with quotes');
+
+    const query2 = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig: { data: 'json' },
+      where: {
+        data: {
+          path: ['products', '*', 'tags'],
+          array_starts_with: "USER'S CHOICE",
+          mode: 'insensitive',
+        },
+      },
+    });
+    const results2 = await prisma.$queryRaw<{ id: string; name: string }[]>(query2);
+    expect(results2.length).toBe(1);
+    expect(results2[0].name).toBe('Test with quotes');
+  });
 });

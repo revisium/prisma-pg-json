@@ -245,6 +245,36 @@ describe('Array Contains Multiple Elements', () => {
       expect(results.map((r) => r.name).sort()).toEqual(['Test 1', 'Test 3']);
     });
 
+    it('should handle values with single quotes (SQL injection protection)', async () => {
+      await prisma.testTable.deleteMany();
+      const testId = nanoid();
+      await prisma.testTable.create({
+        data: {
+          id: testId,
+          name: 'Test with quote',
+          data: {
+            tags: ["admin's tag", 'user'],
+          },
+        },
+      });
+
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig: { data: 'json' },
+        where: {
+          data: {
+            path: ['tags'],
+            array_contains: ["admin's tag"],
+            mode: 'insensitive',
+          },
+        },
+      });
+
+      const results = await prisma.$queryRaw<{ id: string; name: string }[]>(query);
+      expect(results.length).toBe(1);
+      expect(results[0].name).toBe('Test with quote');
+    });
+
     it('should throw error for case insensitive with multiple elements', async () => {
       expect(() => {
         buildQuery({

@@ -1,5 +1,9 @@
 import { WildcardContext, PathContext, WildcardOperator } from './types';
 
+function escapeSqlString(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 /**
  * Generate array condition (array_contains, array_starts_with, array_ends_with) for single wildcard
  */
@@ -62,7 +66,8 @@ function generateArrayConditionSql(
           );
         }
         if (typeof value[0] === 'string') {
-          return `EXISTS (SELECT 1 FROM jsonb_array_elements_text(${arrayPath}) AS arr_elem WHERE LOWER(arr_elem) = '${value[0].toLowerCase()}')`;
+          const escapedValue = escapeSqlString(value[0].toLowerCase());
+          return `EXISTS (SELECT 1 FROM jsonb_array_elements_text(${arrayPath}) AS arr_elem WHERE LOWER(arr_elem) = '${escapedValue}')`;
         } else {
           throw new Error('array_contains: insensitive mode only supports strings');
         }
@@ -73,14 +78,16 @@ function generateArrayConditionSql(
 
     case 'array_starts_with':
       if (isInsensitive && typeof value === 'string') {
-        return `(LOWER((${arrayPath})->>0) = '${value.toLowerCase()}' AND JSONB_TYPEOF(${arrayPath}) = 'array')`;
+        const escapedValue = escapeSqlString(value.toLowerCase());
+        return `(LOWER((${arrayPath})->>0) = '${escapedValue}' AND JSONB_TYPEOF(${arrayPath}) = 'array')`;
       } else {
         return `((${arrayPath}->0)::jsonb = '${JSON.stringify(value)}'::jsonb AND JSONB_TYPEOF(${arrayPath}) = 'array')`;
       }
 
     case 'array_ends_with':
       if (isInsensitive && typeof value === 'string') {
-        return `(LOWER((${arrayPath})->>-1) = '${value.toLowerCase()}' AND JSONB_TYPEOF(${arrayPath}) = 'array')`;
+        const escapedValue = escapeSqlString(value.toLowerCase());
+        return `(LOWER((${arrayPath})->>-1) = '${escapedValue}' AND JSONB_TYPEOF(${arrayPath}) = 'array')`;
       } else {
         return `((${arrayPath}->-1)::jsonb = '${JSON.stringify(value)}'::jsonb AND JSONB_TYPEOF(${arrayPath}) = 'array')`;
       }
