@@ -9,7 +9,3 @@ beforeAll(async () => {
 afterAll(async () => {
   await prisma.$disconnect();
 });
-
-beforeEach(async () => {
-  await prisma.testTable.deleteMany();
-});
