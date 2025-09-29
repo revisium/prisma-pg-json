@@ -10,7 +10,7 @@ import { generateStringFilter } from './where/string';
 import { generateNumberFilter } from './where/number';
 import { generateBooleanFilter } from './where/boolean';
 import { generateDateFilter } from './where/date';
-import { generateJsonFilter } from './where/json';
+import { generateJsonFilter } from './where/json/json-filter';
 import { generateOrderBy } from './orderBy';
 
 const DEFAULT_FIELD_CONFIG: FieldConfig = {};
