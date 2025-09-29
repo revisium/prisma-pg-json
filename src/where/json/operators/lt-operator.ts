@@ -6,7 +6,8 @@ export class LtOperator extends BaseOperator<unknown> {
   readonly key = 'lt' as const;
 
   validate(value: unknown): boolean {
-    return value !== undefined;
+    return value !== undefined && value !== null &&
+           (typeof value === 'string' || typeof value === 'number');
   }
 
   generateCondition(

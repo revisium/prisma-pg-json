@@ -6,7 +6,8 @@ export class GteOperator extends BaseOperator<unknown> {
   readonly key = 'gte' as const;
 
   validate(value: unknown): boolean {
-    return value !== undefined;
+    return value !== undefined && value !== null &&
+           (typeof value === 'string' || typeof value === 'number');
   }
 
   generateCondition(

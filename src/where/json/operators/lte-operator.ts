@@ -6,7 +6,8 @@ export class LteOperator extends BaseOperator<unknown> {
   readonly key = 'lte' as const;
 
   validate(value: unknown): boolean {
-    return value !== undefined;
+    return value !== undefined && value !== null &&
+           (typeof value === 'string' || typeof value === 'number');
   }
 
   generateCondition(

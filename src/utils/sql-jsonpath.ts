@@ -59,10 +59,10 @@ export function generateJsonPathNotExists(fieldRef: Prisma.Sql, condition: strin
 }
 
 /**
- * Generate jsonb_path_exists expression with like_regex
+ * Generate jsonb_path_exists expression with like_regex using parameterized queries
  * @param fieldRef - Field reference
  * @param jsonPath - JSONPath string
- * @param pattern - Regular expression pattern
+ * @param pattern - Regular expression pattern (will be passed as parameter)
  * @param isInsensitive - Whether to use case-insensitive matching
  * @returns Prisma.Sql expression
  */
@@ -73,7 +73,25 @@ export function generateJsonPathLikeRegex(
   isInsensitive: boolean = false,
 ): Prisma.Sql {
   const flags = isInsensitive ? ' flag "i"' : '';
-  const condition = `${jsonPath} ? (@ like_regex "${pattern}"${flags})`;
+  // Escape quotes and other special characters for JSONPath string literal
+  const escapedPattern = pattern.replace(/["\\\n\r\t]/g, (match) => {
+    switch (match) {
+      case '"':
+        return '\\"';
+      case '\\':
+        return '\\\\';
+      case '\n':
+        return '\\n';
+      case '\r':
+        return '\\r';
+      case '\t':
+        return '\\t';
+      default:
+        return match;
+    }
+  });
+
+  const condition = `${jsonPath} ? (@ like_regex "${escapedPattern}"${flags})`;
   return generateJsonPathExists(fieldRef, condition);
 }
 

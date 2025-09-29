@@ -134,22 +134,18 @@ function processAggregation(
     return Prisma.sql`${typedExpression} ${Prisma.raw(direction)}`;
   }
 
-  let aggregateFunction: string;
-  switch (aggregation) {
-    case 'min':
-      aggregateFunction = 'min()';
-      break;
-    case 'max':
-      aggregateFunction = 'max()';
-      break;
-    case 'avg':
-      aggregateFunction = 'avg()';
-      break;
-    default:
-      throw new Error(`Unsupported aggregation: ${aggregation}`);
-  }
+  // PostgreSQL doesn't support JSONPath .min()/.max()/.avg() methods
+  // Use SQL aggregates with jsonb_array_elements instead
+  const pathSegments = jsonPath
+    .replace('$.', '')
+    .split(/[.[\]]/)
+    .filter((s) => s.length > 0);
 
-  const arrayPath = `${jsonPath}.${aggregateFunction}`;
-  const typedExpression = Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${arrayPath}::jsonpath))::${Prisma.raw(type)}`;
-  return Prisma.sql`${typedExpression} ${Prisma.raw(direction)}`;
+  const basePathSql = `{${pathSegments.join(',')}}`;
+  const aggregationFunc = aggregation.toUpperCase();
+
+  return Prisma.sql`(
+    SELECT ${Prisma.raw(aggregationFunc)}((elem)::${Prisma.raw(type)})
+    FROM jsonb_array_elements((${fieldRef}#>'${Prisma.raw(basePathSql)}')::jsonb) AS elem
+  ) ${Prisma.raw(direction)}`;
 }

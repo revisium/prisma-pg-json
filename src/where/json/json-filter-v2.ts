@@ -16,6 +16,13 @@ function validatePath(path: JsonFilter['path']): PathValidationResult {
     };
   }
 
+  if (typeof path === 'string' && path.includes('..')) {
+    return {
+      isValid: false,
+      isSpecialPath: false,
+    };
+  }
+
   return {
     isValid: true,
     isSpecialPath: false,

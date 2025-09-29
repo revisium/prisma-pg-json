@@ -446,6 +446,112 @@ describe('JSON Path ORDER BY Integration', () => {
       );
     });
 
+
+    // Add comprehensive tests for aggregation WITHOUT wildcards - now should work!
+    it('should work with min aggregation on array path without wildcards', async () => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy: {
+          data: {
+            path: ['scores'], // NO wildcard - now uses SQL aggregates
+            direction: 'asc',
+            type: 'int',
+            aggregation: 'min',
+          },
+        },
+      });
+
+
+      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+      expect(results.length).toBeGreaterThan(0);
+      // Should be sorted by minimum score in each user's scores array
+      expect(results[0].name).toBe('user2'); // min score: 75
+    });
+
+    it('should work with max aggregation on array path without wildcards', async () => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy: {
+          data: {
+            path: ['scores'], // NO wildcard - now uses SQL aggregates
+            direction: 'desc',
+            type: 'int',
+            aggregation: 'max',
+          },
+        },
+      });
+
+
+      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+      expect(results.length).toBeGreaterThan(0);
+      // Should be sorted by maximum score in each user's scores array (descending)
+      expect(results[0].name).toBe('user3'); // max score: 100
+    });
+
+    it('should work with avg aggregation on array path without wildcards', async () => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy: {
+          data: {
+            path: ['scores'], // NO wildcard - now uses SQL aggregates
+            direction: 'asc',
+            type: 'float',
+            aggregation: 'avg',
+          },
+        },
+      });
+
+
+      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+      expect(results.length).toBeGreaterThan(0);
+      // Should be sorted by average score in each user's scores array
+      expect(results[0].name).toBe('user2'); // avg: (75+80+85)/3 = 80
+    });
+
+    it('should work with min aggregation on nested array path without wildcards', async () => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy: {
+          data: {
+            path: ['items'], // NO wildcard - now uses SQL aggregates
+            direction: 'asc',
+            type: 'text',
+            aggregation: 'min',
+          },
+        },
+      });
+
+
+      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+      expect(results.length).toBeGreaterThan(0);
+      // Should work with text aggregation on JSON objects
+    });
+
+    it('should work with max aggregation on nested property path without wildcards', async () => {
+      // This will work with the whole JSON objects in items array as text
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy: {
+          data: {
+            path: ['items'], // Uses SQL aggregates on the entire array
+            direction: 'desc',
+            type: 'text',
+            aggregation: 'max',
+          },
+        },
+      });
+
+
+      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+      expect(results.length).toBeGreaterThan(0);
+      // Should work with text aggregation on JSON objects
+    });
+
     it('should order by average value in array', async () => {
       await testAggregationOrder(
         {

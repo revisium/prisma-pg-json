@@ -20,6 +20,26 @@ export function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+export function escapeJsonPathString(str: string): string {
+  return str.replace(/["\\\n\r\t]/g, (match) => {
+    switch (match) {
+      case '"':
+        return '\\"';
+      case '\\':
+        return '\\\\';
+      case '\n':
+        return '\\n';
+      case '\r':
+        return '\\r';
+      case '\t':
+        return '\\t';
+      default:
+        return match;
+    }
+  });
+}
+
+
 export function getComparisonOperator(operator: string): string {
   switch (operator) {
     case 'equals':
