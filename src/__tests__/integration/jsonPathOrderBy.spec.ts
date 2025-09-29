@@ -2,9 +2,17 @@ import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
+import { WhereConditionsTyped, OrderByConditions } from '../../types';
 
 describe('JSON Path ORDER BY Integration', () => {
   let ids: Record<string, string> = {};
+
+  const fieldConfig = {
+    id: 'string',
+    name: 'string',
+    readonly: 'boolean',
+    data: 'json',
+  } as const;
 
   beforeEach(async () => {
     ids = {
@@ -75,77 +83,102 @@ describe('JSON Path ORDER BY Integration', () => {
     });
   });
 
+  const testJsonPathOrder = async (
+    orderBy: OrderByConditions<typeof fieldConfig>,
+    expectedNames: string[],
+    where?: WhereConditionsTyped<typeof fieldConfig>,
+    take?: number,
+    skip?: number,
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      orderBy,
+      where,
+      take,
+      skip,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+    expect(results.map((r) => r.name)).toEqual(expectedNames);
+  };
+
+  const testJsonPathOrderWithLength = async (
+    orderBy: OrderByConditions<typeof fieldConfig>,
+    expectedLength: number,
+    where?: WhereConditionsTyped<typeof fieldConfig>,
+    take?: number,
+    skip?: number,
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      orderBy,
+      where,
+      take,
+      skip,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+    expect(results.length).toBe(expectedLength);
+  };
+
   describe('Simple JSON Path Ordering', () => {
     it('should handle ordering by JSON string field (data.name ASC)', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testJsonPathOrder(
+        {
           data: {
             path: ['name'],
             direction: 'asc',
             type: 'text',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      const expectedOrder = [
-        'complex-1', // Alice
-        'complex-2', // Bob
-        'complex-3', // Charlie
-        'complex-4', // David
-        'complex-5', // Eve
-      ];
-      expect(results.map((r) => r.name)).toEqual(expectedOrder);
+        [
+          'complex-1', // Alice
+          'complex-2', // Bob
+          'complex-3', // Charlie
+          'complex-4', // David
+          'complex-5', // Eve
+        ],
+      );
     });
 
     it('should handle ordering by JSON number field (data.priority DESC)', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testJsonPathOrder(
+        {
           data: {
             path: ['priority'],
             direction: 'desc',
             type: 'int',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      const expectedOrder = [
-        'complex-5', // priority: 4
-        'complex-2', // priority: 3
-        'complex-3', // priority: 2
-        'complex-1', // priority: 1
-        'complex-4', // priority: 1
-      ];
-      expect(results.map((r) => r.name)).toEqual(expectedOrder);
+        [
+          'complex-5', // priority: 4
+          'complex-2', // priority: 3
+          'complex-3', // priority: 2
+          'complex-1', // priority: 1
+          'complex-4', // priority: 1
+        ],
+      );
     });
 
     it('should handle ordering by nested JSON field (data.user.age ASC)', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testJsonPathOrder(
+        {
           data: {
             path: ['user', 'age'],
             direction: 'asc',
             type: 'int',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      const expectedOrder = [
-        'complex-2', // age: 25
-        'complex-5', // age: 28
-        'complex-4', // age: 31
-        'complex-1', // age: 35
-        'complex-3', // age: 42
-      ];
-      expect(results.map((r) => r.name)).toEqual(expectedOrder);
+        [
+          'complex-2', // age: 25
+          'complex-5', // age: 28
+          'complex-4', // age: 31
+          'complex-1', // age: 35
+          'complex-3', // age: 42
+        ],
+      );
     });
   });
 
@@ -153,7 +186,7 @@ describe('JSON Path ORDER BY Integration', () => {
     it('should handle JSON ordering with WHERE conditions', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { readonly: 'boolean', data: 'json' },
+        fieldConfig,
         where: { readonly: false },
         orderBy: {
           data: {
@@ -176,7 +209,7 @@ describe('JSON Path ORDER BY Integration', () => {
     it('should handle JSON ordering with JSON filters', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig,
         where: {
           data: {
             path: ['active'],
@@ -204,99 +237,97 @@ describe('JSON Path ORDER BY Integration', () => {
 
   describe('JSON Path Ordering with Pagination', () => {
     it('should handle JSON ordering with LIMIT', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        take: 3,
-        orderBy: {
+      await testJsonPathOrder(
+        {
           data: {
             path: ['name'],
             direction: 'asc',
             type: 'text',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.length).toBe(3);
-      expect(results.map((r) => r.name)).toEqual([
-        'complex-1', // Alice
-        'complex-2', // Bob
-        'complex-3', // Charlie
-      ]);
+        [
+          'complex-1', // Alice
+          'complex-2', // Bob
+          'complex-3', // Charlie
+        ],
+        undefined,
+        3,
+      );
     });
 
     it('should handle JSON ordering with LIMIT and OFFSET', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        take: 2,
-        skip: 1,
-        orderBy: {
+      await testJsonPathOrder(
+        {
           data: {
             path: ['priority'],
             direction: 'desc',
             type: 'int',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.length).toBe(2);
-      expect(results.map((r) => r.name)).toEqual([
-        'complex-2', // priority: 3 (skip complex-5 which has priority: 4)
-        'complex-3', // priority: 2
-      ]);
+        [
+          'complex-2', // priority: 3 (skip complex-5 which has priority: 4)
+          'complex-3', // priority: 2
+        ],
+        undefined,
+        2,
+        1,
+      );
     });
   });
 
   describe('Edge Cases', () => {
     it('should handle ordering by non-existent JSON path', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testJsonPathOrderWithLength(
+        {
           data: {
             path: ['nonexistent'],
             direction: 'asc',
             type: 'text',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.length).toBe(5);
+        5,
+      );
     });
 
     it('should handle ordering with no results', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        where: {
-          data: {
-            path: ['name'],
-            equals: 'NonExistent',
-          },
-        },
-        orderBy: {
+      await testJsonPathOrderWithLength(
+        {
           data: {
             path: ['priority'],
             direction: 'asc',
             type: 'int',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.length).toBe(0);
+        0,
+        {
+          data: {
+            path: ['name'],
+            equals: 'NonExistent',
+          },
+        },
+      );
     });
   });
 
   describe('Complex JSON Path Aggregations', () => {
-    let ids: Record<string, string> = {};
+    let aggregationIds: Record<string, string> = {};
+
+    const testAggregationOrder = async (
+      orderBy: OrderByConditions<typeof fieldConfig>,
+      expectedNames: string[],
+    ) => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy,
+      });
+
+      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+      expect(results.map((r) => r.name)).toEqual(expectedNames);
+    };
 
     beforeEach(async () => {
-      ids = {
+      aggregationIds = {
         user1: nanoid(),
         user2: nanoid(),
         user3: nanoid(),
@@ -307,7 +338,7 @@ describe('JSON Path ORDER BY Integration', () => {
       await prisma.testTable.createMany({
         data: [
           {
-            id: ids.user1,
+            id: aggregationIds.user1,
             name: 'user1',
             data: {
               scores: [85, 90, 95],
@@ -318,7 +349,7 @@ describe('JSON Path ORDER BY Integration', () => {
             },
           },
           {
-            id: ids.user2,
+            id: aggregationIds.user2,
             name: 'user2',
             data: {
               scores: [75, 80, 85],
@@ -329,7 +360,7 @@ describe('JSON Path ORDER BY Integration', () => {
             },
           },
           {
-            id: ids.user3,
+            id: aggregationIds.user3,
             name: 'user3',
             data: {
               scores: [95, 100],
@@ -344,10 +375,8 @@ describe('JSON Path ORDER BY Integration', () => {
     });
 
     it('should order by first element in array', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testAggregationOrder(
+        {
           data: {
             path: ['scores', '*'],
             direction: 'asc',
@@ -355,21 +384,17 @@ describe('JSON Path ORDER BY Integration', () => {
             aggregation: 'first',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual([
-        'user2', // first score: 75
-        'user1', // first score: 85
-        'user3', // first score: 95
-      ]);
+        [
+          'user2', // first score: 75
+          'user1', // first score: 85
+          'user3', // first score: 95
+        ],
+      );
     });
 
     it('should order by last element in array', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testAggregationOrder(
+        {
           data: {
             path: ['scores', '*'],
             direction: 'asc',
@@ -377,21 +402,17 @@ describe('JSON Path ORDER BY Integration', () => {
             aggregation: 'last',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual([
-        'user2', // last score: 85
-        'user1', // last score: 95
-        'user3', // last score: 100
-      ]);
+        [
+          'user2', // last score: 85
+          'user1', // last score: 95
+          'user3', // last score: 100
+        ],
+      );
     });
 
     it('should order by minimum value in array', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testAggregationOrder(
+        {
           data: {
             path: ['scores', '*'],
             direction: 'asc',
@@ -399,21 +420,17 @@ describe('JSON Path ORDER BY Integration', () => {
             aggregation: 'min',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual([
-        'user2', // min score: 75
-        'user1', // min score: 85
-        'user3', // min score: 95
-      ]);
+        [
+          'user2', // min score: 75
+          'user1', // min score: 85
+          'user3', // min score: 95
+        ],
+      );
     });
 
     it('should order by maximum value in array', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testAggregationOrder(
+        {
           data: {
             path: ['scores', '*'],
             direction: 'asc',
@@ -421,45 +438,44 @@ describe('JSON Path ORDER BY Integration', () => {
             aggregation: 'max',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual([
-        'user2', // max score: 85
-        'user1', // max score: 95
-        'user3', // max score: 100
-      ]);
+        [
+          'user2', // max score: 85
+          'user1', // max score: 95
+          'user3', // max score: 100
+        ],
+      );
     });
 
-    it('should order by average value in array', async () => {
+
+    // Add comprehensive tests for aggregation WITHOUT wildcards - now should work!
+    it('should work with min aggregation on array path without wildcards', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig,
         orderBy: {
           data: {
-            path: ['scores', '*'],
+            path: ['scores'], // NO wildcard - now uses SQL aggregates
             direction: 'asc',
             type: 'int',
-            aggregation: 'avg',
+            aggregation: 'min',
           },
         },
       });
 
+
       const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual([
-        'user2', // avg score: 80
-        'user1', // avg score: 90
-        'user3', // avg score: 97.5
-      ]);
+      expect(results.length).toBeGreaterThan(0);
+      // Should be sorted by minimum score in each user's scores array
+      expect(results[0].name).toBe('user2'); // min score: 75
     });
 
-    it('should order by nested array field with wildcard', async () => {
+    it('should work with max aggregation on array path without wildcards', async () => {
       const query = buildQuery({
         tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
+        fieldConfig,
         orderBy: {
           data: {
-            path: ['items', '*', 'price'],
+            path: ['scores'], // NO wildcard - now uses SQL aggregates
             direction: 'desc',
             type: 'int',
             aggregation: 'max',
@@ -467,12 +483,109 @@ describe('JSON Path ORDER BY Integration', () => {
         },
       });
 
+
       const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual([
-        'user2', // max price: 200
-        'user3', // max price: 150
-        'user1', // max price: 100
-      ]);
+      expect(results.length).toBeGreaterThan(0);
+      // Should be sorted by maximum score in each user's scores array (descending)
+      expect(results[0].name).toBe('user3'); // max score: 100
+    });
+
+    it('should work with avg aggregation on array path without wildcards', async () => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy: {
+          data: {
+            path: ['scores'], // NO wildcard - now uses SQL aggregates
+            direction: 'asc',
+            type: 'float',
+            aggregation: 'avg',
+          },
+        },
+      });
+
+
+      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+      expect(results.length).toBeGreaterThan(0);
+      // Should be sorted by average score in each user's scores array
+      expect(results[0].name).toBe('user2'); // avg: (75+80+85)/3 = 80
+    });
+
+    it('should work with min aggregation on nested array path without wildcards', async () => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy: {
+          data: {
+            path: ['items'], // NO wildcard - now uses SQL aggregates
+            direction: 'asc',
+            type: 'text',
+            aggregation: 'min',
+          },
+        },
+      });
+
+
+      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+      expect(results.length).toBeGreaterThan(0);
+      // Should work with text aggregation on JSON objects
+    });
+
+    it('should work with max aggregation on nested property path without wildcards', async () => {
+      // This will work with the whole JSON objects in items array as text
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy: {
+          data: {
+            path: ['items'], // Uses SQL aggregates on the entire array
+            direction: 'desc',
+            type: 'text',
+            aggregation: 'max',
+          },
+        },
+      });
+
+
+      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+      expect(results.length).toBeGreaterThan(0);
+      // Should work with text aggregation on JSON objects
+    });
+
+    it('should order by average value in array', async () => {
+      await testAggregationOrder(
+        {
+          data: {
+            path: ['scores', '*'],
+            direction: 'asc',
+            type: 'int',
+            aggregation: 'avg',
+          },
+        },
+        [
+          'user2', // avg score: 80
+          'user1', // avg score: 90
+          'user3', // avg score: 97.5
+        ],
+      );
+    });
+
+    it('should order by nested array field with wildcard', async () => {
+      await testAggregationOrder(
+        {
+          data: {
+            path: ['items', '*', 'price'],
+            direction: 'desc',
+            type: 'int',
+            aggregation: 'max',
+          },
+        },
+        [
+          'user2', // max price: 200
+          'user3', // max price: 150
+          'user1', // max price: 100
+        ],
+      );
     });
   });
 });

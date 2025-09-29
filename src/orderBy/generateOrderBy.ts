@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { JsonOrderByInput, GenerateOrderByParams, FieldConfig } from '../types';
-import { parseJsonPath } from './parseJsonPath';
+import { convertToJsonPath } from '../utils/parseJsonPath';
 
 export function generateOrderByClauses<TConfig extends FieldConfig = FieldConfig>(
   params: GenerateOrderByParams<TConfig>,
@@ -55,7 +55,7 @@ export function generateOrderBy<TConfig extends FieldConfig = FieldConfig>(
 }
 
 function processJsonField(fieldRef: Prisma.Sql, jsonOrder: JsonOrderByInput): Prisma.Sql {
-  const path = parseJsonPath(jsonOrder.path);
+  const jsonPath = convertToJsonPath(jsonOrder.path);
   const direction = (jsonOrder.direction || 'asc').toUpperCase();
   const aggregation = jsonOrder.aggregation;
 
@@ -63,51 +63,60 @@ function processJsonField(fieldRef: Prisma.Sql, jsonOrder: JsonOrderByInput): Pr
   const type = validTypes.includes(jsonOrder.type || '') ? jsonOrder.type || 'text' : 'text';
 
   if (aggregation) {
-    return processAggregation(fieldRef, path, type, direction, aggregation);
+    return processAggregation(fieldRef, jsonPath, type, direction, aggregation);
   }
 
-  if (aggregation === 'last' && !path.includes('-1')) {
-    path.push('-1');
-  }
+  const pathSegments = jsonPath
+    .replace('$.', '')
+    .split(/[.[\]]/)
+    .filter((s) => s.length > 0)
+    .map((segment) => {
+      if (/^-?\d+$/.test(segment)) {
+        return segment;
+      }
+      return segment;
+    });
+  const jsonPathExpression = Prisma.sql`${fieldRef}#>>'{${Prisma.raw(pathSegments.join(','))}}'`;
+  const typedExpression = Prisma.sql`(${jsonPathExpression})::${Prisma.raw(type)}`;
 
-  const jsonPath = Prisma.sql`${fieldRef}#>>'{${Prisma.raw(path.join(','))}}'`;
-
-  const typedPath = Prisma.sql`(${jsonPath})::${Prisma.raw(type)}`;
-
-  return Prisma.sql`${typedPath} ${Prisma.raw(direction)}`;
+  return Prisma.sql`${typedExpression} ${Prisma.raw(direction)}`;
 }
 
 function processAggregation(
   fieldRef: Prisma.Sql,
-  path: string[],
+  jsonPath: string,
   type: string,
   direction: string,
   aggregation: string,
 ): Prisma.Sql {
-  const hasWildcard = path.some((segment) => segment === '*');
+  const hasWildcard = jsonPath.includes('[*]');
 
   if (hasWildcard) {
     if (aggregation === 'first' || aggregation === 'last') {
-      const newPath = path.map((segment) =>
-        segment === '*' ? (aggregation === 'first' ? '0' : '-1') : segment,
-      );
-
-      const jsonPath = Prisma.sql`${fieldRef}#>>'{${Prisma.raw(newPath.join(','))}}'`;
-      const typedPath = Prisma.sql`(${jsonPath})::${Prisma.raw(type)}`;
-      return Prisma.sql`${typedPath} ${Prisma.raw(direction)}`;
+      // Replace [*] with [0] or [last] for first/last
+      const modifiedPath = jsonPath.replace('[*]', aggregation === 'first' ? '[0]' : '[last]');
+      const typedExpression = Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
+      return Prisma.sql`${typedExpression} ${Prisma.raw(direction)}`;
     }
 
-    const basePathIndex = path.findIndex((segment) => segment === '*');
-    const basePath = path.slice(0, basePathIndex);
-    const subPath = path.slice(basePathIndex + 1);
+    const parts = jsonPath.split('[*]');
+    const beforeWildcard = parts[0].replace('$.', '');
+    const afterWildcard = parts[1] || '';
 
+    const pathSegments = beforeWildcard.split('.').filter((s) => s.length > 0);
     const aggregationFunc = aggregation.toUpperCase();
-    const basePathSql = `{${basePath.join(',')}}`;
+    const basePathSql = `{${pathSegments.join(',')}}`;
 
-    const elemAccess =
-      subPath.length > 0
-        ? Prisma.sql`elem#>>'{${Prisma.raw(subPath.join(','))}}'`
-        : Prisma.sql`elem`;
+    let elemAccess: Prisma.Sql;
+    if (afterWildcard.startsWith('.')) {
+      const subPathSegments = afterWildcard
+        .substring(1)
+        .split('.')
+        .filter((s) => s.length > 0);
+      elemAccess = Prisma.sql`elem#>>'{${Prisma.raw(subPathSegments.join(','))}}'`;
+    } else {
+      elemAccess = Prisma.sql`elem`;
+    }
 
     return Prisma.sql`(
       SELECT ${Prisma.raw(aggregationFunc)}((${elemAccess})::${Prisma.raw(type)})
@@ -116,13 +125,27 @@ function processAggregation(
   }
 
   if (aggregation === 'last') {
-    path.push('-1');
+    const modifiedPath = jsonPath.replace(/\$$/, '[last]');
+    const typedExpression = Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
+    return Prisma.sql`${typedExpression} ${Prisma.raw(direction)}`;
   } else if (aggregation === 'first') {
-    path.push('0');
+    const modifiedPath = jsonPath.replace(/\$$/, '[0]');
+    const typedExpression = Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
+    return Prisma.sql`${typedExpression} ${Prisma.raw(direction)}`;
   }
 
-  const jsonPath = Prisma.sql`${fieldRef}#>>'{${Prisma.raw(path.join(','))}}'`;
+  // PostgreSQL doesn't support JSONPath .min()/.max()/.avg() methods
+  // Use SQL aggregates with jsonb_array_elements instead
+  const pathSegments = jsonPath
+    .replace('$.', '')
+    .split(/[.[\]]/)
+    .filter((s) => s.length > 0);
 
-  const typedPath = Prisma.sql`(${jsonPath})::${Prisma.raw(type)}`;
-  return Prisma.sql`${typedPath} ${Prisma.raw(direction)}`;
+  const basePathSql = `{${pathSegments.join(',')}}`;
+  const aggregationFunc = aggregation.toUpperCase();
+
+  return Prisma.sql`(
+    SELECT ${Prisma.raw(aggregationFunc)}((elem)::${Prisma.raw(type)})
+    FROM jsonb_array_elements((${fieldRef}#>'${Prisma.raw(basePathSql)}')::jsonb) AS elem
+  ) ${Prisma.raw(direction)}`;
 }

@@ -2,9 +2,16 @@ import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
+import { WhereConditionsTyped, OrderByConditions } from '../../types';
 
 describe('ORDER BY', () => {
   let ids: Record<string, string> = {};
+
+  const fieldConfig = {
+    data: 'json',
+    name: 'string',
+    age: 'number',
+  } as const;
 
   beforeEach(async () => {
     ids = {
@@ -48,149 +55,159 @@ describe('ORDER BY', () => {
     });
   });
 
+  // Utility functions for ORDER BY testing
+  const testOrderBy = async (
+    orderBy: OrderByConditions<typeof fieldConfig>,
+    expectedNames: string[],
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      orderBy,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+    expect(results.map((r) => r.name)).toEqual(expectedNames);
+  };
+
+  const testOrderByWithWhere = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    orderBy: OrderByConditions<typeof fieldConfig> | OrderByConditions<typeof fieldConfig>[],
+    expectedResults: Array<{ name: string; age: number }>,
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      where,
+      orderBy,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ name: string; age: number }>>(query);
+    expect(results.map((r) => ({ name: r.name, age: r.age }))).toEqual(expectedResults);
+  };
+
+  const testOrderByWithWhereSimple = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    orderBy: OrderByConditions<typeof fieldConfig>,
+    expectedNames: string[],
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      where,
+      orderBy,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
+    expect(results.map((r) => r.name)).toEqual(expectedNames);
+  };
+
+  const testOrderByAges = async (
+    orderBy: OrderByConditions<typeof fieldConfig>,
+    expectedAges: number[],
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      orderBy,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ age: number }>>(query);
+    expect(results.map((r) => r.age)).toEqual(expectedAges);
+  };
+
   describe('Basic Ordering', () => {
     it('should order by string field ascending', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { name: 'string' },
-        orderBy: { name: 'asc' },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual(['Alice', 'Bob', 'Charlie']);
+      await testOrderBy({ name: 'asc' }, ['Alice', 'Bob', 'Charlie']);
     });
 
     it('should order by string field descending', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { name: 'string' },
-        orderBy: { name: 'desc' },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual(['Charlie', 'Bob', 'Alice']);
+      await testOrderBy({ name: 'desc' }, ['Charlie', 'Bob', 'Alice']);
     });
 
     it('should order by number field', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { age: 'number' },
-        orderBy: { age: 'asc' },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ age: number }>>(query);
-      expect(results.map((r) => r.age)).toEqual([18, 25, 30]);
+      await testOrderByAges({ age: 'asc' }, [18, 25, 30]);
     });
   });
 
   describe('JSON Path Ordering', () => {
     it('should order by JSON number field', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testOrderBy(
+        {
           data: {
             path: ['profile', 'priority'],
             direction: 'asc',
             type: 'int',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual(['Alice', 'Bob', 'Charlie']);
+        ['Alice', 'Bob', 'Charlie'],
+      );
     });
 
     it('should order by JSON string field', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testOrderBy(
+        {
           data: {
             path: ['profile', 'rating'],
             direction: 'desc',
             type: 'float',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual(['Alice', 'Charlie', 'Bob']);
+        ['Alice', 'Charlie', 'Bob'],
+      );
     });
 
     it('should order by JSON array first element', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testOrderBy(
+        {
           data: {
             path: ['items', '0', 'price'],
             direction: 'asc',
             type: 'int',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual(['Alice', 'Charlie', 'Bob']);
+        ['Alice', 'Charlie', 'Bob'],
+      );
     });
   });
 
   describe('Complex Ordering', () => {
     it('should order by multiple fields using array format', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { age: 'number', name: 'string' },
-        orderBy: [{ age: 'asc' }, { name: 'desc' }],
-        where: { age: { gte: 20 } },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string; age: number }>>(query);
-      expect(results.map((r) => ({ name: r.name, age: r.age }))).toEqual([
-        { name: 'Alice', age: 25 },
-        { name: 'Bob', age: 30 },
-      ]);
+      await testOrderByWithWhere(
+        { age: { gte: 20 } },
+        [{ age: 'asc' }, { name: 'desc' }],
+        [
+          { name: 'Alice', age: 25 },
+          { name: 'Bob', age: 30 },
+        ],
+      );
     });
 
     it('should order by multiple fields', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { age: 'number', name: 'string' },
-        orderBy: { age: 'asc' },
-        where: { age: { gte: 20 } },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string; age: number }>>(query);
-      expect(results.map((r) => ({ name: r.name, age: r.age }))).toEqual([
+      await testOrderByWithWhere({ age: { gte: 20 } }, { age: 'asc' }, [
         { name: 'Alice', age: 25 },
         { name: 'Bob', age: 30 },
       ]);
     });
 
     it('should combine ordering with filtering', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { name: 'string', data: 'json' },
-        where: {
+      await testOrderByWithWhereSimple(
+        {
           data: {
             path: ['profile', 'priority'],
             lte: 2,
           },
         },
-        orderBy: { name: 'asc' },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual(['Alice', 'Bob']);
+        { name: 'asc' },
+        ['Alice', 'Bob'],
+      );
     });
   });
 
   describe('Aggregation Ordering', () => {
     it('should order by first element in array', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testOrderBy(
+        {
           data: {
             path: ['items', '*', 'price'],
             direction: 'asc',
@@ -198,17 +215,13 @@ describe('ORDER BY', () => {
             aggregation: 'first',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual(['Alice', 'Charlie', 'Bob']);
+        ['Alice', 'Charlie', 'Bob'],
+      );
     });
 
     it('should order by last element in array', async () => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig: { data: 'json' },
-        orderBy: {
+      await testOrderBy(
+        {
           data: {
             path: ['items', '*', 'price'],
             direction: 'asc',
@@ -216,10 +229,8 @@ describe('ORDER BY', () => {
             aggregation: 'last',
           },
         },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
-      expect(results.map((r) => r.name)).toEqual(['Alice', 'Charlie', 'Bob']);
+        ['Alice', 'Charlie', 'Bob'],
+      );
     });
   });
 });

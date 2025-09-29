@@ -2,9 +2,47 @@ import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
+import { WhereConditionsTyped, OrderByConditions } from '../../../types';
 
 describe('Array Wildcard Operations (path with "*")', () => {
   let ids: Record<string, string> = {};
+
+  const fieldConfig = {
+    data: 'json',
+    createdAt: 'date',
+  } as const;
+
+  const testQuery = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedIds: string[],
+    orderBy?: OrderByConditions<typeof fieldConfig>,
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      where,
+      orderBy: orderBy || { createdAt: 'asc' },
+    });
+
+    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
+    expect(results.length).toBe(expectedIds.length);
+    expect(results.map((r) => r.id)).toEqual(expectedIds);
+  };
+
+  const testQueryWithNames = async (
+    where: WhereConditionsTyped<typeof fieldConfig>,
+    expectedNames: string[],
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      where,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ id: string; name: string }>>(query);
+    expect(results.length).toBe(expectedNames.length);
+    expect(new Set(results.map((r) => r.name))).toEqual(new Set(expectedNames));
+  };
 
   beforeEach(async () => {
     ids = {
@@ -178,299 +216,136 @@ describe('Array Wildcard Operations (path with "*")', () => {
   });
 
   it('should filter by field in array of objects using wildcard', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
-        data: {
-          path: ['products', '*', 'name'],
-          equals: 'Product A',
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(1);
-
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
-        data: {
-          path: ['products', '*', 'price'],
-          gt: 100,
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(4); // User2,3,4,5 (User1 has 99.99)
-
-    const query3 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json', createdAt: 'date' },
-      where: {
-        data: {
-          path: ['products', '*', 'price'],
-          lt: 100,
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-    const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
-    expect(results3.length).toBe(1);
+    await testQuery({ data: { path: ['products', '*', 'name'], equals: 'Product A' } }, [
+      ids.user1,
+    ]);
+    await testQuery({ data: { path: ['products', '*', 'price'], gt: 100 } }, [
+      ids.user2,
+      ids.user3,
+      ids.user4,
+      ids.user5,
+    ]);
+    await testQuery({ data: { path: ['products', '*', 'price'], lt: 100 } }, [ids.user1]);
   });
 
   it('should handle string operations on wildcard paths', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['products', '*', 'name'],
-          string_contains: 'Product',
-        },
-      },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(5);
-
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['products', '*', 'name'],
-          string_starts_with: 'Product A',
-        },
-      },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(1);
-
-    const query3 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['reviews', '*', 'comment'],
-          string_contains: 'Great',
-        },
-      },
-    });
-    const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
-    expect(results3.length).toBe(1);
+    await testQuery({ data: { path: ['products', '*', 'name'], string_contains: 'Product' } }, [
+      ids.user1,
+      ids.user2,
+      ids.user3,
+      ids.user4,
+      ids.user5,
+    ]);
+    await testQuery(
+      { data: { path: ['products', '*', 'name'], string_starts_with: 'Product A' } },
+      [ids.user1],
+    );
+    await testQuery({ data: { path: ['reviews', '*', 'comment'], string_contains: 'Great' } }, [
+      ids.user1,
+    ]);
   });
 
   it('should handle complex wildcard with deep nesting', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['reviews', '*', 'rating'],
-          gte: 4.5,
-        },
-      },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(3);
-
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['reviews', '*', 'rating'],
-          equals: 5.0,
-        },
-      },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(2);
+    await testQuery({ data: { path: ['reviews', '*', 'rating'], gte: 4.5 } }, [
+      ids.user1,
+      ids.user3,
+      ids.user5,
+    ]);
+    await testQuery({ data: { path: ['reviews', '*', 'rating'], equals: 5.0 } }, [
+      ids.user1,
+      ids.user5,
+    ]);
   });
 
   it('should handle case insensitive wildcard operations', async () => {
-    const query = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['products', '*', 'name'],
           string_contains: 'PRODUCT',
           mode: 'insensitive',
         },
       },
-    });
-    const results = await prisma.$queryRaw<{ id: string }[]>(query);
-    expect(results.length).toBe(5);
+      [ids.user1, ids.user2, ids.user3, ids.user4, ids.user5],
+    );
   });
 
   it('should handle array_contains with wildcard paths', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['products', '*', 'tags'],
-          array_contains: ['featured'],
-        },
-      },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(2);
-
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['products', '*', 'tags'],
-          array_contains: ['premium'],
-        },
-      },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(2);
-
-    const query3 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['reviews', '*', 'keywords'],
-          array_contains: ['excellent'],
-        },
-      },
-    });
-    const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
-    expect(results3.length).toBe(2);
+    await testQuery({ data: { path: ['products', '*', 'tags'], array_contains: ['featured'] } }, [
+      ids.user1,
+      ids.user2,
+    ]);
+    await testQuery({ data: { path: ['products', '*', 'tags'], array_contains: ['premium'] } }, [
+      ids.user2,
+      ids.user3,
+    ]);
+    await testQuery(
+      { data: { path: ['reviews', '*', 'keywords'], array_contains: ['excellent'] } },
+      [ids.user1, ids.user3],
+    );
   });
 
   it('should handle array_starts_with with wildcard paths', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['products', '*', 'tags'],
-          array_starts_with: 'featured',
-        },
-      },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(1);
-
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['reviews', '*', 'keywords'],
-          array_starts_with: 'outstanding',
-        },
-      },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(1);
-
-    const query3 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['products', '*', 'tags'],
-          array_starts_with: 'budget',
-        },
-      },
-    });
-    const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
-    expect(results3.length).toBe(2);
+    await testQuery({ data: { path: ['products', '*', 'tags'], array_starts_with: 'featured' } }, [
+      ids.user1,
+    ]);
+    await testQuery(
+      { data: { path: ['reviews', '*', 'keywords'], array_starts_with: 'outstanding' } },
+      [ids.user3],
+    );
+    await testQuery({ data: { path: ['products', '*', 'tags'], array_starts_with: 'budget' } }, [
+      ids.user4,
+      ids.user5,
+    ]);
   });
 
   it('should handle array_ends_with with wildcard paths', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['products', '*', 'tags'],
-          array_ends_with: 'bestseller',
-        },
-      },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(1);
-
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['reviews', '*', 'keywords'],
-          array_ends_with: 'amazing',
-        },
-      },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(2);
-
-    const query3 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
-        data: {
-          path: ['products', '*', 'tags'],
-          array_ends_with: 'exclusive',
-        },
-      },
-    });
-    const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
-    expect(results3.length).toBe(2);
+    await testQuery({ data: { path: ['products', '*', 'tags'], array_ends_with: 'bestseller' } }, [
+      ids.user1,
+    ]);
+    await testQuery({ data: { path: ['reviews', '*', 'keywords'], array_ends_with: 'amazing' } }, [
+      ids.user1,
+      ids.user5,
+    ]);
+    await testQuery({ data: { path: ['products', '*', 'tags'], array_ends_with: 'exclusive' } }, [
+      ids.user3,
+      ids.user5,
+    ]);
   });
 
   it('should handle array operations with wildcard and case insensitive mode', async () => {
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['products', '*', 'tags'],
           array_contains: ['FEATURED'],
           mode: 'insensitive',
         },
       },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string }[]>(query1);
-    expect(results1.length).toBe(2);
+      [ids.user1, ids.user2],
+    );
 
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['reviews', '*', 'keywords'],
           array_starts_with: 'EXCELLENT',
           mode: 'insensitive',
         },
       },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string }[]>(query2);
-    expect(results2.length).toBe(1);
+      [ids.user1],
+    );
 
-    const query3 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
+    await testQuery(
+      {
         data: {
           path: ['products', '*', 'tags'],
           array_ends_with: 'EXCLUSIVE',
           mode: 'insensitive',
         },
       },
-    });
-    const results3 = await prisma.$queryRaw<{ id: string }[]>(query3);
-    expect(results3.length).toBe(2);
+      [ids.user3, ids.user5],
+    );
   });
 
   it('should handle wildcard array operations with single quotes (SQL injection protection)', async () => {
@@ -492,34 +367,26 @@ describe('Array Wildcard Operations (path with "*")', () => {
       },
     });
 
-    const query1 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
+    await testQueryWithNames(
+      {
         data: {
           path: ['products', '*', 'tags'],
           array_contains: ["user's choice"],
           mode: 'insensitive',
         },
       },
-    });
-    const results1 = await prisma.$queryRaw<{ id: string; name: string }[]>(query1);
-    expect(results1.length).toBe(1);
-    expect(results1[0].name).toBe('Test with quotes');
+      ['Test with quotes'],
+    );
 
-    const query2 = buildQuery({
-      tableName: 'test_tables',
-      fieldConfig: { data: 'json' },
-      where: {
+    await testQueryWithNames(
+      {
         data: {
           path: ['products', '*', 'tags'],
           array_starts_with: "USER'S CHOICE",
           mode: 'insensitive',
         },
       },
-    });
-    const results2 = await prisma.$queryRaw<{ id: string; name: string }[]>(query2);
-    expect(results2.length).toBe(1);
-    expect(results2[0].name).toBe('Test with quotes');
+      ['Test with quotes'],
+    );
   });
 });
