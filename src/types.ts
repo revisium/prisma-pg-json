@@ -85,8 +85,6 @@ type WhereLogicalOperators<TConfig extends FieldConfig> = {
 export type WhereConditionsTyped<TConfig extends FieldConfig> = WhereFieldConditions<TConfig> &
   WhereLogicalOperators<TConfig>;
 
-export type WhereConditions<TConfig extends FieldConfig = FieldConfig> =
-  WhereConditionsTyped<TConfig>;
 
 export type OrderByDirection = 'asc' | 'desc';
 
@@ -132,12 +130,12 @@ export interface QueryBuilderOptions<TConfig extends FieldConfig = FieldConfig> 
   fieldConfig?: TConfig;
   take?: number;
   skip?: number;
-  where?: WhereConditions<TConfig>;
+  where?: WhereConditionsTyped<TConfig>;
   orderBy?: OrderByConditions<TConfig> | OrderByConditions<TConfig>[];
 }
 
 export interface GenerateWhereParams<TConfig extends FieldConfig = FieldConfig> {
-  where: WhereConditions<TConfig>;
+  where: WhereConditionsTyped<TConfig>;
   fieldConfig: TConfig;
   tableAlias: string;
 }

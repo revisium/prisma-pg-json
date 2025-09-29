@@ -31,7 +31,7 @@ function validatePath(path: JsonFilter['path']): PathValidationResult {
 
 const operatorManager = new OperatorManager();
 
-export function generateJsonFilterV2(
+export function generateJsonFilter(
   fieldRef: Prisma.Sql,
   filter: JsonFilter,
   fieldName: string,
