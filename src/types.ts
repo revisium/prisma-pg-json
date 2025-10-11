@@ -57,6 +57,9 @@ export type JsonFilter = {
   array_contains?: unknown[];
   array_starts_with?: unknown;
   array_ends_with?: unknown;
+  search?: string;
+  searchLanguage?: string;
+  searchType?: 'plain' | 'phrase';
   mode?: 'default' | 'insensitive';
 };
 

@@ -23,6 +23,7 @@ A universal query builder that extends Prisma's capabilities while preserving fa
 - 🌟 **Wildcard support** - Query arrays with `*`, array indices `[0]`, `[-1]`
 - 🚀 **JSON sorting** - Order by nested JSON fields with type casting and aggregations
 - 🔧 **Extended filters** - All Prisma filters plus advanced JSON operations
+- 🔎 **Full-text search** - PostgreSQL FTS in JSON with language support and phrase matching
 - 🎨 **Logical operators** - AND, OR, NOT combinations just like Prisma
 - 📦 **Prisma native** - Uses `Prisma.Sql` for safe parameterized queries
 - ⚡ **Universal** - Works with any table structure, not schema-dependent
@@ -38,6 +39,7 @@ A universal query builder that extends Prisma's capabilities while preserving fa
 | **Array indices** | ❌ Not supported | ✅ `path: ['items', 0]` or `'items[0]'` |
 | **Negative indices** | ❌ Not supported | ✅ `path: ['items', -1]` or `'items[-1]'` |
 | **JSON sorting** | ❌ Not supported | ✅ With type casting and aggregations |
+| **Full-text search** | ❌ Not in JSON | ✅ PostgreSQL FTS with language support |
 | **Wildcard paths** | ❌ Not supported | ✅ `'tags[*].name'` syntax |
 | **Path formats** | Array only | ✅ Array `['a', 'b']` or string `'a.b'` |
 | **Query method** | ORM methods | `$queryRaw` with generated SQL |
@@ -325,6 +327,11 @@ metadata: {
   string_starts_with: 'prefix',   // Starts with
   string_ends_with: 'suffix',     // Ends with
 
+  // Full-text search (PostgreSQL FTS)
+  search: 'database performance',  // Full-text search with stemming
+  searchLanguage: 'english',       // Language config ('simple', 'english', 'russian', etc.)
+  searchType: 'plain',             // 'plain' (AND) or 'phrase' (exact phrase)
+
   // Number/Date operations (on JSON numbers/dates)
   gt: 10,                          // Greater than
   gte: 10,                         // Greater than or equal
@@ -342,6 +349,112 @@ metadata: {
 
   // Case sensitivity (works with string operations)
   mode: 'insensitive'              // Case-insensitive matching
+}
+```
+
+### Full-Text Search in JSON
+
+PostgreSQL full-text search (FTS) with support for different languages, search types, and recursive path searching:
+
+```typescript
+const whereClause = generateWhere({
+  where: {
+    // Search across entire JSON document (root level)
+    metadata: {
+      path: '',  // or path: []
+      search: 'postgresql database',
+    },
+
+    // Search in specific field
+    metadata: {
+      path: 'content',
+      search: 'machine learning',
+    },
+
+    // Search in nested field
+    metadata: {
+      path: 'article.body',
+      search: 'artificial intelligence',
+    },
+
+    // Search in array (searches all elements recursively)
+    metadata: {
+      path: 'tags',
+      search: 'javascript',
+    },
+
+    // Search with specific language (better stemming)
+    metadata: {
+      path: 'description',
+      search: 'running quickly',
+      searchLanguage: 'english',  // 'simple', 'english', 'russian', 'french', etc.
+    },
+
+    // Phrase search (exact phrase match)
+    metadata: {
+      path: 'text',
+      search: 'full-text search',
+      searchType: 'phrase',  // words must appear in this exact order
+    },
+
+    // Plain search (default - all words must be present, AND logic)
+    metadata: {
+      path: 'content',
+      search: 'database performance',
+      searchType: 'plain',  // both 'database' AND 'performance' must be present
+    },
+  },
+  fieldConfig: { metadata: 'json' },
+  tableAlias: 't'
+});
+```
+
+#### Search Behavior
+
+**Search Types:**
+- `plain` (default): Uses `plainto_tsquery` - all words must be present (AND logic)
+  - `'database performance'` → finds docs with both "database" AND "performance"
+- `phrase`: Uses `phraseto_tsquery` - exact phrase in order
+  - `'full text search'` → finds only exact phrase "full text search"
+
+**Search Languages:**
+- `'simple'` (default): No stemming, works with any language (UTF-8)
+- `'english'`: English stemming (running → run)
+- `'russian'`: Russian stemming
+- `'french'`, `'german'`, `'spanish'`, etc.: Language-specific stemming
+
+**Path Behavior:**
+- Searches are always **recursive** - searches the specified path and all nested levels
+- Empty path `''` or `[]`: searches entire JSON document
+- Specific path `'content'`: searches in that field and all nested structures
+- Array path `'tags'`: searches across all array elements recursively
+
+#### Examples
+
+```typescript
+// Find documents about "PostgreSQL" OR "MySQL" - use OR operator
+{
+  OR: [
+    { metadata: { path: '', search: 'PostgreSQL' } },
+    { metadata: { path: '', search: 'MySQL' } }
+  ]
+}
+
+// Find documents with "database" in title AND "performance" in content
+{
+  AND: [
+    { metadata: { path: 'title', search: 'database' } },
+    { metadata: { path: 'content', search: 'performance' } }
+  ]
+}
+
+// Combine FTS with other filters
+{
+  AND: [
+    { metadata: { path: '', search: 'javascript' } },
+    { metadata: { path: 'published', equals: true } },
+    { metadata: { path: 'rating', gte: 4 } }
+  ]
 }
 ```
 
