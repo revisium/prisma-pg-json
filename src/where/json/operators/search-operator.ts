@@ -7,6 +7,49 @@ interface SearchContext {
   searchType: 'plain' | 'phrase';
 }
 
+const ALLOWED_LANGUAGES = [
+  'simple',
+  'arabic',
+  'armenian',
+  'basque',
+  'catalan',
+  'danish',
+  'dutch',
+  'english',
+  'finnish',
+  'french',
+  'german',
+  'greek',
+  'hindi',
+  'hungarian',
+  'indonesian',
+  'irish',
+  'italian',
+  'lithuanian',
+  'nepali',
+  'norwegian',
+  'portuguese',
+  'romanian',
+  'russian',
+  'serbian',
+  'spanish',
+  'swedish',
+  'tamil',
+  'turkish',
+  'yiddish',
+] as const;
+
+type AllowedLanguage = (typeof ALLOWED_LANGUAGES)[number];
+
+function validateLanguage(language: string): AllowedLanguage {
+  if (ALLOWED_LANGUAGES.includes(language as AllowedLanguage)) {
+    return language as AllowedLanguage;
+  }
+  throw new Error(
+    `Invalid search language: ${language}. Allowed: ${ALLOWED_LANGUAGES.join(', ')}`,
+  );
+}
+
 export class SearchOperator extends BaseOperator<string> {
   readonly key = 'search';
   private context?: SearchContext;
@@ -27,14 +70,17 @@ export class SearchOperator extends BaseOperator<string> {
   }
 
   setContext(filter: JsonFilter): void {
+    const language = filter.searchLanguage || 'simple';
+    validateLanguage(language);
+
     this.context = {
-      language: filter.searchLanguage || 'simple',
+      language,
       searchType: filter.searchType || 'plain',
     };
   }
 
   handleSpecialPath(fieldRef: Prisma.Sql, value: string): Prisma.Sql {
-    const language = this.context?.language || 'simple';
+    const language = validateLanguage(this.context?.language || 'simple');
     const searchType = this.context?.searchType || 'plain';
     const queryFunc = searchType === 'phrase' ? 'phraseto_tsquery' : 'plainto_tsquery';
 
@@ -47,14 +93,13 @@ export class SearchOperator extends BaseOperator<string> {
     value: string,
     _isInsensitive: boolean,
   ): Prisma.Sql {
-    const language = this.context?.language || 'simple';
+    const language = validateLanguage(this.context?.language || 'simple');
     const searchType = this.context?.searchType || 'plain';
     const queryFunc = searchType === 'phrase' ? 'phraseto_tsquery' : 'plainto_tsquery';
 
     const pathArray = this.parseJsonPathToArray(jsonPath);
-    const postgresPath = this.convertToPostgresPath(pathArray);
 
-    return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef} #> ${Prisma.raw(postgresPath)}::text[], '["all"]') @@ ${Prisma.raw(queryFunc)}(${Prisma.raw(`'${language}'`)}, ${value})`;
+    return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef} #> ${pathArray}::text[], '["all"]') @@ ${Prisma.raw(queryFunc)}(${Prisma.raw(`'${language}'`)}, ${value})`;
   }
 
   private parseJsonPathToArray(jsonPath: string): string[] {
@@ -67,20 +112,6 @@ export class SearchOperator extends BaseOperator<string> {
     return withoutDollar.split(/[.[\]]/).filter((s) => s !== '');
   }
 
-  private convertToPostgresPath(pathArray: string[]): string {
-    if (pathArray.length === 0) {
-      return "'{}'";
-    }
-
-    const quotedSegments = pathArray.map((segment) => {
-      if (segment === '*' || segment === 'last') {
-        return segment;
-      }
-      return segment;
-    });
-
-    return `'{${quotedSegments.join(',')}}'`;
-  }
 
   validatePath(_path: string[] | string): boolean {
     return true;
