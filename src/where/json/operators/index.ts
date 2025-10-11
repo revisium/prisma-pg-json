@@ -13,3 +13,4 @@ export { ArrayStartsWithOperator } from './array-starts-with-operator';
 export { ArrayEndsWithOperator } from './array-ends-with-operator';
 export { InOperator } from './in-operator';
 export { NotInOperator } from './not-in-operator';
+export { SearchOperator } from './search-operator';

@@ -16,6 +16,7 @@ import {
   ArrayEndsWithOperator,
   InOperator,
   NotInOperator,
+  SearchOperator,
 } from './operators';
 
 export class OperatorManager {
@@ -41,6 +42,7 @@ export class OperatorManager {
       new ArrayEndsWithOperator(),
       new InOperator(),
       new NotInOperator(),
+      new SearchOperator(),
     ];
 
     defaultOperators.forEach((op) => this.register(op));
@@ -64,13 +66,17 @@ export class OperatorManager {
     const conditions: Prisma.Sql[] = [];
 
     for (const [key, value] of Object.entries(filter)) {
-      if (key === 'path' || key === 'mode' || value === undefined) {
+      if (key === 'path' || key === 'mode' || key === 'searchLanguage' || key === 'searchType' || value === undefined) {
         continue;
       }
 
       const operator = this.getOperator(key as keyof JsonFilter);
       if (operator) {
         try {
+          if (operator instanceof SearchOperator) {
+            operator.setContext(filter);
+          }
+
           const condition = operator.execute(
             fieldRef,
             jsonPath,
