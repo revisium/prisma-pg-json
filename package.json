@@ -1,6 +1,6 @@
 {
   "name": "@revisium/prisma-pg-json",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Advanced PostgreSQL JSON query builder for Prisma with support for JSON paths, wildcards, and complex filters",
   "author": "Anton Kashirov",
   "license": "MIT",
