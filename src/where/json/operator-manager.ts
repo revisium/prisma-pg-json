@@ -66,7 +66,14 @@ export class OperatorManager {
     const conditions: Prisma.Sql[] = [];
 
     for (const [key, value] of Object.entries(filter)) {
-      if (key === 'path' || key === 'mode' || key === 'searchLanguage' || key === 'searchType' || value === undefined) {
+      if (
+        key === 'path' ||
+        key === 'mode' ||
+        key === 'searchLanguage' ||
+        key === 'searchType' ||
+        key === 'searchIn' ||
+        value === undefined
+      ) {
         continue;
       }
 

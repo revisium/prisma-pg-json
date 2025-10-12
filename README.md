@@ -331,6 +331,7 @@ metadata: {
   search: 'database performance',  // Full-text search with stemming
   searchLanguage: 'english',       // Language config ('simple', 'english', 'russian', etc.)
   searchType: 'plain',             // 'plain' (AND) or 'phrase' (exact phrase)
+  searchIn: 'values',              // 'all' (default), 'values', 'keys', 'strings', 'numbers', 'booleans'
 
   // Number/Date operations (on JSON numbers/dates)
   gt: 10,                          // Greater than
@@ -403,6 +404,41 @@ const whereClause = generateWhere({
       search: 'database performance',
       searchType: 'plain',  // both 'database' AND 'performance' must be present
     },
+
+    // Search only in values (exclude JSON keys from search)
+    metadata: {
+      path: '',
+      search: 'Anton',
+      searchIn: 'values',  // searches only values, not field names
+    },
+
+    // Search only in JSON keys (field names)
+    metadata: {
+      path: '',
+      search: 'username',
+      searchIn: 'keys',  // searches only field names
+    },
+
+    // Search only in string values
+    metadata: {
+      path: 'data',
+      search: 'text',
+      searchIn: 'strings',  // only string values
+    },
+
+    // Search only in numeric values
+    metadata: {
+      path: 'stats',
+      search: '42',
+      searchIn: 'numbers',  // only numeric values
+    },
+
+    // Search only in boolean values
+    metadata: {
+      path: 'flags',
+      search: 'true',
+      searchIn: 'booleans',  // only boolean values
+    },
   },
   fieldConfig: { metadata: 'json' },
   tableAlias: 't'
@@ -422,6 +458,16 @@ const whereClause = generateWhere({
 - `'english'`: English stemming (running → run)
 - `'russian'`: Russian stemming
 - `'french'`, `'german'`, `'spanish'`, etc.: Language-specific stemming
+
+**Search Scope (`searchIn`):**
+- `'all'` (default): Searches in JSON keys + all values (strings, numbers, booleans)
+- `'values'`: Searches only in values (strings + numbers + booleans), excludes field names
+- `'keys'`: Searches only in JSON field names, excludes values
+- `'strings'`: Searches only in string values
+- `'numbers'`: Searches only in numeric values
+- `'booleans'`: Searches only in boolean values (`true`/`false`)
+
+**Note:** `null` values are not indexed by PostgreSQL FTS and cannot be searched.
 
 **Path Behavior:**
 - Searches are always **recursive** - searches the specified path and all nested levels
