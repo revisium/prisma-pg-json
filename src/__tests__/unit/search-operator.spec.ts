@@ -484,5 +484,118 @@ describe('SearchOperator', () => {
       expect(sql.values).toEqual([['content'], 'test']);
     });
   });
+
+  describe('searchIn parameter', () => {
+    it('should use all by default', () => {
+      operator.setContext({
+        path: '',
+        search: 'test',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'test');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["all"]') @@ plainto_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['test']);
+    });
+
+    it('should use values searchIn', () => {
+      operator.setContext({
+        path: '',
+        search: 'test',
+        searchIn: 'values',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'test');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["string", "numeric", "boolean"]') @@ plainto_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['test']);
+    });
+
+    it('should use keys searchIn', () => {
+      operator.setContext({
+        path: '',
+        search: 'test',
+        searchIn: 'keys',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'test');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["key"]') @@ plainto_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['test']);
+    });
+
+    it('should use strings searchIn', () => {
+      operator.setContext({
+        path: '',
+        search: 'test',
+        searchIn: 'strings',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'test');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["string"]') @@ plainto_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['test']);
+    });
+
+    it('should use numbers searchIn', () => {
+      operator.setContext({
+        path: '',
+        search: '42',
+        searchIn: 'numbers',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, '42');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["numeric"]') @@ plainto_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['42']);
+    });
+
+    it('should use booleans searchIn', () => {
+      operator.setContext({
+        path: '',
+        search: 'true',
+        searchIn: 'booleans',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'true');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["boolean"]') @@ plainto_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['true']);
+    });
+
+    it('should use searchIn with path-based search', () => {
+      operator.setContext({
+        path: 'content',
+        search: 'test',
+        searchIn: 'strings',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.generateCondition(fieldRef, '$.content', 'test', false);
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data #> ?::text[], '["string"]') @@ plainto_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual([['content'], 'test']);
+    });
+  });
 });
 

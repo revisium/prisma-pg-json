@@ -60,6 +60,7 @@ export type JsonFilter = {
   search?: string;
   searchLanguage?: string;
   searchType?: 'plain' | 'phrase';
+  searchIn?: 'all' | 'values' | 'keys' | 'strings' | 'numbers' | 'booleans';
   mode?: 'default' | 'insensitive';
 };
 
