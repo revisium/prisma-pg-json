@@ -604,4 +604,193 @@ describe('JSON Full-Text Search', () => {
       );
     });
   });
+
+  describe('searchIn parameter', () => {
+    let searchInIds: Record<string, string> = {};
+
+    beforeEach(async () => {
+      searchInIds = {
+        withTitle: nanoid(),
+        withContent: nanoid(),
+        withNumber: nanoid(),
+        withBoolean: nanoid(),
+      };
+
+      await prisma.testTable.createMany({
+        data: [
+          {
+            id: searchInIds.withTitle,
+            name: 'SearchIn1',
+            data: {
+              categoryName: 'Document about xyzunique testing',
+              content: 'This is content',
+              priorityLevel: 5,
+            },
+            createdAt: new Date('2025-01-21T00:00:00.000Z'),
+          },
+          {
+            id: searchInIds.withContent,
+            name: 'SearchIn2',
+            data: {
+              heading: 'Some heading',
+              content: 'xyzunique the search functionality',
+              priorityLevel: 10,
+            },
+            createdAt: new Date('2025-01-22T00:00:00.000Z'),
+          },
+          {
+            id: searchInIds.withNumber,
+            name: 'SearchIn3',
+            data: {
+              categoryName: 'Numbers document',
+              score: 999888,
+              count: 777666,
+            },
+            createdAt: new Date('2025-01-23T00:00:00.000Z'),
+          },
+          {
+            id: searchInIds.withBoolean,
+            name: 'SearchIn4',
+            data: {
+              categoryName: 'Boolean document',
+              isSpecialFlag: true,
+              isVerifiedFlag: false,
+            },
+            createdAt: new Date('2025-01-24T00:00:00.000Z'),
+          },
+        ],
+      });
+    });
+
+    it('should search in all (keys + values) by default', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'categoryName',
+          },
+        },
+        [searchInIds.withTitle, searchInIds.withNumber, searchInIds.withBoolean],
+      );
+    });
+
+    it('should search only in values with searchIn: values', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'xyzunique',
+            searchIn: 'values',
+          },
+        },
+        [searchInIds.withTitle, searchInIds.withContent],
+      );
+    });
+
+    it('should search only in keys with searchIn: keys', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'priorityLevel',
+            searchIn: 'keys',
+          },
+        },
+        [searchInIds.withTitle, searchInIds.withContent],
+      );
+    });
+
+    it('should not find key names when using searchIn: values', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'categoryName',
+            searchIn: 'values',
+          },
+        },
+        [],
+      );
+    });
+
+    it('should not find values when using searchIn: keys', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'xyzunique',
+            searchIn: 'keys',
+          },
+        },
+        [],
+      );
+    });
+
+    it('should search only in strings with searchIn: strings', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'document',
+            searchIn: 'strings',
+          },
+        },
+        [searchInIds.withTitle, searchInIds.withNumber, searchInIds.withBoolean],
+      );
+    });
+
+    it('should search only in numbers with searchIn: numbers', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: '999888',
+            searchIn: 'numbers',
+          },
+        },
+        [searchInIds.withNumber],
+      );
+    });
+
+    it('should search only in booleans with searchIn: booleans', async () => {
+      // Combine with path to make search unique to our test data
+      await testQuery(
+        {
+          data: {
+            path: 'isSpecialFlag',
+            search: 'true',
+            searchIn: 'booleans',
+          },
+        },
+        [searchInIds.withBoolean],
+      );
+    });
+
+    it('should combine searchIn with specific path', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'xyzunique',
+            searchIn: 'strings',
+          },
+        },
+        [searchInIds.withContent],
+      );
+    });
+
+    it('should combine searchIn with searchType', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'search functionality',
+            searchIn: 'values',
+            searchType: 'plain',
+          },
+        },
+        [searchInIds.withContent],
+      );
+    });
+  });
 });
