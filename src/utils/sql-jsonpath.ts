@@ -102,7 +102,7 @@ export function generateJsonPathLikeRegex(
  */
 export function generateJsonBuildObject(params: Record<string, Prisma.Sql>): Prisma.Sql {
   const entries = Object.entries(params);
-  const args = entries.flatMap(([key, value]) => [key, value]);
+  const args = entries.flatMap(([key, value]) => [Prisma.sql`${Prisma.raw(`'${key}'`)}`, value]);
 
   return Prisma.sql`jsonb_build_object(${Prisma.join(args, ', ')})`;
 }

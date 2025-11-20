@@ -2,17 +2,17 @@ import { Prisma } from '@prisma/client';
 
 export function generateJsonbValue(value: unknown): Prisma.Sql {
   if (typeof value === 'string') {
-    return Prisma.sql`to_jsonb(${value}::text)`;
+    return Prisma.sql`to_jsonb(CAST(${value} AS text))`;
   } else if (typeof value === 'number') {
-    return Prisma.sql`to_jsonb(${value}::numeric)`;
+    return Prisma.sql`to_jsonb(CAST(${value} AS numeric))`;
   } else if (typeof value === 'boolean') {
-    return Prisma.sql`to_jsonb(${value}::boolean)`;
+    return Prisma.sql`to_jsonb(CAST(${value} AS boolean))`;
   } else if (value === null) {
     return Prisma.sql`'null'::jsonb`;
   } else if (Array.isArray(value)) {
-    return Prisma.sql`${JSON.stringify(value)}::jsonb`;
+    return Prisma.sql`CAST(${JSON.stringify(value)} AS jsonb)`;
   } else {
-    return Prisma.sql`${JSON.stringify(value)}::jsonb`;
+    return Prisma.sql`CAST(${JSON.stringify(value)} AS jsonb)`;
   }
 }
 
