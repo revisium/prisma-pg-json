@@ -52,7 +52,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy"
   },
   "peerDependencies": {
-    "@prisma/client": "^5.0.0 || ^6.0.0"
+    "@prisma/client": "^5.0.0 || ^6.0.0 || ^7.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
