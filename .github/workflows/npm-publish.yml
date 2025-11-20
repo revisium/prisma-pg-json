@@ -52,9 +52,6 @@ jobs:
 
           echo "✅ Version validation passed"
 
-      - name: Generate Prisma Client
-        run: npm run prisma:generate
-
       - name: Build package
         run: npm run build
 
