@@ -1,8 +1,16 @@
-import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { configurePrisma } from '../../prisma-adapter';
 
-export const prisma = new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
+
+export const prisma = new PrismaClient({ adapter });
 
 beforeAll(async () => {
+  configurePrisma(Prisma);
   await prisma.$connect();
 });
 

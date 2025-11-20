@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../../prisma-adapter';
 import type { JsonFilter } from '../../types';
 import { convertToJsonPath } from '../../utils/parseJsonPath';
 import { OperatorManager } from './operator-manager';
@@ -32,11 +32,11 @@ function validatePath(path: JsonFilter['path']): PathValidationResult {
 const operatorManager = new OperatorManager();
 
 export function generateJsonFilter(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   filter: JsonFilter,
   fieldName: string,
   _tableAlias: string,
-): Prisma.Sql {
+): PrismaSql {
   const pathValidation = validatePath(filter.path);
   if (!pathValidation.isValid) {
     throw new Error('Invalid path');
@@ -72,7 +72,7 @@ export function generateJsonFilter(
   return combineConditions(conditions, fieldName);
 }
 
-function combineConditions(conditions: Prisma.Sql[], fieldName: string): Prisma.Sql {
+function combineConditions(conditions: PrismaSql[], fieldName: string): PrismaSql {
   if (conditions.length === 0) {
     throw new Error(`No valid operations found for field: ${fieldName}`);
   }

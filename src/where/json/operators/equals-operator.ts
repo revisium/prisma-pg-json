@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../../../prisma-adapter';
 import { generateJsonPathCondition } from '../jsonpath';
 import { BaseOperator } from './base-operator';
 
@@ -10,15 +10,15 @@ export class EqualsOperator extends BaseOperator<unknown> {
   }
 
   generateCondition(
-    fieldRef: Prisma.Sql,
+    fieldRef: PrismaSql,
     jsonPath: string,
     value: unknown,
     isInsensitive: boolean,
-  ): Prisma.Sql {
+  ): PrismaSql {
     return generateJsonPathCondition(fieldRef, jsonPath, 'equals', value, isInsensitive);
   }
 
-  handleSpecialPath(fieldRef: Prisma.Sql, value: unknown): Prisma.Sql {
+  handleSpecialPath(fieldRef: PrismaSql, value: unknown): PrismaSql {
     return Prisma.sql`${fieldRef} = ${JSON.stringify(value)}::jsonb`;
   }
 

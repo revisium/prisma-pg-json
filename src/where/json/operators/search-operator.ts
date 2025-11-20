@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../../../prisma-adapter';
 import type { JsonFilter } from '../../../types';
 import { BaseOperator } from './base-operator';
 
@@ -100,7 +100,7 @@ export class SearchOperator extends BaseOperator<string> {
     };
   }
 
-  handleSpecialPath(fieldRef: Prisma.Sql, value: string): Prisma.Sql {
+  handleSpecialPath(fieldRef: PrismaSql, value: string): PrismaSql {
     const language = validateLanguage(this.context?.language || 'simple');
     const searchType = this.context?.searchType || 'plain';
     const searchIn = this.context?.searchIn || 'all';
@@ -111,11 +111,11 @@ export class SearchOperator extends BaseOperator<string> {
   }
 
   generateCondition(
-    fieldRef: Prisma.Sql,
+    fieldRef: PrismaSql,
     jsonPath: string,
     value: string,
     _isInsensitive: boolean,
-  ): Prisma.Sql {
+  ): PrismaSql {
     const language = validateLanguage(this.context?.language || 'simple');
     const searchType = this.context?.searchType || 'plain';
     const searchIn = this.context?.searchIn || 'all';

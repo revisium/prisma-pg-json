@@ -1,15 +1,16 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../prisma-adapter';
 import { StringFilter } from '../types';
 
 export function generateStringFilter(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   filter: string | StringFilter,
-): Prisma.Sql {
+): PrismaSql {
+
   if (typeof filter === 'string') {
     return Prisma.sql`${fieldRef} = ${filter}`;
   }
 
-  const conditions: Prisma.Sql[] = [];
+  const conditions: PrismaSql[] = [];
   const isCaseInsensitive = filter.mode === 'insensitive';
 
   if (filter.equals !== undefined) {

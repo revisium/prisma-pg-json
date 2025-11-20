@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../../../prisma-adapter';
 import { generateJsonbValue, escapeRegex } from './utils';
 import {
   generateJsonPathLikeRegex,
@@ -7,12 +7,12 @@ import {
 } from '../../../utils/sql-jsonpath';
 
 export function generateArrayCondition(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   jsonPath: string,
   operator: string,
   value: unknown[],
   isInsensitive: boolean = false,
-): Prisma.Sql {
+): PrismaSql {
   switch (operator) {
     case 'array_contains': {
       if (!Array.isArray(value)) {

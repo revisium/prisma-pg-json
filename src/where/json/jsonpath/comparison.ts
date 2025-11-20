@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../../../prisma-adapter';
 import { generateJsonbValue, getComparisonOperator, escapeRegex } from './utils';
 import { parseJsonPath } from '../../../utils/parseJsonPath';
 import {
@@ -7,12 +7,12 @@ import {
 } from '../../../utils/sql-jsonpath';
 
 export function generateJsonPathCondition(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   jsonPath: string,
   operator: string,
   value: unknown,
   isInsensitive: boolean = false,
-): Prisma.Sql {
+): PrismaSql {
   // For complex object comparisons, use @> operator (GIN-optimized)
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
     const pathSegments = parseJsonPath(jsonPath);

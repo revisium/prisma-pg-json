@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { PrismaSql } from '../../../prisma-adapter';
 import { generateJsonPathCondition } from '../jsonpath';
 import { BaseOperator } from './base-operator';
 
@@ -10,11 +10,11 @@ export class NotOperator extends BaseOperator<unknown> {
   }
 
   generateCondition(
-    fieldRef: Prisma.Sql,
+    fieldRef: PrismaSql,
     jsonPath: string,
     value: unknown,
     isInsensitive: boolean,
-  ): Prisma.Sql {
+  ): PrismaSql {
     return generateJsonPathCondition(fieldRef, jsonPath, 'not', value, isInsensitive);
   }
 }

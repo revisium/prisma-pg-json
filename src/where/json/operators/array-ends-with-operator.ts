@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { PrismaSql } from '../../../prisma-adapter';
 import { generateJsonbValue, escapeRegex } from '../jsonpath/utils';
 import { BaseOperator } from './base-operator';
 import {
@@ -14,11 +14,11 @@ export class ArrayEndsWithOperator extends BaseOperator<unknown> {
   }
 
   generateCondition(
-    fieldRef: Prisma.Sql,
+    fieldRef: PrismaSql,
     jsonPath: string,
     value: unknown,
     isInsensitive: boolean,
-  ): Prisma.Sql {
+  ): PrismaSql {
     const fullPath = `${jsonPath}[last]`;
 
     if (isInsensitive && typeof value === 'string') {
