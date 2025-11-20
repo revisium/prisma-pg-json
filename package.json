@@ -47,7 +47,8 @@
     "prepublishOnly": "npm run build",
     "docker:up": "docker-compose up -d && sleep 2 && npm run prisma:migrate:deploy",
     "docker:down": "docker-compose down -v",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "prisma generate && npm run prisma:postgenerate",
+    "prisma:postgenerate": "echo \"export * from './client';\" > src/generated/client/index.ts",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy"
   },
