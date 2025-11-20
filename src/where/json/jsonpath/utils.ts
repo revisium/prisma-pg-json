@@ -1,6 +1,6 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../../../prisma-adapter';
 
-export function generateJsonbValue(value: unknown): Prisma.Sql {
+export function generateJsonbValue(value: unknown): PrismaSql {
   if (typeof value === 'string') {
     return Prisma.sql`to_jsonb(CAST(${value} AS text))`;
   } else if (typeof value === 'number') {

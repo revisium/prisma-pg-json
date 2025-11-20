@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../../../prisma-adapter';
 import { generateJsonPathCondition } from '../jsonpath';
 import { BaseOperator } from './base-operator';
 
@@ -17,11 +17,11 @@ export class InOperator extends BaseOperator<unknown[]> {
   }
 
   generateCondition(
-    fieldRef: Prisma.Sql,
+    fieldRef: PrismaSql,
     jsonPath: string,
     value: unknown[],
     isInsensitive: boolean,
-  ): Prisma.Sql {
+  ): PrismaSql {
     if (value.length === 0) {
       return Prisma.sql`FALSE`;
     }
@@ -43,7 +43,7 @@ export class InOperator extends BaseOperator<unknown[]> {
   }
 
   // Custom behavior: empty array handling
-  handleEmptyArray(): Prisma.Sql {
+  handleEmptyArray(): PrismaSql {
     return Prisma.sql`FALSE`;
   }
 }

@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { PrismaSql } from '../../../prisma-adapter';
 import { escapeRegex } from '../jsonpath/utils';
 import { BaseOperator } from './base-operator';
 import { generateJsonPathLikeRegex } from '../../../utils/sql-jsonpath';
@@ -18,11 +18,11 @@ export class StringEndsWithOperator extends BaseOperator<string> {
   }
 
   generateCondition(
-    fieldRef: Prisma.Sql,
+    fieldRef: PrismaSql,
     jsonPath: string,
     value: string,
     isInsensitive: boolean,
-  ): Prisma.Sql {
+  ): PrismaSql {
     const escapedValue = escapeRegex(value);
     const pattern = `.*${escapedValue}$`;
 

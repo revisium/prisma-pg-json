@@ -1,4 +1,6 @@
 export { buildQuery, generateWhere } from './query-builder';
+export { configurePrisma, getPrismaAdapter, Prisma } from './prisma-adapter';
+export type { PrismaAdapter, PrismaSql } from './prisma-adapter';
 export * from './types';
 export { generateStringFilter } from './where/string';
 export { generateNumberFilter } from './where/number';

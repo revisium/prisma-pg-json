@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { PrismaSql } from '../../prisma-adapter';
 import type { JsonFilter } from '../../types';
 import { BaseOperator } from './operators/base-operator';
 import {
@@ -57,13 +57,13 @@ export class OperatorManager {
   }
 
   processFilter(
-    fieldRef: Prisma.Sql,
+    fieldRef: PrismaSql,
     jsonPath: string,
     filter: JsonFilter,
     isInsensitive: boolean,
     isSpecialPath: boolean = false,
-  ): Prisma.Sql[] {
-    const conditions: Prisma.Sql[] = [];
+  ): PrismaSql[] {
+    const conditions: PrismaSql[] = [];
 
     for (const [key, value] of Object.entries(filter)) {
       if (

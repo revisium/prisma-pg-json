@@ -1,17 +1,16 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../prisma-adapter';
 import { JsonOrderByInput, GenerateOrderByParams, FieldConfig } from '../types';
 import { convertToJsonPath } from '../utils/parseJsonPath';
 
 export function generateOrderByClauses<TConfig extends FieldConfig = FieldConfig>(
   params: GenerateOrderByParams<TConfig>,
-): Prisma.Sql | null {
+): PrismaSql | null {
   const { tableAlias, orderBy, fieldConfig } = params;
   if (!orderBy) {
     return null;
   }
-
   const orderArray = Array.isArray(orderBy) ? orderBy : [orderBy];
-  const orderClauses: Prisma.Sql[] = [];
+  const orderClauses: PrismaSql[] = [];
 
   for (const orderCondition of orderArray) {
     if (!orderCondition || Object.keys(orderCondition).length === 0) {
@@ -44,7 +43,7 @@ export function generateOrderByClauses<TConfig extends FieldConfig = FieldConfig
 
 export function generateOrderBy<TConfig extends FieldConfig = FieldConfig>(
   params: GenerateOrderByParams<TConfig>,
-): Prisma.Sql | null {
+): PrismaSql | null {
   const clauses = generateOrderByClauses<TConfig>(params);
 
   if (!clauses) {
@@ -54,7 +53,7 @@ export function generateOrderBy<TConfig extends FieldConfig = FieldConfig>(
   return Prisma.sql`ORDER BY ${clauses}`;
 }
 
-function processJsonField(fieldRef: Prisma.Sql, jsonOrder: JsonOrderByInput): Prisma.Sql {
+function processJsonField(fieldRef: PrismaSql, jsonOrder: JsonOrderByInput): PrismaSql {
   const jsonPath = convertToJsonPath(jsonOrder.path);
   const direction = (jsonOrder.direction || 'asc').toUpperCase();
   const aggregation = jsonOrder.aggregation;
@@ -83,12 +82,12 @@ function processJsonField(fieldRef: Prisma.Sql, jsonOrder: JsonOrderByInput): Pr
 }
 
 function processAggregation(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   jsonPath: string,
   type: string,
   direction: string,
   aggregation: string,
-): Prisma.Sql {
+): PrismaSql {
   const hasWildcard = jsonPath.includes('[*]');
 
   if (hasWildcard) {
@@ -107,7 +106,7 @@ function processAggregation(
     const aggregationFunc = aggregation.toUpperCase();
     const basePathSql = `{${pathSegments.join(',')}}`;
 
-    let elemAccess: Prisma.Sql;
+    let elemAccess: PrismaSql;
     if (afterWildcard.startsWith('.')) {
       const subPathSegments = afterWildcard
         .substring(1)

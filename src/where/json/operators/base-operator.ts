@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { PrismaSql } from '../../../prisma-adapter';
 import type { JsonFilter } from '../../../types';
 
 export abstract class BaseOperator<T = unknown> {
@@ -13,11 +13,11 @@ export abstract class BaseOperator<T = unknown> {
    * Generate the main SQL condition for this operator
    */
   abstract generateCondition(
-    fieldRef: Prisma.Sql,
+    fieldRef: PrismaSql,
     jsonPath: string,
     value: T,
     isInsensitive: boolean,
-  ): Prisma.Sql;
+  ): PrismaSql;
 
   /**
    * Optional: preprocess the value before using it
@@ -29,7 +29,7 @@ export abstract class BaseOperator<T = unknown> {
   /**
    * Optional: handle special path cases (e.g., empty path)
    */
-  handleSpecialPath(_fieldRef: Prisma.Sql, _value: T): Prisma.Sql {
+  handleSpecialPath(_fieldRef: PrismaSql, _value: T): PrismaSql {
     throw new Error(`Operator ${this.key} does not support empty path operations`);
   }
 
@@ -58,12 +58,12 @@ export abstract class BaseOperator<T = unknown> {
    * Main execution method that coordinates all logic
    */
   execute(
-    fieldRef: Prisma.Sql,
+    fieldRef: PrismaSql,
     jsonPath: string,
     value: unknown,
     isInsensitive: boolean,
     isSpecialPath: boolean = false,
-  ): Prisma.Sql {
+  ): PrismaSql {
     const processedValue = this.preprocessValue(value);
 
     if (!this.validate(processedValue)) {

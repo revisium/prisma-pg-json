@@ -1,12 +1,12 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../prisma-adapter';
 
 /**
  * Generate jsonb_path_exists expression without parameters
  * @param fieldRef - Field reference (e.g., Prisma.sql`data`)
  * @param condition - JSONPath condition string
- * @returns Prisma.Sql expression
+ * @returns PrismaSql expression
  */
-export function generateJsonPathExists(fieldRef: Prisma.Sql, condition: string): Prisma.Sql {
+export function generateJsonPathExists(fieldRef: PrismaSql, condition: string): PrismaSql {
   return Prisma.sql`jsonb_path_exists(${fieldRef}, ${condition}::jsonpath)`;
 }
 
@@ -15,13 +15,13 @@ export function generateJsonPathExists(fieldRef: Prisma.Sql, condition: string):
  * @param fieldRef - Field reference
  * @param condition - JSONPath condition string (should contain $val placeholder)
  * @param value - Parameter value
- * @returns Prisma.Sql expression
+ * @returns PrismaSql expression
  */
 export function generateJsonPathExistsWithParam(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   condition: string,
-  value: Prisma.Sql,
-): Prisma.Sql {
+  value: PrismaSql,
+): PrismaSql {
   return Prisma.sql`jsonb_path_exists(
     ${fieldRef},
     ${condition}::jsonpath,
@@ -33,14 +33,14 @@ export function generateJsonPathExistsWithParam(
  * Generate jsonb_path_exists expression with multiple parameters
  * @param fieldRef - Field reference
  * @param condition - JSONPath condition string
- * @param parameters - Parameters object as Prisma.Sql
- * @returns Prisma.Sql expression
+ * @param parameters - Parameters object as PrismaSql
+ * @returns PrismaSql expression
  */
 export function generateJsonPathExistsWithParams(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   condition: string,
-  parameters: Prisma.Sql,
-): Prisma.Sql {
+  parameters: PrismaSql,
+): PrismaSql {
   return Prisma.sql`jsonb_path_exists(
     ${fieldRef},
     ${condition}::jsonpath,
@@ -52,9 +52,9 @@ export function generateJsonPathExistsWithParams(
  * Generate negated jsonb_path_exists expression
  * @param fieldRef - Field reference
  * @param condition - JSONPath condition string
- * @returns Prisma.Sql expression
+ * @returns PrismaSql expression
  */
-export function generateJsonPathNotExists(fieldRef: Prisma.Sql, condition: string): Prisma.Sql {
+export function generateJsonPathNotExists(fieldRef: PrismaSql, condition: string): PrismaSql {
   return Prisma.sql`NOT jsonb_path_exists(${fieldRef}, ${condition}::jsonpath)`;
 }
 
@@ -64,14 +64,14 @@ export function generateJsonPathNotExists(fieldRef: Prisma.Sql, condition: strin
  * @param jsonPath - JSONPath string
  * @param pattern - Regular expression pattern (will be passed as parameter)
  * @param isInsensitive - Whether to use case-insensitive matching
- * @returns Prisma.Sql expression
+ * @returns PrismaSql expression
  */
 export function generateJsonPathLikeRegex(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   jsonPath: string,
   pattern: string,
   isInsensitive: boolean = false,
-): Prisma.Sql {
+): PrismaSql {
   const flags = isInsensitive ? ' flag "i"' : '';
   // Escape quotes and other special characters for JSONPath string literal
   const escapedPattern = pattern.replace(/["\\\n\r\t]/g, (match) => {
@@ -97,10 +97,10 @@ export function generateJsonPathLikeRegex(
 
 /**
  * Generate dynamic jsonb_build_object for multiple parameters
- * @param params - Object with parameter names and Prisma.Sql values
- * @returns Prisma.Sql expression for jsonb_build_object
+ * @param params - Object with parameter names and PrismaSql values
+ * @returns PrismaSql expression for jsonb_build_object
  */
-export function generateJsonBuildObject(params: Record<string, Prisma.Sql>): Prisma.Sql {
+export function generateJsonBuildObject(params: Record<string, PrismaSql>): PrismaSql {
   const entries = Object.entries(params);
   const args = entries.flatMap(([key, value]) => [Prisma.sql`CAST(${key} AS text)`, value]);
 

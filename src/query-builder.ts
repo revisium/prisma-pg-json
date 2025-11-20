@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import {
   QueryBuilderOptions,
   FieldConfig,
@@ -6,6 +5,7 @@ import {
   JsonFilter,
   GenerateWhereParams,
 } from './types';
+import { Prisma, PrismaSql } from './prisma-adapter';
 import { generateStringFilter } from './where/string';
 import { generateNumberFilter } from './where/number';
 import { generateBooleanFilter } from './where/boolean';
@@ -17,7 +17,7 @@ const DEFAULT_FIELD_CONFIG: FieldConfig = {};
 
 export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
   options: QueryBuilderOptions<TConfig>,
-): Prisma.Sql {
+): PrismaSql {
   const {
     tableName,
     tableAlias = tableName.substring(0, 1),
@@ -66,7 +66,7 @@ export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
 
 export function generateWhere<TConfig extends FieldConfig = FieldConfig>(
   params: GenerateWhereParams<TConfig>,
-): Prisma.Sql {
+): PrismaSql {
   return generateWhereClause(params);
 }
 
@@ -74,9 +74,9 @@ export { generateOrderBy, generateOrderByClauses } from './orderBy';
 
 function generateWhereClause<TConfig extends FieldConfig = FieldConfig>(
   params: GenerateWhereParams<TConfig>,
-): Prisma.Sql {
+): PrismaSql {
   const { where, fieldConfig, tableAlias } = params;
-  const conditions: Prisma.Sql[] = [];
+  const conditions: PrismaSql[] = [];
 
   for (const [key, value] of Object.entries(where)) {
     if (key === 'AND' || key === 'OR' || key === 'NOT') {
@@ -130,12 +130,12 @@ function generateWhereClause<TConfig extends FieldConfig = FieldConfig>(
 }
 
 function generateFieldCondition(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   value: unknown,
   fieldType: FieldType,
   fieldName: string,
   tableAlias: string,
-): Prisma.Sql | null {
+): PrismaSql | null {
   switch (fieldType) {
     case 'string':
       return generateStringFilter(fieldRef, value as string);

@@ -1,15 +1,16 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../prisma-adapter';
 import { BooleanFilter } from '../types';
 
 export function generateBooleanFilter(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   filter: boolean | BooleanFilter,
-): Prisma.Sql {
+): PrismaSql {
+
   if (typeof filter === 'boolean') {
     return Prisma.sql`${fieldRef} = ${filter}`;
   }
 
-  const conditions: Prisma.Sql[] = [];
+  const conditions: PrismaSql[] = [];
 
   if (filter.equals !== undefined) {
     conditions.push(Prisma.sql`${fieldRef} = ${filter.equals}`);

@@ -1,15 +1,16 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../prisma-adapter';
 import { NumberFilter } from '../types';
 
 export function generateNumberFilter(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   filter: number | NumberFilter,
-): Prisma.Sql {
+): PrismaSql {
+
   if (typeof filter === 'number') {
     return Prisma.sql`${fieldRef} = ${filter}`;
   }
 
-  const conditions: Prisma.Sql[] = [];
+  const conditions: PrismaSql[] = [];
 
   if (filter.equals !== undefined) {
     conditions.push(Prisma.sql`${fieldRef} = ${filter.equals}`);

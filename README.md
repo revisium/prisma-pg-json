@@ -52,6 +52,20 @@ npm install @revisium/prisma-pg-json
 
 ## Usage
 
+### Setup
+
+Before using the library, you must configure it with your Prisma client:
+
+```typescript
+import { configurePrisma } from '@revisium/prisma-pg-json';
+import { Prisma } from '@prisma/client';
+
+// Configure once at application startup
+configurePrisma(Prisma);
+```
+
+> **Important**: Call `configurePrisma()` before using any query building functions. This allows the library to work with any Prisma client version and custom import paths.
+
 ### Core Functions
 
 The library provides two main functions for building WHERE and ORDER BY clauses:
@@ -59,6 +73,10 @@ The library provides two main functions for building WHERE and ORDER BY clauses:
 ```typescript
 import { generateWhere, generateOrderBy, FieldConfig } from '@revisium/prisma-pg-json';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { configurePrisma } from '@revisium/prisma-pg-json';
+
+// Configure the library
+configurePrisma(Prisma);
 
 const prisma = new PrismaClient();
 

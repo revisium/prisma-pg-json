@@ -1,10 +1,11 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaSql } from '../prisma-adapter';
 import { DateFilter } from '../types';
 
 export function generateDateFilter(
-  fieldRef: Prisma.Sql,
+  fieldRef: PrismaSql,
   filter: string | Date | DateFilter,
-): Prisma.Sql {
+): PrismaSql {
+
   if (typeof filter === 'string') {
     return Prisma.sql`${fieldRef} = ${new Date(filter)}`;
   }
@@ -13,7 +14,7 @@ export function generateDateFilter(
     return Prisma.sql`${fieldRef} = ${filter}`;
   }
 
-  const conditions: Prisma.Sql[] = [];
+  const conditions: PrismaSql[] = [];
 
   if (filter.equals !== undefined) {
     const value = typeof filter.equals === 'string' ? new Date(filter.equals) : filter.equals;

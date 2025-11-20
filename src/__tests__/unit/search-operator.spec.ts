@@ -1,8 +1,13 @@
 import { SearchOperator } from '../../where/json/operators/search-operator';
 import { Prisma } from '@prisma/client';
+import { configurePrisma } from '../../prisma-adapter';
 
 describe('SearchOperator', () => {
   let operator: SearchOperator;
+
+  beforeAll(() => {
+    configurePrisma(Prisma);
+  });
 
   beforeEach(() => {
     operator = new SearchOperator();
