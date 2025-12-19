@@ -8,7 +8,7 @@ interface SearchContext {
   searchIn: 'all' | 'values' | 'keys' | 'strings' | 'numbers' | 'booleans';
 }
 
-const ALLOWED_LANGUAGES = [
+export const SEARCH_LANGUAGES = [
   'simple',
   'arabic',
   'armenian',
@@ -40,14 +40,14 @@ const ALLOWED_LANGUAGES = [
   'yiddish',
 ] as const;
 
-type AllowedLanguage = (typeof ALLOWED_LANGUAGES)[number];
+export type SearchLanguage = (typeof SEARCH_LANGUAGES)[number];
 
-function validateLanguage(language: string): AllowedLanguage {
-  if (ALLOWED_LANGUAGES.includes(language as AllowedLanguage)) {
-    return language as AllowedLanguage;
+function validateLanguage(language: string): SearchLanguage {
+  if (SEARCH_LANGUAGES.includes(language as SearchLanguage)) {
+    return language as SearchLanguage;
   }
   throw new Error(
-    `Invalid search language: ${language}. Allowed: ${ALLOWED_LANGUAGES.join(', ')}`,
+    `Invalid search language: ${language}. Allowed: ${SEARCH_LANGUAGES.join(', ')}`,
   );
 }
 
