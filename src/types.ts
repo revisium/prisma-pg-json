@@ -59,7 +59,7 @@ export type JsonFilter = {
   array_ends_with?: unknown;
   search?: string;
   searchLanguage?: string;
-  searchType?: 'plain' | 'phrase';
+  searchType?: 'plain' | 'phrase' | 'prefix' | 'tsquery';
   searchIn?: 'all' | 'values' | 'keys' | 'strings' | 'numbers' | 'booleans';
   mode?: 'default' | 'insensitive';
 };

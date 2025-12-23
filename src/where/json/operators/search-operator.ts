@@ -4,7 +4,7 @@ import { BaseOperator } from './base-operator';
 
 interface SearchContext {
   language: string;
-  searchType: 'plain' | 'phrase';
+  searchType: 'plain' | 'phrase' | 'prefix' | 'tsquery';
   searchIn: 'all' | 'values' | 'keys' | 'strings' | 'numbers' | 'booleans';
 }
 
@@ -70,6 +70,36 @@ function getSearchInParameter(
   }
 }
 
+function toPrefixQuery(input: string): string {
+  return input
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0)
+    .map((word) => {
+      const escaped = word.replace(/[&|!():*\\'"<>]/g, '');
+      return escaped.length > 0 ? `${escaped}:*` : '';
+    })
+    .filter((term) => term.length > 0)
+    .join(' & ');
+}
+
+function getQueryFuncAndValue(
+  searchType: 'plain' | 'phrase' | 'prefix' | 'tsquery',
+  value: string,
+): { func: string; value: string } {
+  switch (searchType) {
+    case 'phrase':
+      return { func: 'phraseto_tsquery', value };
+    case 'prefix':
+      return { func: 'to_tsquery', value: toPrefixQuery(value) };
+    case 'tsquery':
+      return { func: 'to_tsquery', value };
+    case 'plain':
+    default:
+      return { func: 'plainto_tsquery', value };
+  }
+}
+
 export class SearchOperator extends BaseOperator<string> {
   readonly key = 'search';
   private context?: SearchContext;
@@ -104,10 +134,10 @@ export class SearchOperator extends BaseOperator<string> {
     const language = validateLanguage(this.context?.language || 'simple');
     const searchType = this.context?.searchType || 'plain';
     const searchIn = this.context?.searchIn || 'all';
-    const queryFunc = searchType === 'phrase' ? 'phraseto_tsquery' : 'plainto_tsquery';
+    const { func, value: queryValue } = getQueryFuncAndValue(searchType, value);
     const searchInParam = getSearchInParameter(searchIn);
 
-    return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef}, '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(queryFunc)}(${Prisma.raw(`'${language}'`)}, ${value})`;
+    return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef}, '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(func)}(${Prisma.raw(`'${language}'`)}, ${queryValue})`;
   }
 
   generateCondition(
@@ -119,12 +149,12 @@ export class SearchOperator extends BaseOperator<string> {
     const language = validateLanguage(this.context?.language || 'simple');
     const searchType = this.context?.searchType || 'plain';
     const searchIn = this.context?.searchIn || 'all';
-    const queryFunc = searchType === 'phrase' ? 'phraseto_tsquery' : 'plainto_tsquery';
+    const { func, value: queryValue } = getQueryFuncAndValue(searchType, value);
     const searchInParam = getSearchInParameter(searchIn);
 
     const pathArray = this.parseJsonPathToArray(jsonPath);
 
-    return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef} #> ${pathArray}::text[], '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(queryFunc)}(${Prisma.raw(`'${language}'`)}, ${value})`;
+    return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef} #> ${pathArray}::text[], '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(func)}(${Prisma.raw(`'${language}'`)}, ${queryValue})`;
   }
 
   private parseJsonPathToArray(jsonPath: string): string[] {
