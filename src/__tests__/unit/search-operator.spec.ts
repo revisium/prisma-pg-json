@@ -122,6 +122,38 @@ describe('SearchOperator', () => {
       );
       expect(sql.values).toEqual(['test']);
     });
+
+    it('should set prefix search type', () => {
+      operator.setContext({
+        path: '',
+        search: 'test query',
+        searchType: 'prefix',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'test query');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["all"]') @@ to_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['test:* & query:*']);
+    });
+
+    it('should set tsquery search type', () => {
+      operator.setContext({
+        path: '',
+        search: 'test:* & query:*',
+        searchType: 'tsquery',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'test:* & query:*');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["all"]') @@ to_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['test:* & query:*']);
+    });
   });
 
   describe('handleSpecialPath', () => {
@@ -465,6 +497,212 @@ describe('SearchOperator', () => {
           expect(sql.values).toEqual([['content'], 'test query']);
         });
       });
+    });
+  });
+
+  describe('prefix search type', () => {
+    it('should convert single word to prefix query', () => {
+      operator.setContext({
+        path: '',
+        search: 'test',
+        searchType: 'prefix',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'test');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["all"]') @@ to_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['test:*']);
+    });
+
+    it('should convert multiple words to prefix query with AND', () => {
+      operator.setContext({
+        path: '',
+        search: 'hello world',
+        searchType: 'prefix',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'hello world');
+
+      expect(sql.values).toEqual(['hello:* & world:*']);
+    });
+
+    it('should handle multiple spaces between words', () => {
+      operator.setContext({
+        path: '',
+        search: 'hello   world',
+        searchType: 'prefix',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'hello   world');
+
+      expect(sql.values).toEqual(['hello:* & world:*']);
+    });
+
+    it('should handle leading and trailing spaces', () => {
+      operator.setContext({
+        path: '',
+        search: '  hello world  ',
+        searchType: 'prefix',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, '  hello world  ');
+
+      expect(sql.values).toEqual(['hello:* & world:*']);
+    });
+
+    it('should escape special tsquery characters', () => {
+      operator.setContext({
+        path: '',
+        search: 'hello & world | test',
+        searchType: 'prefix',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'hello & world | test');
+
+      expect(sql.values).toEqual(['hello:* & world:* & test:*']);
+    });
+
+    it('should work with specified language', () => {
+      operator.setContext({
+        path: '',
+        search: 'hello world',
+        searchType: 'prefix',
+        searchLanguage: 'russian',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'hello world');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('russian', data, '["all"]') @@ to_tsquery('russian', ?)`,
+      );
+      expect(sql.values).toEqual(['hello:* & world:*']);
+    });
+
+    it('should work with path-based search', () => {
+      operator.setContext({
+        path: 'content',
+        search: 'test query',
+        searchType: 'prefix',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.generateCondition(fieldRef, '$.content', 'test query', false);
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data #> ?::text[], '["all"]') @@ to_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual([['content'], 'test:* & query:*']);
+    });
+  });
+
+  describe('tsquery search type', () => {
+    it('should pass query directly to to_tsquery', () => {
+      operator.setContext({
+        path: '',
+        search: 'hello:* & world:*',
+        searchType: 'tsquery',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'hello:* & world:*');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data, '["all"]') @@ to_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual(['hello:* & world:*']);
+    });
+
+    it('should support OR operator', () => {
+      operator.setContext({
+        path: '',
+        search: 'hello | world',
+        searchType: 'tsquery',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'hello | world');
+
+      expect(sql.values).toEqual(['hello | world']);
+    });
+
+    it('should support NOT operator', () => {
+      operator.setContext({
+        path: '',
+        search: 'hello & !world',
+        searchType: 'tsquery',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'hello & !world');
+
+      expect(sql.values).toEqual(['hello & !world']);
+    });
+
+    it('should support phrase operator', () => {
+      operator.setContext({
+        path: '',
+        search: 'hello <-> world',
+        searchType: 'tsquery',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'hello <-> world');
+
+      expect(sql.values).toEqual(['hello <-> world']);
+    });
+
+    it('should support complex expressions', () => {
+      operator.setContext({
+        path: '',
+        search: '(hello:* | world:*) & !test:*',
+        searchType: 'tsquery',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, '(hello:* | world:*) & !test:*');
+
+      expect(sql.values).toEqual(['(hello:* | world:*) & !test:*']);
+    });
+
+    it('should work with specified language', () => {
+      operator.setContext({
+        path: '',
+        search: 'привет:* & мир:*',
+        searchType: 'tsquery',
+        searchLanguage: 'russian',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.handleSpecialPath(fieldRef, 'привет:* & мир:*');
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('russian', data, '["all"]') @@ to_tsquery('russian', ?)`,
+      );
+      expect(sql.values).toEqual(['привет:* & мир:*']);
+    });
+
+    it('should work with path-based search', () => {
+      operator.setContext({
+        path: 'content',
+        search: 'test:* & query:*',
+        searchType: 'tsquery',
+      });
+
+      const fieldRef = Prisma.sql`data`;
+      const sql = operator.generateCondition(fieldRef, '$.content', 'test:* & query:*', false);
+
+      expect(sql.sql).toEqual(
+        `jsonb_to_tsvector('simple', data #> ?::text[], '["all"]') @@ to_tsquery('simple', ?)`,
+      );
+      expect(sql.values).toEqual([['content'], 'test:* & query:*']);
     });
   });
 

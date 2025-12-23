@@ -282,6 +282,321 @@ describe('JSON Full-Text Search', () => {
     });
   });
 
+  describe('Search type: prefix', () => {
+    it('should match word prefix', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'Post',
+            searchType: 'prefix',
+          },
+        },
+        [ids.doc1, ids.doc4],
+      );
+    });
+
+    it('should match multiple word prefixes with AND', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'JSON types',
+            searchType: 'prefix',
+          },
+        },
+        [ids.doc4],
+      );
+    });
+
+    it('should match partial words at beginning', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'title',
+            search: 'Intro',
+            searchType: 'prefix',
+          },
+        },
+        [ids.doc1],
+      );
+    });
+
+    it('should match case-insensitively', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'title',
+            search: 'post',
+            searchType: 'prefix',
+          },
+        },
+        [ids.doc1, ids.doc4],
+      );
+    });
+
+    it('should work with nested path', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'metadata.author',
+            search: 'Jo',
+            searchType: 'prefix',
+          },
+        },
+        [ids.doc1, ids.doc3],
+      );
+    });
+
+    it('should work with root level search', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'optim',
+            searchType: 'prefix',
+          },
+        },
+        [ids.doc3, ids.doc5],
+      );
+    });
+
+    it('should work with simple language', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'power',
+            searchType: 'prefix',
+            searchLanguage: 'simple',
+          },
+        },
+        [ids.doc1],
+      );
+    });
+
+    it('should work with english language', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'optim',
+            searchType: 'prefix',
+            searchLanguage: 'english',
+          },
+        },
+        [ids.doc3, ids.doc5],
+      );
+    });
+
+    it('should work with searchIn: values', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'Post',
+            searchType: 'prefix',
+            searchIn: 'values',
+          },
+        },
+        [ids.doc1, ids.doc4],
+      );
+    });
+
+    it('should work with searchIn: keys', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'meta',
+            searchType: 'prefix',
+            searchIn: 'keys',
+          },
+        },
+        [ids.doc1, ids.doc2, ids.doc3, ids.doc4, ids.doc5],
+      );
+    });
+
+    it('should combine language and searchIn', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'JSON JSONB',
+            searchType: 'prefix',
+            searchLanguage: 'english',
+            searchIn: 'strings',
+          },
+        },
+        [ids.doc4],
+      );
+    });
+  });
+
+  describe('Search type: tsquery', () => {
+    it('should support prefix operator directly', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'Post:*',
+            searchType: 'tsquery',
+          },
+        },
+        [ids.doc1, ids.doc4],
+      );
+    });
+
+    it('should support AND operator', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'database & performance',
+            searchType: 'tsquery',
+          },
+        },
+        [ids.doc5],
+      );
+    });
+
+    it('should support OR operator', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'title',
+            search: 'Introduction | Advanced',
+            searchType: 'tsquery',
+          },
+        },
+        [ids.doc1, ids.doc3],
+      );
+    });
+
+    it('should support NOT operator', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'postgresql & !JSON',
+            searchType: 'tsquery',
+          },
+        },
+        [ids.doc1],
+      );
+    });
+
+    it('should support phrase operator', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'full-text <-> search',
+            searchType: 'tsquery',
+          },
+        },
+        [ids.doc2],
+      );
+    });
+
+    it('should support complex expressions', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'postgresql & database & !JSON',
+            searchType: 'tsquery',
+          },
+        },
+        [ids.doc1],
+      );
+    });
+
+    it('should support prefix with AND', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'JSON:* & JSONB:*',
+            searchType: 'tsquery',
+          },
+        },
+        [ids.doc4],
+      );
+    });
+
+    it('should work with simple language', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'database & powerful',
+            searchType: 'tsquery',
+            searchLanguage: 'simple',
+          },
+        },
+        [ids.doc1],
+      );
+    });
+
+    it('should work with english language', async () => {
+      await testQuery(
+        {
+          data: {
+            path: 'content',
+            search: 'optimize:*',
+            searchType: 'tsquery',
+            searchLanguage: 'english',
+          },
+        },
+        [ids.doc3, ids.doc5],
+      );
+    });
+
+    it('should work with searchIn: values', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'postgresql & database',
+            searchType: 'tsquery',
+            searchIn: 'values',
+          },
+        },
+        [ids.doc1, ids.doc4],
+      );
+    });
+
+    it('should work with searchIn: keys', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'content | title',
+            searchType: 'tsquery',
+            searchIn: 'keys',
+          },
+        },
+        [ids.doc1, ids.doc2, ids.doc3, ids.doc4, ids.doc5],
+      );
+    });
+
+    it('should combine language and searchIn', async () => {
+      await testQuery(
+        {
+          data: {
+            path: '',
+            search: 'database:* & !JSON',
+            searchType: 'tsquery',
+            searchLanguage: 'english',
+            searchIn: 'strings',
+          },
+        },
+        [ids.doc1, ids.doc5],
+      );
+    });
+  });
+
   describe('Search language', () => {
     it('should use simple language by default', async () => {
       await testQuery(

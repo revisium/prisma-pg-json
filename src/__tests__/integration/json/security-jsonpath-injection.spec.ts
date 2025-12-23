@@ -306,4 +306,99 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
       });
     });
   });
+
+  describe('Search Operator Injection', () => {
+    it('should handle SQL injection attempts in tsquery search type', async () => {
+      const maliciousQuery = "'; DROP TABLE test_tables; --";
+
+      try {
+        await testQuery(
+          {
+            data: {
+              path: '',
+              search: maliciousQuery,
+              searchType: 'tsquery',
+            },
+          },
+          false,
+        );
+      } catch (error) {
+        expect(error).toBeDefined();
+      }
+    });
+
+    it('should handle quotes in tsquery search safely', async () => {
+      const maliciousQuery = 'test") || true || ("fake';
+
+      try {
+        await testQuery(
+          {
+            data: {
+              path: '',
+              search: maliciousQuery,
+              searchType: 'tsquery',
+            },
+          },
+          false,
+        );
+      } catch (error) {
+        expect(error).toBeDefined();
+      }
+    });
+
+    it('should handle prefix search type injection attempts safely', async () => {
+      const maliciousInput = "test'; DROP TABLE test_tables; --";
+
+      await testQuery({
+        data: {
+          path: '',
+          search: maliciousInput,
+          searchType: 'prefix',
+        },
+      });
+    });
+
+    it('should handle phrase search type injection attempts safely', async () => {
+      const maliciousPhrase = "test'; DROP TABLE test_tables; --";
+
+      await testQuery({
+        data: {
+          path: '',
+          search: maliciousPhrase,
+          searchType: 'phrase',
+        },
+      });
+    });
+
+    it('should handle plain search type injection attempts safely', async () => {
+      const maliciousSearch = "'; SELECT * FROM pg_tables; --";
+
+      await testQuery({
+        data: {
+          path: '',
+          search: maliciousSearch,
+          searchType: 'plain',
+        },
+      });
+    });
+
+    it('should handle complex tsquery injection with operators', async () => {
+      const maliciousQuery = 'test:* & (SELECT 1)';
+
+      try {
+        await testQuery(
+          {
+            data: {
+              path: '',
+              search: maliciousQuery,
+              searchType: 'tsquery',
+            },
+          },
+          false,
+        );
+      } catch (error) {
+        expect(error).toBeDefined();
+      }
+    });
+  });
 });
