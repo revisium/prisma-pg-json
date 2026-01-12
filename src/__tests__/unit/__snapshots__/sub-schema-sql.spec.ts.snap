@@ -1,0 +1,279 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SubSchema SQL Generation should generate SQL for all path types 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'avatar'::text as "fieldPath",
+      r."data" -> 'avatar' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_characters_001'
+      AND jsonb_typeof(r."data" -> 'avatar') = 'object'
+    UNION ALL
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'profile.photo'::text as "fieldPath",
+      r."data" -> 'profile' -> 'photo' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_characters_001'
+      AND jsonb_typeof(r."data" -> 'profile' -> 'photo') = 'object'
+    UNION ALL
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'gallery'::text || '[' || (arr.idx - 1)::text || ']'
+      ) as "fieldPath",
+      arr.elem as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'gallery') = 'array' THEN r."data" -> 'gallery'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr (elem, idx)
+    WHERE
+      rt."B" = 'ver_characters_001'
+    UNION ALL
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'attachments'::text || '[' || (arr.idx - 1)::text || '].' || 'file'::text
+      ) as "fieldPath",
+      arr.elem -> 'file' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'attachments') = 'array' THEN r."data" -> 'attachments'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr (elem, idx)
+    WHERE
+      rt."B" = 'ver_characters_001'
+      AND jsonb_typeof(arr.elem -> 'file') = 'object'
+    UNION ALL
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'items'::text || '[' || (arr1.idx - 1)::text || ']' || '.' || 'variants'::text || '[' || (arr2.idx - 1)::text || ']' || '.' || 'image'::text
+      ) as "fieldPath",
+      arr2.elem -> 'image' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'items') = 'array' THEN r."data" -> 'items'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr1 (elem, idx)
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(arr1.elem -> 'variants') = 'array' THEN arr1.elem -> 'variants'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr2 (elem, idx)
+    WHERE
+      rt."B" = 'ver_characters_001'
+      AND jsonb_typeof(arr2.elem -> 'image') = 'object'
+    UNION ALL
+    SELECT
+      'items'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'icon'::text as "fieldPath",
+      r."data" -> 'icon' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_items_001'
+      AND jsonb_typeof(r."data" -> 'icon') = 'object'
+  )
+SELECT
+  "tableId",
+  "rowId",
+  "rowVersionId",
+  "fieldPath",
+  "data"
+FROM
+  sub_schema_items
+WHERE
+  (
+    "tableId" = 'characters'
+    AND "data" #> '{status}' = to_jsonb(CAST('uploaded' AS text))
+    AND jsonb_path_exists(
+      "data",
+      '$.mimeType ? (@ like_regex "^image/.*")'::jsonpath
+    )
+  )
+  AND (
+    jsonb_path_exists(
+      "data",
+      '$.size ? (@ >= $val)'::jsonpath,
+      jsonb_build_object('val', to_jsonb(CAST(1000 AS numeric)))
+    )
+    OR jsonb_path_exists(
+      "data",
+      '$.size ? (@ <= $val)'::jsonpath,
+      jsonb_build_object('val', to_jsonb(CAST(100 AS numeric)))
+    )
+  )
+ORDER BY
+  "tableId" ASC,
+  "data" ->> 'size' DESC NULLS LAST
+LIMIT
+  20
+OFFSET
+  10"
+`;
+
+exports[`SubSchema SQL Generation should generate SQL for deeply nested path in object 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'settings'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'config.theme.logo.image'::text as "fieldPath",
+      r."data" -> 'config' -> 'theme' -> 'logo' -> 'image' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_settings_001'
+      AND jsonb_typeof(
+        r."data" -> 'config' -> 'theme' -> 'logo' -> 'image'
+      ) = 'object'
+  )
+SELECT
+  "tableId",
+  "rowId",
+  "rowVersionId",
+  "fieldPath",
+  "data"
+FROM
+  sub_schema_items
+LIMIT
+  10
+OFFSET
+  0"
+`;
+
+exports[`SubSchema SQL Generation should generate SQL for empty tables array 1`] = `
+"SELECT
+  NULL as "tableId",
+  NULL as "rowId",
+  NULL as "rowVersionId",
+  NULL as "fieldPath",
+  NULL as "data"
+WHERE
+  false"
+`;
+
+exports[`SubSchema SQL Generation should generate SQL for nested arrays without trailing path 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'galleries'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'sections'::text || '[' || (arr1.idx - 1)::text || ']' || '.' || 'photos'::text || '[' || (arr2.idx - 1)::text || ']'
+      ) as "fieldPath",
+      arr2.elem as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'sections') = 'array' THEN r."data" -> 'sections'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr1 (elem, idx)
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(arr1.elem -> 'photos') = 'array' THEN arr1.elem -> 'photos'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr2 (elem, idx)
+    WHERE
+      rt."B" = 'ver_galleries_001'
+  )
+SELECT
+  "tableId",
+  "rowId",
+  "rowVersionId",
+  "fieldPath",
+  "data"
+FROM
+  sub_schema_items
+LIMIT
+  50
+OFFSET
+  0"
+`;
+
+exports[`SubSchema SQL Generation should generate count SQL 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'media'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'cover'::text as "fieldPath",
+      r."data" -> 'cover' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_media_001'
+      AND jsonb_typeof(r."data" -> 'cover') = 'object'
+    UNION ALL
+    SELECT
+      'media'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'gallery'::text || '[' || (arr.idx - 1)::text || ']'
+      ) as "fieldPath",
+      arr.elem as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'gallery') = 'array' THEN r."data" -> 'gallery'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr (elem, idx)
+    WHERE
+      rt."B" = 'ver_media_001'
+  )
+SELECT
+  COUNT(*)::bigint as count
+FROM
+  sub_schema_items
+WHERE
+  "data" #> '{status}' = to_jsonb(CAST('uploaded' AS text))"
+`;

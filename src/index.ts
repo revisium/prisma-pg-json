@@ -11,7 +11,14 @@ export { generateOrderBy } from './orderBy';
 export { parseJsonPath, arrayToJsonPath, validateJsonPath } from './utils/parseJsonPath';
 export { SEARCH_LANGUAGES } from './where/json/operators/search-operator';
 export type { SearchLanguage } from './where/json/operators/search-operator';
-export { buildSubSchemaQuery, buildSubSchemaCountQuery } from './sub-schema/sub-schema-builder';
+export {
+  buildSubSchemaQuery,
+  buildSubSchemaCountQuery,
+  parsePath,
+  MAX_TAKE,
+  MAX_SKIP,
+} from './sub-schema/sub-schema-builder';
+export type { ParsedPath, PathSegment } from './sub-schema/sub-schema-builder';
 export type {
   SubSchemaPath,
   SubSchemaTableConfig,

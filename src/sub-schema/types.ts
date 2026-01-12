@@ -2,7 +2,6 @@ import { JsonFilter, StringFilter } from '../types';
 
 export interface SubSchemaPath {
   path: string;
-  isArray: boolean;
 }
 
 export interface SubSchemaTableConfig {

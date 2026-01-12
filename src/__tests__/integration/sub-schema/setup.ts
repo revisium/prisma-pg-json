@@ -34,6 +34,29 @@ export interface TestTableConfig {
   }>;
 }
 
+export function createFile(
+  id: string,
+  name: string,
+  options: { mimeType?: string; size?: number; status?: 'uploaded' | 'ready' } = {},
+): Prisma.InputJsonObject {
+  const ext = name.split('.').pop() ?? 'bin';
+  const mimeTypeMap: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    pdf: 'application/pdf',
+    mp4: 'video/mp4',
+    mp3: 'audio/mp3',
+  };
+  return {
+    fileId: id,
+    fileName: name,
+    mimeType: options.mimeType ?? mimeTypeMap[ext] ?? 'application/octet-stream',
+    size: options.size ?? 1000,
+    status: options.status ?? 'uploaded',
+  };
+}
+
 export async function createTestData(tables: TestTableConfig[]): Promise<void> {
   for (const table of tables) {
     await prisma.table.create({

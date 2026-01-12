@@ -14,15 +14,17 @@
  *       tableId: 'characters',
  *       tableVersionId: 'ver_abc123',
  *       paths: [
- *         { path: 'avatar', isArray: false },        // Single file field
- *         { path: 'gallery', isArray: true },        // Array of files
- *         { path: 'profile.photo', isArray: false }, // Nested object field
+ *         { path: 'avatar' },                    // single file
+ *         { path: 'gallery[*]' },                // array of files
+ *         { path: 'profile.photo' },             // nested single file
+ *         { path: 'attachments[*].file' },       // file inside array of objects
+ *         { path: 'items[*].variants[*].image' }, // nested arrays (2 levels)
  *       ],
  *     },
  *     {
  *       tableId: 'items',
  *       tableVersionId: 'ver_def456',
- *       paths: [{ path: 'icon', isArray: false }],
+ *       paths: [{ path: 'icon' }],
  *     },
  *   ],
  *   where: {
@@ -39,73 +41,48 @@
  * const query = buildSubSchemaQuery(params);
  * const items = await prisma.$queryRaw<SubSchemaItem[]>(query);
  *
- * // Generated SQL (simplified):
- * // WITH sub_schema_items AS (
- * //   -- Single path query (characters.avatar)
- * //   SELECT 'characters'::text as "tableId", r.id as "rowId",
- * //          r."versionId" as "rowVersionId", 'avatar'::text as "fieldPath",
- * //          r."data"->'avatar' as "data"
- * //   FROM "Row" r
- * //   INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
- * //   WHERE rt."B" = $1 AND jsonb_typeof(r."data"->'avatar') = 'object'
- * //
- * //   UNION ALL
- * //
- * //   -- Array path query (characters.gallery) - expands each element
- * //   SELECT 'characters'::text as "tableId", r.id as "rowId",
- * //          r."versionId" as "rowVersionId",
- * //          ('gallery'::text || '[' || (arr.idx - 1)::text || ']') as "fieldPath",
- * //          arr.elem as "data"
- * //   FROM "Row" r
- * //   INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
- * //   CROSS JOIN LATERAL jsonb_array_elements(r."data"->'gallery')
- * //     WITH ORDINALITY AS arr(elem, idx)
- * //   WHERE rt."B" = $2 AND jsonb_typeof(r."data"->'gallery') = 'array'
- * //
- * //   UNION ALL
- * //   -- ... items.icon query
- * // )
- * // SELECT "tableId", "rowId", "rowVersionId", "fieldPath", "data"
- * // FROM sub_schema_items
- * // WHERE ("data"->>'status' = $3)
- * //   AND ("data"->>'mimeType' LIKE $4 || '%')
- * // ORDER BY "data"->>'size' DESC NULLS LAST
- * // LIMIT 20 OFFSET 0
+ * // Generated SQL uses CTE with UNION ALL for each path.
+ * // See __tests__/unit/__snapshots__/sub-schema-sql.spec.ts.snap for full examples.
  *
  * // Result example:
  * // [
  * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
- * //     fieldPath: 'avatar', data: { fileId: '...', status: 'uploaded', ... } },
+ * //     fieldPath: 'avatar', data: { fileId: '...', ... } },
  * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
  * //     fieldPath: 'gallery[0]', data: { fileId: '...', ... } },
  * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
  * //     fieldPath: 'gallery[1]', data: { fileId: '...', ... } },
  * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
  * //     fieldPath: 'profile.photo', data: { fileId: '...', ... } },
+ * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
+ * //     fieldPath: 'attachments[0].file', data: { fileId: '...', ... } },
  * //   { tableId: 'items', rowId: 'sword', rowVersionId: 'rv_2',
  * //     fieldPath: 'icon', data: { fileId: '...', ... } },
  * // ]
  * ```
  *
  * @pathformat
- * The `path` field in SubSchemaPath supports dot-notation for nested objects:
+ * The `path` field uses dot-notation for nested objects and `[*]` for arrays:
  *
- * **Supported paths:**
+ * **Single paths (no arrays):**
  * - `'avatar'` - top-level field → `data->'avatar'`
  * - `'profile.photo'` - nested object → `data->'profile'->'photo'`
  * - `'settings.images.logo'` - deeply nested → `data->'settings'->'images'->'logo'`
  *
- * **Not supported (limitation):**
- * - `'items[0].icon'` - array indexing in path is NOT supported
- * - `'inventory[*].image'` - wildcard array access is NOT supported
+ * **Array paths (with [*] wildcard):**
+ * Use `[*]` to mark array positions. Each array element becomes a separate row.
+ * The builder uses `jsonb_array_elements()` with CROSS JOIN LATERAL.
  *
- * For array fields, use `isArray: true` to expand each array element into a separate row.
- * The builder will use `jsonb_array_elements()` to iterate over the array.
+ * - Simple array: `'gallery[*]'` → `gallery[0]`, `gallery[1]`, ...
+ * - Nested inside object: `'value.files[*]'` → `value.files[0]`, `value.files[1]`, ...
+ * - Object inside array: `'attachments[*].file'` → `attachments[0].file`, `attachments[1].file`, ...
+ * - Nested arrays (2 levels): `'items[*].variants[*].image'` → `items[0].variants[0].image`, ...
  *
- * **Use cases:**
- * - File fields: `{ $ref: "File" }` - single file at any nesting level
- * - File arrays: `{ type: "array", items: { $ref: "File" } }` - array of files
- * - Nested files: `{ type: "object", properties: { photo: { $ref: "File" } } }`
+ * **Schema → Path mapping:**
+ * - `{ $ref: "File" }` → `'avatar'`
+ * - `{ type: "array", items: { $ref: "File" } }` → `'gallery[*]'`
+ * - `{ type: "object", properties: { photo: { $ref: "File" } } }` → `'profile.photo'`
+ * - `{ type: "array", items: { type: "object", properties: { file: { $ref: "File" } } } }` → `'attachments[*].file'`
  *
  * @security
  * - All user inputs are parameterized via Prisma.sql tagged templates
@@ -124,13 +101,61 @@ import { generateJsonFilter } from '../where/json';
 import {
   SubSchemaQueryParams,
   SubSchemaTableConfig,
-  SubSchemaPath,
   SubSchemaWhereInput,
   SubSchemaOrderByItem,
 } from './types';
 
+export const MAX_TAKE = 10000;
+export const MAX_SKIP = 1000000;
+
+export interface ParsedPath {
+  isArray: boolean;
+  segments: PathSegment[];
+}
+
+export interface PathSegment {
+  path: string;
+  isArray: boolean;
+}
+
+export function parsePath(path: string): ParsedPath {
+  if (!path.includes('[*]')) {
+    return { isArray: false, segments: [{ path, isArray: false }] };
+  }
+
+  const parts = path.split('[*]');
+  const segments: PathSegment[] = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    let part = parts[i];
+    if (part.startsWith('.')) {
+      part = part.slice(1);
+    }
+    if (part.endsWith('.')) {
+      part = part.slice(0, -1);
+    }
+    if (part.length > 0) {
+      const isArray = i < parts.length - 1;
+      segments.push({ path: part, isArray });
+    }
+  }
+
+  return { isArray: true, segments };
+}
+
+function validatePagination(take: number, skip: number): void {
+  if (!Number.isInteger(take) || take < 0 || take > MAX_TAKE) {
+    throw new Error(`take must be an integer between 0 and ${MAX_TAKE}`);
+  }
+  if (!Number.isInteger(skip) || skip < 0 || skip > MAX_SKIP) {
+    throw new Error(`skip must be an integer between 0 and ${MAX_SKIP}`);
+  }
+}
+
 export function buildSubSchemaQuery(params: SubSchemaQueryParams): PrismaSql {
   const { tables, where, orderBy, take, skip } = params;
+
+  validatePagination(take, skip);
 
   if (tables.length === 0) {
     return Prisma.sql`SELECT NULL as "tableId", NULL as "rowId", NULL as "rowVersionId", NULL as "fieldPath", NULL as "data" WHERE false`;
@@ -178,9 +203,10 @@ function buildCteQueries(tables: SubSchemaTableConfig[]): PrismaSql {
 
   for (const table of tables) {
     for (const pathConfig of table.paths) {
-      const query = pathConfig.isArray
-        ? buildArrayPathQuery(table, pathConfig)
-        : buildSinglePathQuery(table, pathConfig);
+      const parsed = parsePath(pathConfig.path);
+      const query = parsed.isArray
+        ? buildArrayPathQuery(table, parsed)
+        : buildSinglePathQuery(table, parsed.segments[0].path);
       queries.push(query);
     }
   }
@@ -203,19 +229,18 @@ function buildCteQueries(tables: SubSchemaTableConfig[]): PrismaSql {
 
 function buildSinglePathQuery(
   table: SubSchemaTableConfig,
-  pathConfig: SubSchemaPath,
+  path: string,
 ): PrismaSql {
-  const jsonPath = buildJsonPathAccess(pathConfig.path);
+  const jsonPath = buildJsonPathAccess(path);
   const tableId = table.tableId;
   const tableVersionId = table.tableVersionId;
-  const fieldPath = pathConfig.path;
 
   return Prisma.sql`
     SELECT
       ${tableId}::text as "tableId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
-      ${fieldPath}::text as "fieldPath",
+      ${path}::text as "fieldPath",
       ${jsonPath} as "data"
     FROM "Row" r
     INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
@@ -226,40 +251,194 @@ function buildSinglePathQuery(
 
 function buildArrayPathQuery(
   table: SubSchemaTableConfig,
-  pathConfig: SubSchemaPath,
+  parsed: ParsedPath,
 ): PrismaSql {
-  const jsonPath = buildJsonPathAccess(pathConfig.path);
   const tableId = table.tableId;
   const tableVersionId = table.tableVersionId;
-  const basePath = pathConfig.path;
+  const { segments } = parsed;
+
+  const arraySegments = segments.filter(s => s.isArray);
+  const lastSegment = segments[segments.length - 1];
+  const hasTrailingPath = !lastSegment.isArray;
+
+  if (arraySegments.length === 1) {
+    return buildSingleArrayQuery(table, segments, hasTrailingPath);
+  }
+
+  return buildNestedArrayQuery(tableId, tableVersionId, segments, hasTrailingPath);
+}
+
+function buildSingleArrayQuery(
+  table: SubSchemaTableConfig,
+  segments: PathSegment[],
+  hasTrailingPath: boolean,
+): PrismaSql {
+  const tableId = table.tableId;
+  const tableVersionId = table.tableVersionId;
+  const arrayPath = segments[0].path;
+  const arrayJsonPath = buildJsonPathAccess(arrayPath);
+
+  if (hasTrailingPath) {
+    const itemPath = segments[1].path;
+    const itemJsonPath = buildItemJsonPathAccess(itemPath);
+
+    return Prisma.sql`
+      SELECT
+        ${tableId}::text as "tableId",
+        r.id as "rowId",
+        r."versionId" as "rowVersionId",
+        (${arrayPath}::text || '[' || (arr.idx - 1)::text || '].' || ${itemPath}::text) as "fieldPath",
+        ${itemJsonPath} as "data"
+      FROM "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE WHEN jsonb_typeof(${arrayJsonPath}) = 'array' THEN ${arrayJsonPath} ELSE '[]'::jsonb END
+      ) WITH ORDINALITY AS arr(elem, idx)
+      WHERE rt."B" = ${tableVersionId}
+        AND jsonb_typeof(${itemJsonPath}) = 'object'
+    `;
+  }
 
   return Prisma.sql`
     SELECT
       ${tableId}::text as "tableId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
-      (${basePath}::text || '[' || (arr.idx - 1)::text || ']') as "fieldPath",
+      (${arrayPath}::text || '[' || (arr.idx - 1)::text || ']') as "fieldPath",
       arr.elem as "data"
     FROM "Row" r
     INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
-    CROSS JOIN LATERAL jsonb_array_elements(${jsonPath}) WITH ORDINALITY AS arr(elem, idx)
+    CROSS JOIN LATERAL jsonb_array_elements(
+      CASE WHEN jsonb_typeof(${arrayJsonPath}) = 'array' THEN ${arrayJsonPath} ELSE '[]'::jsonb END
+    ) WITH ORDINALITY AS arr(elem, idx)
     WHERE rt."B" = ${tableVersionId}
-      AND jsonb_typeof(${jsonPath}) = 'array'
   `;
 }
 
-function buildJsonPathAccess(path: string): PrismaSql {
-  const segments = path.split('.');
-  if (segments.length === 1) {
-    return Prisma.sql`r."data"->${path}`;
+interface FieldPathPart {
+  sql: PrismaSql;
+  hasDotPrefix: boolean;
+}
+
+interface NestedArrayParts {
+  crossJoins: PrismaSql[];
+  fieldPathParts: FieldPathPart[];
+  arrayCount: number;
+}
+
+function buildCrossJoinsAndFieldPaths(segments: PathSegment[]): NestedArrayParts {
+  const crossJoins: PrismaSql[] = [];
+  const fieldPathParts: FieldPathPart[] = [];
+  let arrayCount = 0;
+
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+
+    if (segment.isArray) {
+      arrayCount++;
+      const arrAlias = `arr${arrayCount}`;
+      const prevArrAlias = arrayCount === 1 ? null : `arr${arrayCount - 1}`;
+
+      const arrayAccess = prevArrAlias === null
+        ? buildJsonPathAccess(segment.path)
+        : buildPathAccess(Prisma.sql`${Prisma.raw(prevArrAlias)}.elem`, segment.path);
+
+      crossJoins.push(Prisma.sql`
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE WHEN jsonb_typeof(${arrayAccess}) = 'array' THEN ${arrayAccess} ELSE '[]'::jsonb END
+        ) WITH ORDINALITY AS ${Prisma.raw(arrAlias)}(elem, idx)
+      `);
+
+      fieldPathParts.push({
+        sql: Prisma.sql`${segment.path}::text || '[' || (${Prisma.raw(arrAlias)}.idx - 1)::text || ']'`,
+        hasDotPrefix: false,
+      });
+    } else if (i === segments.length - 1) {
+      fieldPathParts.push({
+        sql: Prisma.sql`'.' || ${segment.path}::text`,
+        hasDotPrefix: true,
+      });
+    }
   }
 
-  let result = Prisma.sql`r."data"`;
-  for (let i = 0; i < segments.length - 1; i++) {
-    result = Prisma.sql`${result}->${segments[i]}`;
+  return { crossJoins, fieldPathParts, arrayCount };
+}
+
+function joinFieldPathParts(parts: FieldPathPart[]): PrismaSql {
+  return parts.reduce((acc, part, idx) => {
+    if (idx === 0) {
+      return part.sql;
+    }
+    if (part.hasDotPrefix) {
+      return Prisma.sql`${acc} || ${part.sql}`;
+    }
+    return Prisma.sql`${acc} || '.' || ${part.sql}`;
+  }, Prisma.empty as PrismaSql);
+}
+
+function buildDataExprAndWhere(
+  segments: PathSegment[],
+  arrayCount: number,
+  hasTrailingPath: boolean,
+): { dataExpr: PrismaSql; whereCondition: PrismaSql } {
+  const lastArrAlias = `arr${arrayCount}`;
+
+  if (hasTrailingPath) {
+    const trailingPath = segments[segments.length - 1].path;
+    const dataExpr = buildPathAccess(Prisma.sql`${Prisma.raw(lastArrAlias)}.elem`, trailingPath);
+    return {
+      dataExpr,
+      whereCondition: Prisma.sql`AND jsonb_typeof(${dataExpr}) = 'object'`,
+    };
   }
-  result = Prisma.sql`${result}->${segments[segments.length - 1]}`;
+
+  return {
+    dataExpr: Prisma.sql`${Prisma.raw(lastArrAlias)}.elem`,
+    whereCondition: Prisma.empty,
+  };
+}
+
+function buildNestedArrayQuery(
+  tableId: string,
+  tableVersionId: string,
+  segments: PathSegment[],
+  hasTrailingPath: boolean,
+): PrismaSql {
+  const { crossJoins, fieldPathParts, arrayCount } = buildCrossJoinsAndFieldPaths(segments);
+  const fieldPathExpr = joinFieldPathParts(fieldPathParts);
+  const { dataExpr, whereCondition } = buildDataExprAndWhere(segments, arrayCount, hasTrailingPath);
+  const crossJoinsSql = crossJoins.reduce((acc, join) => Prisma.sql`${acc} ${join}`);
+
+  return Prisma.sql`
+    SELECT
+      ${tableId}::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (${fieldPathExpr}) as "fieldPath",
+      ${dataExpr} as "data"
+    FROM "Row" r
+    INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    ${crossJoinsSql}
+    WHERE rt."B" = ${tableVersionId}
+    ${whereCondition}
+  `;
+}
+
+function buildPathAccess(base: PrismaSql, path: string): PrismaSql {
+  const segments = path.split('.');
+  let result = base;
+  for (const segment of segments) {
+    result = Prisma.sql`${result}->${segment}`;
+  }
   return result;
+}
+
+function buildJsonPathAccess(path: string): PrismaSql {
+  return buildPathAccess(Prisma.sql`r."data"`, path);
+}
+
+function buildItemJsonPathAccess(itemPath: string): PrismaSql {
+  return buildPathAccess(Prisma.sql`arr.elem`, itemPath);
 }
 
 function buildWhereClause(where: SubSchemaWhereInput): PrismaSql {
@@ -306,15 +485,15 @@ function buildWhereConditions(where: SubSchemaWhereInput): PrismaSql[] {
   }
 
   if (where.OR !== undefined && where.OR.length > 0) {
-    const orConditions = where.OR.map(w => {
+    const orConditions = where.OR.flatMap(w => {
       const conds = buildWhereConditions(w);
       if (conds.length === 0) {
-        return Prisma.sql`true`;
+        return [];
       }
       if (conds.length === 1) {
-        return conds[0];
+        return [conds[0]];
       }
-      return Prisma.sql`(${Prisma.join(conds, ' AND ')})`;
+      return [Prisma.sql`(${Prisma.join(conds, ' AND ')})`];
     });
     if (orConditions.length > 0) {
       conditions.push(Prisma.sql`(${Prisma.join(orConditions, ' OR ')})`);
