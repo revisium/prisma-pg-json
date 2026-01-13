@@ -92,17 +92,6 @@ export type WhereConditionsTyped<TConfig extends FieldConfig> = WhereFieldCondit
 
 export type OrderByDirection = 'asc' | 'desc';
 
-export type JsonValueType = 'text' | 'int' | 'float' | 'boolean' | 'timestamp';
-export type JsonAggregation = 'min' | 'max' | 'avg' | 'first' | 'last';
-
-export type JsonOrderInput = {
-  path: string | string[];
-  direction?: OrderByDirection;
-  type?: JsonValueType;
-  aggregation?: JsonAggregation;
-  subPath?: string;
-};
-
 export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'json';
 
 export type FieldConfig = {

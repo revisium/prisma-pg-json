@@ -23,3 +23,16 @@ model TestTable {
 
   @@map("test_tables")
 }
+
+model Row {
+  versionId String  @id
+  id        String
+  data      Json
+  tables    Table[] @relation("RowToTable")
+}
+
+model Table {
+  versionId String @id
+  id        String
+  rows      Row[]  @relation("RowToTable")
+}
