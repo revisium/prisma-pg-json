@@ -159,12 +159,12 @@ describe('JSON Null and Missing Paths', () => {
       );
     });
 
-    it('should not match null when path is missing', async () => {
+    it('should return empty when querying null on missing path', async () => {
       await testQuery(
         {
-          data: { path: 'status', equals: null },
+          data: { path: 'nonexistentField', equals: null },
         },
-        [ids.withNull],
+        [],
       );
     });
 
@@ -344,6 +344,7 @@ describe('JSON Null and Missing Paths', () => {
     });
 
     it('should not match array_contains when array is null', async () => {
+      // withNull has tags: null, so array_contains should not match it
       await testQuery(
         {
           data: { path: 'tags', array_contains: ['a'] },
@@ -353,11 +354,12 @@ describe('JSON Null and Missing Paths', () => {
     });
 
     it('should not match array_contains when path is missing', async () => {
+      // Query a path that doesn't exist in any record
       await testQuery(
         {
-          data: { path: 'tags', array_contains: ['a'] },
+          data: { path: 'nonexistentArray', array_contains: ['a'] },
         },
-        [ids.withValue],
+        [],
       );
     });
 

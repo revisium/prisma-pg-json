@@ -154,5 +154,36 @@ describe('parsePath', () => {
         segments: [{ path: 'items', isArray: true }],
       });
     });
+
+    it('should handle path with dot before [*]', () => {
+      // 'foo.[*].bar' - trailing dot before [*] is trimmed
+      const result = parsePath('foo.[*].bar');
+
+      expect(result).toEqual({
+        isArray: true,
+        segments: [
+          { path: 'foo', isArray: true },
+          { path: 'bar', isArray: false },
+        ],
+      });
+    });
+
+    it('should handle path starting with dot', () => {
+      const result = parsePath('.field');
+
+      expect(result).toEqual({
+        isArray: false,
+        segments: [{ path: '.field', isArray: false }],
+      });
+    });
+
+    it('should handle path with multiple consecutive dots', () => {
+      const result = parsePath('a..b');
+
+      expect(result).toEqual({
+        isArray: false,
+        segments: [{ path: 'a..b', isArray: false }],
+      });
+    });
   });
 });
