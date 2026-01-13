@@ -12,13 +12,16 @@ export { parseJsonPath, arrayToJsonPath, validateJsonPath } from './utils/parseJ
 export { SEARCH_LANGUAGES } from './where/json/operators/search-operator';
 export type { SearchLanguage } from './where/json/operators/search-operator';
 export {
+  buildSubSchemaCte,
+  buildSubSchemaWhere,
+  buildSubSchemaOrderBy,
   buildSubSchemaQuery,
   buildSubSchemaCountQuery,
   parsePath,
   MAX_TAKE,
   MAX_SKIP,
 } from './sub-schema/sub-schema-builder';
-export type { ParsedPath, PathSegment } from './sub-schema/sub-schema-builder';
+export type { ParsedPath, PathSegment, SubSchemaCteParams, SubSchemaWhereParams, SubSchemaOrderByParams } from './sub-schema/sub-schema-builder';
 export type {
   SubSchemaPath,
   SubSchemaTableConfig,
