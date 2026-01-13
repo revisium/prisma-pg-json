@@ -1,64 +1,35 @@
 /**
  * SubSchema Query Builder
  *
- * Builds SQL queries to extract sub-schema items from JSONB Row.data fields
+ * Builds SQL components to extract sub-schema items from JSONB Row.data fields
  * based on $ref paths defined in table schemas. Supports filtering, sorting,
  * and pagination across multiple tables.
  *
+ * The builder provides three separate functions that can be combined in the consumer:
+ * - buildSubSchemaCte: Generates the CTE (Common Table Expression) with UNION ALL
+ * - buildSubSchemaWhere: Generates WHERE clause for filtering
+ * - buildSubSchemaOrderBy: Generates ORDER BY clause for sorting
+ *
  * @example
  * ```typescript
- * // Input: Find all File references with filtering
- * const params: SubSchemaQueryParams = {
- *   tables: [
- *     {
- *       tableId: 'characters',
- *       tableVersionId: 'ver_abc123',
- *       paths: [
- *         { path: 'avatar' },                    // single file
- *         { path: 'gallery[*]' },                // array of files
- *         { path: 'profile.photo' },             // nested single file
- *         { path: 'attachments[*].file' },       // file inside array of objects
- *         { path: 'items[*].variants[*].image' }, // nested arrays (2 levels)
- *       ],
- *     },
- *     {
- *       tableId: 'items',
- *       tableVersionId: 'ver_def456',
- *       paths: [{ path: 'icon' }],
- *     },
- *   ],
- *   where: {
- *     AND: [
- *       { data: { path: 'status', equals: 'uploaded' } },
- *       { data: { path: 'mimeType', string_starts_with: 'image/' } },
- *     ],
- *   },
- *   orderBy: [{ data: { path: 'size', order: 'desc', nulls: 'last' } }],
- *   take: 20,
- *   skip: 0,
- * };
+ * // In consumer (e.g., revisium-core):
+ * const cte = buildSubSchemaCte({ tables });
+ * const whereClause = buildSubSchemaWhere(where);
+ * const orderByClause = buildSubSchemaOrderBy(orderBy);
  *
- * const query = buildSubSchemaQuery(params);
- * const items = await prisma.$queryRaw<SubSchemaItem[]>(query);
- *
- * // Generated SQL uses CTE with UNION ALL for each path.
- * // See __tests__/unit/__snapshots__/sub-schema-sql.spec.ts.snap for full examples.
- *
- * // Result example:
- * // [
- * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
- * //     fieldPath: 'avatar', data: { fileId: '...', ... } },
- * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
- * //     fieldPath: 'gallery[0]', data: { fileId: '...', ... } },
- * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
- * //     fieldPath: 'gallery[1]', data: { fileId: '...', ... } },
- * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
- * //     fieldPath: 'profile.photo', data: { fileId: '...', ... } },
- * //   { tableId: 'characters', rowId: 'hero', rowVersionId: 'rv_1',
- * //     fieldPath: 'attachments[0].file', data: { fileId: '...', ... } },
- * //   { tableId: 'items', rowId: 'sword', rowVersionId: 'rv_2',
- * //     fieldPath: 'icon', data: { fileId: '...', ... } },
- * // ]
+ * const query = Prisma.sql`
+ *   ${cte}
+ *   SELECT
+ *     r."versionId", r."id", r."data", ...  -- Row fields
+ *     t."versionId", t."id", ...            -- Table fields
+ *     s."fieldPath", s."data" as "subSchemaData"
+ *   FROM sub_schema_items s
+ *   INNER JOIN "Row" r ON r."versionId" = s."rowVersionId"
+ *   INNER JOIN "Table" t ON t."id" = s."tableId"
+ *   ${whereClause}
+ *   ${orderByClause}
+ *   LIMIT ${take} OFFSET ${skip}
+ * `;
  * ```
  *
  * @pathformat
@@ -78,19 +49,12 @@
  * - Object inside array: `'attachments[*].file'` → `attachments[0].file`, `attachments[1].file`, ...
  * - Nested arrays (2 levels): `'items[*].variants[*].image'` → `items[0].variants[0].image`, ...
  *
- * **Schema → Path mapping:**
- * - `{ $ref: "File" }` → `'avatar'`
- * - `{ type: "array", items: { $ref: "File" } }` → `'gallery[*]'`
- * - `{ type: "object", properties: { photo: { $ref: "File" } } }` → `'profile.photo'`
- * - `{ type: "array", items: { type: "object", properties: { file: { $ref: "File" } } } }` → `'attachments[*].file'`
- *
  * @security
  * - All user inputs are parameterized via Prisma.sql tagged templates
  * - tableId, tableVersionId, paths come from trusted schema traversal (not user input)
  * - where/orderBy filters use generateStringFilter/generateJsonFilter which parameterize values
  * - No string concatenation for SQL - all values go through Prisma's parameterization
  * - JSON paths are validated in generateJsonFilter (rejects '..' traversal attacks)
- * - take/skip are numbers passed directly to LIMIT/OFFSET (type-safe)
  *
  * @module sub-schema/sub-schema-builder
  */
@@ -116,6 +80,11 @@ export interface ParsedPath {
 export interface PathSegment {
   path: string;
   isArray: boolean;
+}
+
+export interface SubSchemaCteParams {
+  tables: SubSchemaTableConfig[];
+  cteName?: string;
 }
 
 export function parsePath(path: string): ParsedPath {
@@ -152,13 +121,171 @@ function validatePagination(take: number, skip: number): void {
   }
 }
 
+const SQL_IDENTIFIER_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+function validateSqlIdentifier(value: string, name: string): void {
+  if (!SQL_IDENTIFIER_REGEX.test(value)) {
+    throw new Error(`Invalid ${name}: "${value}". Only alphanumeric characters and underscores allowed, must start with letter or underscore.`);
+  }
+}
+
+function getEmptyCteSelect(): PrismaSql {
+  return Prisma.sql`SELECT NULL as "tableId", NULL as "rowId", NULL as "rowVersionId", NULL as "fieldPath", NULL as "data" WHERE false`;
+}
+
+/**
+ * Builds the CTE (Common Table Expression) that extracts sub-schema items.
+ *
+ * The CTE produces rows with: tableId, rowId, rowVersionId, fieldPath, data
+ *
+ * @example
+ * ```typescript
+ * const cte = buildSubSchemaCte({
+ *   tables: [
+ *     { tableId: 'characters', tableVersionId: 'ver_123', paths: [{ path: 'avatar' }] },
+ *   ],
+ * });
+ * // => WITH sub_schema_items AS (SELECT ...)
+ * ```
+ */
+export function buildSubSchemaCte(params: SubSchemaCteParams): PrismaSql {
+  const { tables, cteName = 'sub_schema_items' } = params;
+
+  validateSqlIdentifier(cteName, 'cteName');
+
+  if (tables.length === 0) {
+    return Prisma.sql`WITH ${Prisma.raw(cteName)} AS (${getEmptyCteSelect()})`;
+  }
+
+  const cteQueries = buildCteQueries(tables);
+  return Prisma.sql`WITH ${Prisma.raw(cteName)} AS (${cteQueries})`;
+}
+
+export interface SubSchemaWhereParams {
+  where?: SubSchemaWhereInput;
+  tableAlias?: string;
+}
+
+/**
+ * Builds WHERE clause for filtering sub-schema items.
+ *
+ * Supports filtering by: tableId, rowId, fieldPath, data (JSON fields)
+ * and logical operators: AND, OR, NOT
+ *
+ * @param params - Either SubSchemaWhereInput directly or params object with tableAlias
+ * @example
+ * ```typescript
+ * // Without alias (default)
+ * const whereClause = buildSubSchemaWhere({
+ *   tableId: 'characters',
+ *   data: { path: 'status', equals: 'uploaded' },
+ * });
+ * // => WHERE "tableId" = 'characters' AND "data" #> '{status}' = ...
+ *
+ * // With alias (when JOINed with other tables that have 'data' column)
+ * const whereClause = buildSubSchemaWhere({
+ *   where: { data: { path: 'status', equals: 'uploaded' } },
+ *   tableAlias: 'ssi',
+ * });
+ * // => WHERE ssi."data" #> '{status}' = ...
+ * ```
+ */
+function isSubSchemaWhereParams(params: unknown): params is SubSchemaWhereParams {
+  if (typeof params !== 'object' || params === null) {
+    return false;
+  }
+  const hasWhereParamsKeys = 'where' in params || 'tableAlias' in params;
+  const hasWhereInputKeys = 'tableId' in params || 'rowId' in params || 'fieldPath' in params ||
+    'data' in params || 'AND' in params || 'OR' in params || 'NOT' in params;
+  return hasWhereParamsKeys && !hasWhereInputKeys;
+}
+
+export function buildSubSchemaWhere(params?: SubSchemaWhereInput | SubSchemaWhereParams): PrismaSql {
+  if (!params) {
+    return Prisma.empty;
+  }
+
+  const isWhereParams = isSubSchemaWhereParams(params);
+  const where = isWhereParams ? params.where : params as SubSchemaWhereInput;
+  const tableAlias = isWhereParams ? params.tableAlias : undefined;
+
+  if (tableAlias) {
+    validateSqlIdentifier(tableAlias, 'tableAlias');
+  }
+
+  if (!where) {
+    return Prisma.empty;
+  }
+
+  const conditions = buildWhereConditions(where, tableAlias);
+  if (conditions.length === 0) {
+    return Prisma.empty;
+  }
+  return Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
+}
+
+export interface SubSchemaOrderByParams {
+  orderBy?: SubSchemaOrderByItem[];
+  tableAlias?: string;
+}
+
+/**
+ * Builds ORDER BY clause for sorting sub-schema items.
+ *
+ * Supports sorting by: tableId, rowId, fieldPath, data (JSON fields)
+ *
+ * @param params - Either array of SubSchemaOrderByItem or params object with tableAlias
+ * @example
+ * ```typescript
+ * // Without alias (default)
+ * const orderByClause = buildSubSchemaOrderBy([
+ *   { tableId: 'asc' },
+ *   { data: { path: 'size', order: 'desc', nulls: 'last' } },
+ * ]);
+ * // => ORDER BY "tableId" ASC, "data"->>'size' DESC NULLS LAST
+ *
+ * // With alias
+ * const orderByClause = buildSubSchemaOrderBy({
+ *   orderBy: [{ data: { path: 'size', order: 'desc' } }],
+ *   tableAlias: 'ssi',
+ * });
+ * // => ORDER BY ssi."data"->>'size' DESC
+ * ```
+ */
+function isSubSchemaOrderByParams(params: unknown): params is SubSchemaOrderByParams {
+  if (typeof params !== 'object' || params === null || Array.isArray(params)) {
+    return false;
+  }
+  return 'orderBy' in params || 'tableAlias' in params;
+}
+
+export function buildSubSchemaOrderBy(params?: SubSchemaOrderByItem[] | SubSchemaOrderByParams): PrismaSql {
+  if (!params) {
+    return Prisma.empty;
+  }
+
+  const isOrderByParams = isSubSchemaOrderByParams(params);
+  const orderBy = isOrderByParams ? params.orderBy : params as SubSchemaOrderByItem[];
+  const tableAlias = isOrderByParams ? params.tableAlias : undefined;
+
+  if (tableAlias) {
+    validateSqlIdentifier(tableAlias, 'tableAlias');
+  }
+
+  if (!orderBy || orderBy.length === 0) {
+    return Prisma.empty;
+  }
+
+  return buildOrderByClause(orderBy, tableAlias);
+}
+
 export function buildSubSchemaQuery(params: SubSchemaQueryParams): PrismaSql {
   const { tables, where, orderBy, take, skip } = params;
 
   validatePagination(take, skip);
 
   if (tables.length === 0) {
-    return Prisma.sql`SELECT NULL as "tableId", NULL as "rowId", NULL as "rowVersionId", NULL as "fieldPath", NULL as "data" WHERE false`;
+    return getEmptyCteSelect();
   }
 
   const cteQueries = buildCteQueries(tables);
@@ -212,7 +339,7 @@ function buildCteQueries(tables: SubSchemaTableConfig[]): PrismaSql {
   }
 
   if (queries.length === 0) {
-    return Prisma.sql`SELECT NULL as "tableId", NULL as "rowId", NULL as "rowVersionId", NULL as "fieldPath", NULL as "data" WHERE false`;
+    return getEmptyCteSelect();
   }
 
   if (queries.length === 1) {
@@ -449,36 +576,43 @@ function buildWhereClause(where: SubSchemaWhereInput): PrismaSql {
   return Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 }
 
-function buildWhereConditions(where: SubSchemaWhereInput): PrismaSql[] {
+function getColumnRef(column: string, tableAlias?: string): PrismaSql {
+  if (tableAlias) {
+    return Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(column)}"`;
+  }
+  return Prisma.sql`"${Prisma.raw(column)}"`;
+}
+
+function buildWhereConditions(where: SubSchemaWhereInput, tableAlias?: string): PrismaSql[] {
   const conditions: PrismaSql[] = [];
 
   if (where.tableId !== undefined) {
     const filter = typeof where.tableId === 'string'
       ? { equals: where.tableId }
       : where.tableId;
-    conditions.push(generateStringFilter(Prisma.sql`"tableId"`, filter));
+    conditions.push(generateStringFilter(getColumnRef('tableId', tableAlias), filter));
   }
 
   if (where.rowId !== undefined) {
     const filter = typeof where.rowId === 'string'
       ? { equals: where.rowId }
       : where.rowId;
-    conditions.push(generateStringFilter(Prisma.sql`"rowId"`, filter));
+    conditions.push(generateStringFilter(getColumnRef('rowId', tableAlias), filter));
   }
 
   if (where.fieldPath !== undefined) {
     const filter = typeof where.fieldPath === 'string'
       ? { equals: where.fieldPath }
       : where.fieldPath;
-    conditions.push(generateStringFilter(Prisma.sql`"fieldPath"`, filter));
+    conditions.push(generateStringFilter(getColumnRef('fieldPath', tableAlias), filter));
   }
 
   if (where.data !== undefined) {
-    conditions.push(generateJsonFilter(Prisma.sql`"data"`, where.data, 'data', ''));
+    conditions.push(generateJsonFilter(getColumnRef('data', tableAlias), where.data, 'data', ''));
   }
 
   if (where.AND !== undefined && where.AND.length > 0) {
-    const andConditions = where.AND.flatMap(w => buildWhereConditions(w));
+    const andConditions = where.AND.flatMap(w => buildWhereConditions(w, tableAlias));
     if (andConditions.length > 0) {
       conditions.push(Prisma.sql`(${Prisma.join(andConditions, ' AND ')})`);
     }
@@ -486,7 +620,7 @@ function buildWhereConditions(where: SubSchemaWhereInput): PrismaSql[] {
 
   if (where.OR !== undefined && where.OR.length > 0) {
     const orConditions = where.OR.flatMap(w => {
-      const conds = buildWhereConditions(w);
+      const conds = buildWhereConditions(w, tableAlias);
       if (conds.length === 0) {
         return [];
       }
@@ -501,7 +635,7 @@ function buildWhereConditions(where: SubSchemaWhereInput): PrismaSql[] {
   }
 
   if (where.NOT !== undefined) {
-    const notConditions = buildWhereConditions(where.NOT);
+    const notConditions = buildWhereConditions(where.NOT, tableAlias);
     if (notConditions.length > 0) {
       conditions.push(Prisma.sql`NOT (${Prisma.join(notConditions, ' AND ')})`);
     }
@@ -510,27 +644,27 @@ function buildWhereConditions(where: SubSchemaWhereInput): PrismaSql[] {
   return conditions;
 }
 
-function buildOrderByClause(orderBy: SubSchemaOrderByItem[]): PrismaSql {
+function buildOrderByClause(orderBy: SubSchemaOrderByItem[], tableAlias?: string): PrismaSql {
   const orderParts: PrismaSql[] = [];
 
   for (const item of orderBy) {
     if (item.tableId) {
       const direction = item.tableId === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-      orderParts.push(Prisma.sql`"tableId" ${direction}`);
+      orderParts.push(Prisma.sql`${getColumnRef('tableId', tableAlias)} ${direction}`);
     }
 
     if (item.rowId) {
       const direction = item.rowId === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-      orderParts.push(Prisma.sql`"rowId" ${direction}`);
+      orderParts.push(Prisma.sql`${getColumnRef('rowId', tableAlias)} ${direction}`);
     }
 
     if (item.fieldPath) {
       const direction = item.fieldPath === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-      orderParts.push(Prisma.sql`"fieldPath" ${direction}`);
+      orderParts.push(Prisma.sql`${getColumnRef('fieldPath', tableAlias)} ${direction}`);
     }
 
     if (item.data) {
-      const jsonPath = buildDataOrderByPath(item.data.path);
+      const jsonPath = buildDataOrderByPath(item.data.path, tableAlias);
       const direction = item.data.order === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
       const nulls = item.data.nulls === 'first' ? Prisma.sql`NULLS FIRST` : Prisma.sql`NULLS LAST`;
       orderParts.push(Prisma.sql`${jsonPath} ${direction} ${nulls}`);
@@ -544,14 +678,15 @@ function buildOrderByClause(orderBy: SubSchemaOrderByItem[]): PrismaSql {
   return Prisma.sql`ORDER BY ${Prisma.join(orderParts, ', ')}`;
 }
 
-function buildDataOrderByPath(path: string | string[]): PrismaSql {
+function buildDataOrderByPath(path: string | string[], tableAlias?: string): PrismaSql {
   const segments = Array.isArray(path) ? path : path.split('.');
+  const dataRef = getColumnRef('data', tableAlias);
 
   if (segments.length === 1) {
-    return Prisma.sql`"data"->>${segments[0]}`;
+    return Prisma.sql`${dataRef}->>${segments[0]}`;
   }
 
-  let result = Prisma.sql`"data"`;
+  let result = dataRef;
   for (let i = 0; i < segments.length - 1; i++) {
     result = Prisma.sql`${result}->${segments[i]}`;
   }

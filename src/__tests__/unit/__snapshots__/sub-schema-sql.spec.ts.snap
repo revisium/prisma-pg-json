@@ -1,6 +1,236 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`SubSchema SQL Generation should generate SQL for all path types 1`] = `
+exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for deeply nested path in object 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'settings'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'config.theme.logo.image'::text as "fieldPath",
+      r."data" -> 'config' -> 'theme' -> 'logo' -> 'image' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_settings_001'
+      AND jsonb_typeof(
+        r."data" -> 'config' -> 'theme' -> 'logo' -> 'image'
+      ) = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for multiple paths 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'avatar'::text as "fieldPath",
+      r."data" -> 'avatar' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_characters_001'
+      AND jsonb_typeof(r."data" -> 'avatar') = 'object'
+    UNION ALL
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'profile.photo'::text as "fieldPath",
+      r."data" -> 'profile' -> 'photo' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_characters_001'
+      AND jsonb_typeof(r."data" -> 'profile' -> 'photo') = 'object'
+    UNION ALL
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'gallery'::text || '[' || (arr.idx - 1)::text || ']'
+      ) as "fieldPath",
+      arr.elem as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'gallery') = 'array' THEN r."data" -> 'gallery'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr (elem, idx)
+    WHERE
+      rt."B" = 'ver_characters_001'
+    UNION ALL
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'attachments'::text || '[' || (arr.idx - 1)::text || '].' || 'file'::text
+      ) as "fieldPath",
+      arr.elem -> 'file' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'attachments') = 'array' THEN r."data" -> 'attachments'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr (elem, idx)
+    WHERE
+      rt."B" = 'ver_characters_001'
+      AND jsonb_typeof(arr.elem -> 'file') = 'object'
+    UNION ALL
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'items'::text || '[' || (arr1.idx - 1)::text || ']' || '.' || 'variants'::text || '[' || (arr2.idx - 1)::text || ']' || '.' || 'image'::text
+      ) as "fieldPath",
+      arr2.elem -> 'image' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'items') = 'array' THEN r."data" -> 'items'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr1 (elem, idx)
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(arr1.elem -> 'variants') = 'array' THEN arr1.elem -> 'variants'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr2 (elem, idx)
+    WHERE
+      rt."B" = 'ver_characters_001'
+      AND jsonb_typeof(arr2.elem -> 'image') = 'object'
+    UNION ALL
+    SELECT
+      'items'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'icon'::text as "fieldPath",
+      r."data" -> 'icon' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_items_001'
+      AND jsonb_typeof(r."data" -> 'icon') = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for nested arrays without trailing path 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'galleries'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'sections'::text || '[' || (arr1.idx - 1)::text || ']' || '.' || 'photos'::text || '[' || (arr2.idx - 1)::text || ']'
+      ) as "fieldPath",
+      arr2.elem as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'sections') = 'array' THEN r."data" -> 'sections'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr1 (elem, idx)
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(arr1.elem -> 'photos') = 'array' THEN arr1.elem -> 'photos'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr2 (elem, idx)
+    WHERE
+      rt."B" = 'ver_galleries_001'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for single path 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'characters'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'avatar'::text as "fieldPath",
+      r."data" -> 'avatar' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_characters_001'
+      AND jsonb_typeof(r."data" -> 'avatar') = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte should generate empty CTE for empty tables 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      NULL as "tableId",
+      NULL as "rowId",
+      NULL as "rowVersionId",
+      NULL as "fieldPath",
+      NULL as "data"
+    WHERE
+      false
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte should use custom CTE name 1`] = `
+"WITH
+  custom_cte AS (
+    SELECT
+      'files'::text as "tableId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'document'::text as "fieldPath",
+      r."data" -> 'document' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_files_001'
+      AND jsonb_typeof(r."data" -> 'document') = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaOrderBy should generate ORDER BY for data field with nulls 1`] = `
+"ORDER BY
+  "data" ->> 'size' DESC NULLS LAST"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaOrderBy should generate ORDER BY for multiple fields 1`] = `
+"ORDER BY
+  "tableId" ASC,
+  "rowId" DESC,
+  "data" ->> 'size' DESC NULLS LAST"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaOrderBy should generate ORDER BY for tableId 1`] = `
+"ORDER BY
+  "tableId" ASC"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate SQL for all path types 1`] = `
 "WITH
   sub_schema_items AS (
     SELECT
@@ -148,7 +378,7 @@ OFFSET
   10"
 `;
 
-exports[`SubSchema SQL Generation should generate SQL for deeply nested path in object 1`] = `
+exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate SQL for deeply nested path in object 1`] = `
 "WITH
   sub_schema_items AS (
     SELECT
@@ -180,7 +410,7 @@ OFFSET
   0"
 `;
 
-exports[`SubSchema SQL Generation should generate SQL for empty tables array 1`] = `
+exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate SQL for empty tables array 1`] = `
 "SELECT
   NULL as "tableId",
   NULL as "rowId",
@@ -191,7 +421,7 @@ WHERE
   false"
 `;
 
-exports[`SubSchema SQL Generation should generate SQL for nested arrays without trailing path 1`] = `
+exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate SQL for nested arrays without trailing path 1`] = `
 "WITH
   sub_schema_items AS (
     SELECT
@@ -234,7 +464,7 @@ OFFSET
   0"
 `;
 
-exports[`SubSchema SQL Generation should generate count SQL 1`] = `
+exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate count SQL 1`] = `
 "WITH
   sub_schema_items AS (
     SELECT
@@ -276,4 +506,45 @@ FROM
   sub_schema_items
 WHERE
   "data" #> '{status}' = to_jsonb(CAST('uploaded' AS text))"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaWhere should generate WHERE for complex AND/OR conditions 1`] = `
+"WHERE
+  (
+    "tableId" = 'characters'
+    AND "data" #> '{status}' = to_jsonb(CAST('uploaded' AS text))
+    AND jsonb_path_exists(
+      "data",
+      '$.mimeType ? (@ like_regex "^image/.*")'::jsonpath
+    )
+  )
+  AND (
+    jsonb_path_exists(
+      "data",
+      '$.size ? (@ >= $val)'::jsonpath,
+      jsonb_build_object('val', to_jsonb(CAST(1000 AS numeric)))
+    )
+    OR jsonb_path_exists(
+      "data",
+      '$.size ? (@ <= $val)'::jsonpath,
+      jsonb_build_object('val', to_jsonb(CAST(100 AS numeric)))
+    )
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaWhere should generate WHERE for data field equals 1`] = `
+"WHERE
+  "data" #> '{status}' = to_jsonb(CAST('uploaded' AS text))"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaWhere should generate WHERE for tableId filter 1`] = `
+"WHERE
+  "tableId" = 'characters'"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaWhere should generate WHERE with NOT condition 1`] = `
+"WHERE
+  NOT (
+    "data" #> '{status}' = to_jsonb(CAST('ready' AS text))
+  )"
 `;
