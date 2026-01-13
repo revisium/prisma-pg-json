@@ -323,7 +323,9 @@ describe('JSON Null and Missing Paths', () => {
     });
 
     it('should work with notIn when path exists', async () => {
-      // notIn excludes specified values, but null values still don't match
+      // notIn matches records where value is not in the list
+      // This includes: 'active' (ids.withValue) and null (ids.withNull)
+      // because null is not equal to 'inactive' or 'pending'
       await testQuery(
         {
           data: { path: 'status', notIn: ['inactive', 'pending'] },
@@ -334,17 +336,8 @@ describe('JSON Null and Missing Paths', () => {
   });
 
   describe('array operators with null/missing paths', () => {
-    it('should match array_contains when array exists', async () => {
-      await testQuery(
-        {
-          data: { path: 'tags', array_contains: ['a'] },
-        },
-        [ids.withValue],
-      );
-    });
-
-    it('should not match array_contains when array is null', async () => {
-      // withNull has tags: null, so array_contains should not match it
+    it('should match array_contains when array has matching elements', async () => {
+      // Only withValue has tags: ['a', 'b'], withNull has tags: null
       await testQuery(
         {
           data: { path: 'tags', array_contains: ['a'] },
@@ -354,21 +347,11 @@ describe('JSON Null and Missing Paths', () => {
     });
 
     it('should not match array_contains when path is missing', async () => {
-      // Query a path that doesn't exist in any record
       await testQuery(
         {
           data: { path: 'nonexistentArray', array_contains: ['a'] },
         },
         [],
-      );
-    });
-
-    it('should match first array element name', async () => {
-      await testQuery(
-        {
-          data: { path: 'items[0].name', equals: 'Item1' },
-        },
-        [ids.withArrayValue, ids.withArrayNull],
       );
     });
   });
@@ -401,10 +384,13 @@ describe('JSON Null and Missing Paths', () => {
       );
     });
 
-    it('should not match on empty array', async () => {
+    it('should match second array element', async () => {
+      // withArrayValue has items[1].value = 20
+      // withArrayNull has items[1].value = 30
+      // withEmptyArray has no items[1]
       await testQuery(
         {
-          data: { path: 'items[0].name', equals: 'Item1' },
+          data: { path: 'items[1].value', gte: 20 },
         },
         [ids.withArrayValue, ids.withArrayNull],
       );
