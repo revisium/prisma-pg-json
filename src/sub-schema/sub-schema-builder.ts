@@ -130,13 +130,13 @@ function validateSqlIdentifier(value: string, name: string): void {
 }
 
 function getEmptyCteSelect(): PrismaSql {
-  return Prisma.sql`SELECT NULL as "tableId", NULL as "rowId", NULL as "rowVersionId", NULL as "fieldPath", NULL as "data" WHERE false`;
+  return Prisma.sql`SELECT NULL as "tableId", NULL as "tableVersionId", NULL as "rowId", NULL as "rowVersionId", NULL as "fieldPath", NULL as "data" WHERE false`;
 }
 
 /**
  * Builds the CTE (Common Table Expression) that extracts sub-schema items.
  *
- * The CTE produces rows with: tableId, rowId, rowVersionId, fieldPath, data
+ * The CTE produces rows with: tableId, tableVersionId, rowId, rowVersionId, fieldPath, data
  *
  * @example
  * ```typescript
@@ -297,7 +297,7 @@ export function buildSubSchemaQuery(params: SubSchemaQueryParams): PrismaSql {
 
   return Prisma.sql`
     ${cte}
-    SELECT "tableId", "rowId", "rowVersionId", "fieldPath", "data"
+    SELECT "tableId", "tableVersionId", "rowId", "rowVersionId", "fieldPath", "data"
     FROM sub_schema_items
     ${whereClause}
     ${orderByClause}
@@ -365,6 +365,7 @@ function buildSinglePathQuery(
   return Prisma.sql`
     SELECT
       ${tableId}::text as "tableId",
+      ${tableVersionId}::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       ${path}::text as "fieldPath",
@@ -412,6 +413,7 @@ function buildSingleArrayQuery(
     return Prisma.sql`
       SELECT
         ${tableId}::text as "tableId",
+        ${tableVersionId}::text as "tableVersionId",
         r.id as "rowId",
         r."versionId" as "rowVersionId",
         (${arrayPath}::text || '[' || (arr.idx - 1)::text || '].' || ${itemPath}::text) as "fieldPath",
@@ -429,6 +431,7 @@ function buildSingleArrayQuery(
   return Prisma.sql`
     SELECT
       ${tableId}::text as "tableId",
+      ${tableVersionId}::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (${arrayPath}::text || '[' || (arr.idx - 1)::text || ']') as "fieldPath",
@@ -539,6 +542,7 @@ function buildNestedArrayQuery(
   return Prisma.sql`
     SELECT
       ${tableId}::text as "tableId",
+      ${tableVersionId}::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (${fieldPathExpr}) as "fieldPath",
