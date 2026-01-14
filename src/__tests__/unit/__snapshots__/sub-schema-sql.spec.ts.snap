@@ -5,6 +5,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for deep
   sub_schema_items AS (
     SELECT
       'settings'::text as "tableId",
+      'ver_settings_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'config.theme.logo.image'::text as "fieldPath",
@@ -25,6 +26,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for mult
   sub_schema_items AS (
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'avatar'::text as "fieldPath",
@@ -38,6 +40,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for mult
     UNION ALL
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'profile.photo'::text as "fieldPath",
@@ -51,6 +54,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for mult
     UNION ALL
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (
@@ -71,6 +75,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for mult
     UNION ALL
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (
@@ -92,6 +97,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for mult
     UNION ALL
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (
@@ -119,6 +125,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for mult
     UNION ALL
     SELECT
       'items'::text as "tableId",
+      'ver_items_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'icon'::text as "fieldPath",
@@ -137,6 +144,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for nest
   sub_schema_items AS (
     SELECT
       'galleries'::text as "tableId",
+      'ver_galleries_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (
@@ -168,6 +176,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate CTE for sing
   sub_schema_items AS (
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'avatar'::text as "fieldPath",
@@ -186,6 +195,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should generate empty CTE fo
   sub_schema_items AS (
     SELECT
       NULL as "tableId",
+      NULL as "tableVersionId",
       NULL as "rowId",
       NULL as "rowVersionId",
       NULL as "fieldPath",
@@ -200,6 +210,7 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should use custom CTE name 1
   custom_cte AS (
     SELECT
       'files'::text as "tableId",
+      'ver_files_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'document'::text as "fieldPath",
@@ -235,6 +246,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
   sub_schema_items AS (
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'avatar'::text as "fieldPath",
@@ -248,6 +260,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
     UNION ALL
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'profile.photo'::text as "fieldPath",
@@ -261,6 +274,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
     UNION ALL
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (
@@ -281,6 +295,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
     UNION ALL
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (
@@ -302,6 +317,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
     UNION ALL
     SELECT
       'characters'::text as "tableId",
+      'ver_characters_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (
@@ -329,6 +345,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
     UNION ALL
     SELECT
       'items'::text as "tableId",
+      'ver_items_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'icon'::text as "fieldPath",
@@ -342,6 +359,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
   )
 SELECT
   "tableId",
+  "tableVersionId",
   "rowId",
   "rowVersionId",
   "fieldPath",
@@ -383,6 +401,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
   sub_schema_items AS (
     SELECT
       'settings'::text as "tableId",
+      'ver_settings_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'config.theme.logo.image'::text as "fieldPath",
@@ -398,6 +417,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
   )
 SELECT
   "tableId",
+  "tableVersionId",
   "rowId",
   "rowVersionId",
   "fieldPath",
@@ -413,6 +433,7 @@ OFFSET
 exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate SQL for empty tables array 1`] = `
 "SELECT
   NULL as "tableId",
+  NULL as "tableVersionId",
   NULL as "rowId",
   NULL as "rowVersionId",
   NULL as "fieldPath",
@@ -426,6 +447,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
   sub_schema_items AS (
     SELECT
       'galleries'::text as "tableId",
+      'ver_galleries_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (
@@ -452,6 +474,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate S
   )
 SELECT
   "tableId",
+  "tableVersionId",
   "rowId",
   "rowVersionId",
   "fieldPath",
@@ -469,6 +492,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate c
   sub_schema_items AS (
     SELECT
       'media'::text as "tableId",
+      'ver_media_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       'cover'::text as "fieldPath",
@@ -482,6 +506,7 @@ exports[`SubSchema SQL Generation buildSubSchemaQuery (legacy) should generate c
     UNION ALL
     SELECT
       'media'::text as "tableId",
+      'ver_media_001'::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
       (
