@@ -236,6 +236,12 @@ exports[`SubSchema SQL Generation buildSubSchemaOrderBy should generate ORDER BY
   "data" ->> 'size' DESC NULLS LAST"
 `;
 
+exports[`SubSchema SQL Generation buildSubSchemaOrderBy should generate ORDER BY for rowCreatedAt with rowTableAlias 1`] = `
+"ORDER BY
+  r."createdAt" DESC,
+  ssi."data" ->> 'fileId' ASC NULLS LAST"
+`;
+
 exports[`SubSchema SQL Generation buildSubSchemaOrderBy should generate ORDER BY for tableId 1`] = `
 "ORDER BY
   "tableId" ASC"

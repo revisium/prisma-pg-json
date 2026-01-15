@@ -25,10 +25,11 @@ model TestTable {
 }
 
 model Row {
-  versionId String  @id
+  versionId String   @id
   id        String
   data      Json
-  tables    Table[] @relation("RowToTable")
+  createdAt DateTime @default(now())
+  tables    Table[]  @relation("RowToTable")
 }
 
 model Table {

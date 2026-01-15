@@ -4,7 +4,10 @@ import { prisma, createTestData, createFile } from './setup';
 import {
   buildSubSchemaQuery,
   buildSubSchemaCountQuery,
+  buildSubSchemaCte,
+  buildSubSchemaOrderBy,
 } from '../../../sub-schema/sub-schema-builder';
+import { Prisma } from '../../../generated/client';
 import {
   SubSchemaTableConfig,
   SubSchemaItem,
@@ -1582,6 +1585,212 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
+    });
+  });
+
+  describe('rowCreatedAt ordering with JOIN', () => {
+    interface SubSchemaItemWithRowCreatedAt extends SubSchemaItem {
+      row_createdAt: Date;
+    }
+
+    it('should order by rowCreatedAt descending (newest first)', async () => {
+      const tableVersionId = nanoid();
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+
+      await createTestData([
+        {
+          tableId: 'assets',
+          tableVersionId,
+          rows: [
+            {
+              rowId: 'asset-old',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f1', 'old.png', { size: 1000 }) },
+              createdAt: twoHoursAgo,
+            },
+            {
+              rowId: 'asset-new',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f2', 'new.png', { size: 2000 }) },
+              createdAt: now,
+            },
+            {
+              rowId: 'asset-middle',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f3', 'middle.png', { size: 1500 }) },
+              createdAt: oneHourAgo,
+            },
+          ],
+        },
+      ]);
+
+      const tables: SubSchemaTableConfig[] = [
+        { tableId: 'assets', tableVersionId, paths: [{ path: 'file' }] },
+      ];
+
+      const cte = buildSubSchemaCte({ tables });
+      const orderByClause = buildSubSchemaOrderBy({
+        orderBy: [{ rowCreatedAt: 'desc' }],
+        tableAlias: 'ssi',
+        rowTableAlias: 'r',
+      });
+
+      const query = Prisma.sql`
+        ${cte}
+        SELECT
+          ssi."tableId",
+          ssi."rowId",
+          ssi."rowVersionId",
+          ssi."fieldPath",
+          ssi."data",
+          r."createdAt" as "row_createdAt"
+        FROM sub_schema_items ssi
+        INNER JOIN "Row" r ON ssi."rowVersionId" = r."versionId"
+        ${orderByClause}
+        LIMIT 100 OFFSET 0
+      `;
+
+      const results = await prisma.$queryRaw<SubSchemaItemWithRowCreatedAt[]>(query);
+
+      expect(results).toHaveLength(3);
+      expect(results.map((r) => r.rowId)).toEqual(['asset-new', 'asset-middle', 'asset-old']);
+    });
+
+    it('should order by rowCreatedAt ascending (oldest first)', async () => {
+      const tableVersionId = nanoid();
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+
+      await createTestData([
+        {
+          tableId: 'media',
+          tableVersionId,
+          rows: [
+            {
+              rowId: 'media-new',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f1', 'new.png', { size: 1000 }) },
+              createdAt: now,
+            },
+            {
+              rowId: 'media-old',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f2', 'old.png', { size: 2000 }) },
+              createdAt: twoHoursAgo,
+            },
+            {
+              rowId: 'media-middle',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f3', 'middle.png', { size: 1500 }) },
+              createdAt: oneHourAgo,
+            },
+          ],
+        },
+      ]);
+
+      const tables: SubSchemaTableConfig[] = [
+        { tableId: 'media', tableVersionId, paths: [{ path: 'file' }] },
+      ];
+
+      const cte = buildSubSchemaCte({ tables });
+      const orderByClause = buildSubSchemaOrderBy({
+        orderBy: [{ rowCreatedAt: 'asc' }],
+        tableAlias: 'ssi',
+        rowTableAlias: 'r',
+      });
+
+      const query = Prisma.sql`
+        ${cte}
+        SELECT
+          ssi."tableId",
+          ssi."rowId",
+          ssi."rowVersionId",
+          ssi."fieldPath",
+          ssi."data"
+        FROM sub_schema_items ssi
+        INNER JOIN "Row" r ON ssi."rowVersionId" = r."versionId"
+        ${orderByClause}
+        LIMIT 100 OFFSET 0
+      `;
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results).toHaveLength(3);
+      expect(results.map((r) => r.rowId)).toEqual(['media-old', 'media-middle', 'media-new']);
+    });
+
+    it('should combine rowCreatedAt with fieldPath ordering (stable sort)', async () => {
+      const tableVersionId = nanoid();
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+      await createTestData([
+        {
+          tableId: 'posts',
+          tableVersionId,
+          rows: [
+            {
+              rowId: 'post-old',
+              rowVersionId: nanoid(),
+              data: {
+                gallery: [
+                  createFile('f1', 'old-a.png', { size: 100 }),
+                  createFile('f2', 'old-b.png', { size: 200 }),
+                ],
+              },
+              createdAt: oneHourAgo,
+            },
+            {
+              rowId: 'post-new',
+              rowVersionId: nanoid(),
+              data: {
+                gallery: [
+                  createFile('f3', 'new-a.png', { size: 300 }),
+                  createFile('f4', 'new-b.png', { size: 400 }),
+                ],
+              },
+              createdAt: now,
+            },
+          ],
+        },
+      ]);
+
+      const tables: SubSchemaTableConfig[] = [
+        { tableId: 'posts', tableVersionId, paths: [{ path: 'gallery[*]' }] },
+      ];
+
+      const cte = buildSubSchemaCte({ tables });
+      const orderByClause = buildSubSchemaOrderBy({
+        orderBy: [
+          { rowCreatedAt: 'desc' },
+          { fieldPath: 'asc' },
+        ],
+        tableAlias: 'ssi',
+        rowTableAlias: 'r',
+      });
+
+      const query = Prisma.sql`
+        ${cte}
+        SELECT
+          ssi."tableId",
+          ssi."rowId",
+          ssi."rowVersionId",
+          ssi."fieldPath",
+          ssi."data"
+        FROM sub_schema_items ssi
+        INNER JOIN "Row" r ON ssi."rowVersionId" = r."versionId"
+        ${orderByClause}
+        LIMIT 100 OFFSET 0
+      `;
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results).toHaveLength(4);
+      expect(results.map((r) => r.rowId)).toEqual(['post-new', 'post-new', 'post-old', 'post-old']);
+      expect(results.map((r) => r.fieldPath)).toEqual(['gallery[0]', 'gallery[1]', 'gallery[0]', 'gallery[1]']);
     });
   });
 });

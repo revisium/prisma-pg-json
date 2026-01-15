@@ -227,6 +227,7 @@ export function buildSubSchemaWhere(params?: SubSchemaWhereInput | SubSchemaWher
 export interface SubSchemaOrderByParams {
   orderBy?: SubSchemaOrderByItem[];
   tableAlias?: string;
+  rowTableAlias?: string;
 }
 
 /**
@@ -267,16 +268,21 @@ export function buildSubSchemaOrderBy(params?: SubSchemaOrderByItem[] | SubSchem
   const isOrderByParams = isSubSchemaOrderByParams(params);
   const orderBy = isOrderByParams ? params.orderBy : params as SubSchemaOrderByItem[];
   const tableAlias = isOrderByParams ? params.tableAlias : undefined;
+  const rowTableAlias = isOrderByParams ? params.rowTableAlias : undefined;
 
   if (tableAlias) {
     validateSqlIdentifier(tableAlias, 'tableAlias');
+  }
+
+  if (rowTableAlias) {
+    validateSqlIdentifier(rowTableAlias, 'rowTableAlias');
   }
 
   if (!orderBy || orderBy.length === 0) {
     return Prisma.empty;
   }
 
-  return buildOrderByClause(orderBy, tableAlias);
+  return buildOrderByClause(orderBy, tableAlias, rowTableAlias);
 }
 
 export function buildSubSchemaQuery(params: SubSchemaQueryParams): PrismaSql {
@@ -648,7 +654,7 @@ function buildWhereConditions(where: SubSchemaWhereInput, tableAlias?: string): 
   return conditions;
 }
 
-function buildOrderByClause(orderBy: SubSchemaOrderByItem[], tableAlias?: string): PrismaSql {
+function buildOrderByClause(orderBy: SubSchemaOrderByItem[], tableAlias?: string, rowTableAlias?: string): PrismaSql {
   const orderParts: PrismaSql[] = [];
 
   for (const item of orderBy) {
@@ -660,6 +666,11 @@ function buildOrderByClause(orderBy: SubSchemaOrderByItem[], tableAlias?: string
     if (item.rowId) {
       const direction = item.rowId === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
       orderParts.push(Prisma.sql`${getColumnRef('rowId', tableAlias)} ${direction}`);
+    }
+
+    if (item.rowCreatedAt) {
+      const direction = item.rowCreatedAt === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+      orderParts.push(Prisma.sql`${getColumnRef('createdAt', rowTableAlias)} ${direction}`);
     }
 
     if (item.fieldPath) {
