@@ -31,6 +31,7 @@ export interface TestTableConfig {
     rowId: string;
     rowVersionId: string;
     data: Prisma.InputJsonValue;
+    createdAt?: Date;
   }>;
 }
 
@@ -72,6 +73,7 @@ export async function createTestData(tables: TestTableConfig[]): Promise<void> {
           id: row.rowId,
           versionId: row.rowVersionId,
           data: row.data,
+          createdAt: row.createdAt,
           tables: {
             connect: { versionId: table.tableVersionId },
           },

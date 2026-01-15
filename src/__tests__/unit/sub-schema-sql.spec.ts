@@ -247,6 +247,33 @@ describe('SubSchema SQL Generation', () => {
 
       expect(sql).toMatchSnapshot();
     });
+
+    it('should generate ORDER BY for rowCreatedAt with rowTableAlias', () => {
+      const orderBy: SubSchemaOrderByItem[] = [
+        { rowCreatedAt: 'desc' },
+        { data: { path: 'fileId', order: 'asc', nulls: 'last' } },
+      ];
+      const orderByClause = buildSubSchemaOrderBy({
+        orderBy,
+        tableAlias: 'ssi',
+        rowTableAlias: 'r',
+      });
+      const sql = sqlToString(orderByClause);
+
+      expect(sql).toContain('r."createdAt"');
+      expect(sql).toContain('DESC');
+      expect(sql).toContain('ssi."data"');
+      expect(sql).toMatchSnapshot();
+    });
+
+    it('should generate ORDER BY for rowCreatedAt without alias', () => {
+      const orderBy: SubSchemaOrderByItem[] = [{ rowCreatedAt: 'asc' }];
+      const orderByClause = buildSubSchemaOrderBy(orderBy);
+      const sql = sqlToString(orderByClause);
+
+      expect(sql).toContain('"createdAt"');
+      expect(sql).toContain('ASC');
+    });
   });
 
   describe('buildSubSchemaQuery (legacy)', () => {
@@ -476,6 +503,12 @@ describe('SubSchema SQL Generation', () => {
       expect(() => {
         buildSubSchemaOrderBy({ orderBy: [{ tableId: 'asc' }], tableAlias: 'SELECT *' });
       }).toThrow('Invalid tableAlias');
+    });
+
+    it('should throw error for invalid rowTableAlias in ORDER BY', () => {
+      expect(() => {
+        buildSubSchemaOrderBy({ orderBy: [{ rowCreatedAt: 'desc' }], rowTableAlias: 'DROP TABLE;--' });
+      }).toThrow('Invalid rowTableAlias');
     });
 
     it('should accept valid SQL identifiers', () => {

@@ -23,6 +23,7 @@ export interface SubSchemaWhereInput {
 export interface SubSchemaOrderByItem {
   tableId?: 'asc' | 'desc';
   rowId?: 'asc' | 'desc';
+  rowCreatedAt?: 'asc' | 'desc';
   fieldPath?: 'asc' | 'desc';
   data?: {
     path: string | string[];
