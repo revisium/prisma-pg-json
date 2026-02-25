@@ -7,7 +7,7 @@ export { generateNumberFilter } from './where/number';
 export { generateBooleanFilter } from './where/boolean';
 export { generateDateFilter } from './where/date';
 export { generateJsonFilter } from './where/json';
-export { generateOrderBy } from './orderBy';
+export { generateOrderBy, generateOrderByClauses } from './orderBy';
 export { parseJsonPath, arrayToJsonPath, validateJsonPath } from './utils/parseJsonPath';
 export { SEARCH_LANGUAGES } from './where/json/operators/search-operator';
 export type { SearchLanguage } from './where/json/operators/search-operator';
