@@ -96,184 +96,116 @@ describe('Pagination on large dataset (15K rows)', () => {
   });
 
   describe('Keyset WHERE pagination (GREEN - solves the problem)', () => {
-    it('should visit all rows exactly once with JSON field ASC sort', async () => {
+    interface KeysetConfig {
+      buildFirstPage: () => PrismaOriginal.Sql;
+      buildNextPage: (cursor: Record<string, unknown>) => PrismaOriginal.Sql;
+      extractCursor: (row: Record<string, unknown>) => Record<string, unknown>;
+    }
+
+    async function paginateAll(config: KeysetConfig): Promise<number> {
       const collected = new Set<string>();
-      let lastPriority: number | null = null;
-      let lastId: string | null = null;
+      let cursor: Record<string, unknown> | null = null;
       let pageCount = 0;
 
       while (true) {
-        let query: PrismaOriginal.Sql;
-
-        if (lastPriority !== null && lastId !== null) {
-          query = PrismaOriginal.sql`
-            SELECT t.* FROM "test_tables" t
-            WHERE (
-              (t."data"#>>'{priority}')::int > ${lastPriority}
-              OR (
-                (t."data"#>>'{priority}')::int = ${lastPriority}
-                AND t."id" > ${lastId}
-              )
-            )
-            ORDER BY (t."data"#>>'{priority}')::int ASC, t."id" ASC
-            LIMIT ${PAGE_SIZE}
-          `;
-        } else {
-          query = PrismaOriginal.sql`
-            SELECT t.* FROM "test_tables" t
-            ORDER BY (t."data"#>>'{priority}')::int ASC, t."id" ASC
-            LIMIT ${PAGE_SIZE}
-          `;
-        }
-
-        const rows = await prisma.$queryRaw<
-          Array<{ id: string; data: { priority: number } }>
-        >(query);
+        const query = cursor ? config.buildNextPage(cursor) : config.buildFirstPage();
+        const rows = await prisma.$queryRaw<Array<Record<string, unknown>>>(query);
 
         if (rows.length === 0) {
           break;
         }
 
         for (const row of rows) {
-          collected.add(row.id);
+          collected.add(row.id as string);
         }
 
-        const lastRow = rows[rows.length - 1];
-        lastPriority = lastRow.data.priority;
-        lastId = lastRow.id;
-
+        cursor = config.extractCursor(rows[rows.length - 1]);
         pageCount++;
 
         if (rows.length < PAGE_SIZE) {
           break;
         }
-
         if (pageCount > ROW_COUNT / PAGE_SIZE + 10) {
           throw new Error('Infinite loop detected');
         }
       }
 
-      expect(collected.size).toBe(ROW_COUNT);
+      return collected.size;
+    }
+
+    it('should visit all rows exactly once with JSON field ASC sort', async () => {
+      const size = await paginateAll({
+        buildFirstPage: () => PrismaOriginal.sql`
+          SELECT t.* FROM "test_tables" t
+          ORDER BY (t."data"#>>'{priority}')::int ASC, t."id" ASC
+          LIMIT ${PAGE_SIZE}`,
+        buildNextPage: (c) => PrismaOriginal.sql`
+          SELECT t.* FROM "test_tables" t
+          WHERE (
+            (t."data"#>>'{priority}')::int > ${c.priority as number}
+            OR (
+              (t."data"#>>'{priority}')::int = ${c.priority as number}
+              AND t."id" > ${c.id as string}
+            )
+          )
+          ORDER BY (t."data"#>>'{priority}')::int ASC, t."id" ASC
+          LIMIT ${PAGE_SIZE}`,
+        extractCursor: (row) => ({
+          priority: (row.data as { priority: number }).priority,
+          id: row.id,
+        }),
+      });
+      expect(size).toBe(ROW_COUNT);
     }, 120000);
 
     it('should visit all rows exactly once with createdAt sort', async () => {
-      const collected = new Set<string>();
-      let lastCreatedAt: string | null = null;
-      let lastId: string | null = null;
-      let pageCount = 0;
-
-      while (true) {
-        let query: PrismaOriginal.Sql;
-
-        if (lastCreatedAt !== null && lastId !== null) {
-          query = PrismaOriginal.sql`
-            SELECT t.* FROM "test_tables" t
-            WHERE (
-              t."createdAt" > ${lastCreatedAt}::timestamp
-              OR (
-                t."createdAt" = ${lastCreatedAt}::timestamp
-                AND t."id" > ${lastId}
-              )
+      const size = await paginateAll({
+        buildFirstPage: () => PrismaOriginal.sql`
+          SELECT t.* FROM "test_tables" t
+          ORDER BY t."createdAt" ASC, t."id" ASC
+          LIMIT ${PAGE_SIZE}`,
+        buildNextPage: (c) => PrismaOriginal.sql`
+          SELECT t.* FROM "test_tables" t
+          WHERE (
+            t."createdAt" > ${c.createdAt as string}::timestamp
+            OR (
+              t."createdAt" = ${c.createdAt as string}::timestamp
+              AND t."id" > ${c.id as string}
             )
-            ORDER BY t."createdAt" ASC, t."id" ASC
-            LIMIT ${PAGE_SIZE}
-          `;
-        } else {
-          query = PrismaOriginal.sql`
-            SELECT t.* FROM "test_tables" t
-            ORDER BY t."createdAt" ASC, t."id" ASC
-            LIMIT ${PAGE_SIZE}
-          `;
-        }
-
-        const rows = await prisma.$queryRaw<
-          Array<{ id: string; createdAt: Date }>
-        >(query);
-
-        if (rows.length === 0) {
-          break;
-        }
-
-        for (const row of rows) {
-          collected.add(row.id);
-        }
-
-        const lastRow = rows[rows.length - 1];
-        lastCreatedAt = lastRow.createdAt.toISOString();
-        lastId = lastRow.id;
-
-        pageCount++;
-
-        if (rows.length < PAGE_SIZE) {
-          break;
-        }
-
-        if (pageCount > ROW_COUNT / PAGE_SIZE + 10) {
-          throw new Error('Infinite loop detected');
-        }
-      }
-
-      expect(collected.size).toBe(ROW_COUNT);
+          )
+          ORDER BY t."createdAt" ASC, t."id" ASC
+          LIMIT ${PAGE_SIZE}`,
+        extractCursor: (row) => ({
+          createdAt: (row.createdAt as Date).toISOString(),
+          id: row.id,
+        }),
+      });
+      expect(size).toBe(ROW_COUNT);
     }, 120000);
 
     it('should visit all rows exactly once with JSON field DESC sort', async () => {
-      const collected = new Set<string>();
-      let lastPriority: number | null = null;
-      let lastId: string | null = null;
-      let pageCount = 0;
-
-      while (true) {
-        let query: PrismaOriginal.Sql;
-
-        if (lastPriority !== null && lastId !== null) {
-          query = PrismaOriginal.sql`
-            SELECT t.* FROM "test_tables" t
-            WHERE (
-              (t."data"#>>'{priority}')::int < ${lastPriority}
-              OR (
-                (t."data"#>>'{priority}')::int = ${lastPriority}
-                AND t."id" < ${lastId}
-              )
+      const size = await paginateAll({
+        buildFirstPage: () => PrismaOriginal.sql`
+          SELECT t.* FROM "test_tables" t
+          ORDER BY (t."data"#>>'{priority}')::int DESC, t."id" DESC
+          LIMIT ${PAGE_SIZE}`,
+        buildNextPage: (c) => PrismaOriginal.sql`
+          SELECT t.* FROM "test_tables" t
+          WHERE (
+            (t."data"#>>'{priority}')::int < ${c.priority as number}
+            OR (
+              (t."data"#>>'{priority}')::int = ${c.priority as number}
+              AND t."id" < ${c.id as string}
             )
-            ORDER BY (t."data"#>>'{priority}')::int DESC, t."id" DESC
-            LIMIT ${PAGE_SIZE}
-          `;
-        } else {
-          query = PrismaOriginal.sql`
-            SELECT t.* FROM "test_tables" t
-            ORDER BY (t."data"#>>'{priority}')::int DESC, t."id" DESC
-            LIMIT ${PAGE_SIZE}
-          `;
-        }
-
-        const rows = await prisma.$queryRaw<
-          Array<{ id: string; data: { priority: number } }>
-        >(query);
-
-        if (rows.length === 0) {
-          break;
-        }
-
-        for (const row of rows) {
-          collected.add(row.id);
-        }
-
-        const lastRow = rows[rows.length - 1];
-        lastPriority = lastRow.data.priority;
-        lastId = lastRow.id;
-
-        pageCount++;
-
-        if (rows.length < PAGE_SIZE) {
-          break;
-        }
-
-        if (pageCount > ROW_COUNT / PAGE_SIZE + 10) {
-          throw new Error('Infinite loop detected');
-        }
-      }
-
-      expect(collected.size).toBe(ROW_COUNT);
+          )
+          ORDER BY (t."data"#>>'{priority}')::int DESC, t."id" DESC
+          LIMIT ${PAGE_SIZE}`,
+        extractCursor: (row) => ({
+          priority: (row.data as { priority: number }).priority,
+          id: row.id,
+        }),
+      });
+      expect(size).toBe(ROW_COUNT);
     }, 120000);
   });
 

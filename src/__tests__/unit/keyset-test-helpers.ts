@@ -6,7 +6,7 @@ export function regularPart(
   direction: 'ASC' | 'DESC',
 ): OrderByPart {
   return {
-    expression: Prisma.sql`${Prisma.raw(`r."${fieldName}"`)}`,
+    expression: Prisma.sql`${Prisma.raw('r."' + fieldName + '"')}`,
     direction,
     fieldName,
     isJson: false,
@@ -21,7 +21,7 @@ export function jsonPart(
 ): OrderByPart {
   const dirStr = direction.toLowerCase() as 'asc' | 'desc';
   return {
-    expression: Prisma.sql`${Prisma.raw(`(r."${fieldName}"#>>'{${path}}')::${type}`)}`,
+    expression: Prisma.sql`${Prisma.raw('(r."' + fieldName + '"#>>\'{' + path + '}\')::' + type)}`,
     direction,
     fieldName,
     isJson: true,

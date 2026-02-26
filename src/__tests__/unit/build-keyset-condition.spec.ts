@@ -1,17 +1,21 @@
 import { Prisma } from '@prisma/client';
-import { configurePrisma } from '../../prisma-adapter';
+import { configurePrisma, PrismaSql } from '../../prisma-adapter';
 import { buildKeysetCondition } from '../../keyset/condition';
+import { CursorValue, OrderByPart } from '../../types';
 import { regularPart, jsonPart } from './keyset-test-helpers';
 
 beforeAll(() => {
   configurePrisma(Prisma);
 });
 
-function sqlToString(sql: typeof Prisma.Sql.prototype): { text: string; values: unknown[] } {
-  return {
-    text: sql.strings.join('?'),
-    values: sql.values,
-  };
+function buildAndStringify(
+  parts: OrderByPart[],
+  cursorValues: CursorValue[],
+  tiebreaker: string,
+  tiebreakerExpr: PrismaSql,
+): { text: string; values: unknown[] } {
+  const sql = buildKeysetCondition(parts, cursorValues, tiebreaker, tiebreakerExpr);
+  return { text: sql.strings.join('?'), values: sql.values };
 }
 
 describe('buildKeysetCondition', () => {
@@ -19,8 +23,8 @@ describe('buildKeysetCondition', () => {
 
   describe('single column', () => {
     it('should generate < for DESC direction', () => {
-      const { text, values } = sqlToString(
-        buildKeysetCondition([regularPart('createdAt', 'DESC')], ['2025-01-01'], 'tid-1', tiebreakerExpr),
+      const { text, values } = buildAndStringify(
+        [regularPart('createdAt', 'DESC')], ['2025-01-01'], 'tid-1', tiebreakerExpr,
       );
       expect(text).toContain('<');
       expect(values).toContain('2025-01-01');
@@ -28,8 +32,8 @@ describe('buildKeysetCondition', () => {
     });
 
     it('should generate > for ASC direction', () => {
-      const { text, values } = sqlToString(
-        buildKeysetCondition([regularPart('createdAt', 'ASC')], ['2025-01-01'], 'tid-1', tiebreakerExpr),
+      const { text, values } = buildAndStringify(
+        [regularPart('createdAt', 'ASC')], ['2025-01-01'], 'tid-1', tiebreakerExpr,
       );
       expect(text).toContain('>');
       expect(values).toContain('2025-01-01');
@@ -38,9 +42,9 @@ describe('buildKeysetCondition', () => {
 
   describe('multi column', () => {
     it('should generate OR clauses for multi-column sort', () => {
-      const parts = [regularPart('createdAt', 'DESC'), regularPart('id', 'ASC')];
-      const { text } = sqlToString(
-        buildKeysetCondition(parts, ['2025-01-01', 'row-5'], 'tid-1', tiebreakerExpr),
+      const { text } = buildAndStringify(
+        [regularPart('createdAt', 'DESC'), regularPart('id', 'ASC')],
+        ['2025-01-01', 'row-5'], 'tid-1', tiebreakerExpr,
       );
       expect(text).toContain('OR');
     });
@@ -48,9 +52,9 @@ describe('buildKeysetCondition', () => {
 
   describe('mixed directions', () => {
     it('should handle DESC first, ASC second', () => {
-      const parts = [regularPart('createdAt', 'DESC'), regularPart('id', 'ASC')];
-      const { text, values } = sqlToString(
-        buildKeysetCondition(parts, ['2025-01-01', 'row-5'], 'tid-1', tiebreakerExpr),
+      const { text, values } = buildAndStringify(
+        [regularPart('createdAt', 'DESC'), regularPart('id', 'ASC')],
+        ['2025-01-01', 'row-5'], 'tid-1', tiebreakerExpr,
       );
       expect(text).toContain('<');
       expect(text).toContain('>');
@@ -62,22 +66,22 @@ describe('buildKeysetCondition', () => {
 
   describe('NULL handling', () => {
     it('should use IS NULL for null cursor equality', () => {
-      const { text } = sqlToString(
-        buildKeysetCondition([regularPart('publishedAt', 'DESC')], [null], 'tid-1', tiebreakerExpr),
+      const { text } = buildAndStringify(
+        [regularPart('publishedAt', 'DESC')], [null], 'tid-1', tiebreakerExpr,
       );
       expect(text).toContain('IS NULL');
     });
 
     it('should use IS NOT NULL for null DESC comparison', () => {
-      const { text } = sqlToString(
-        buildKeysetCondition([regularPart('publishedAt', 'DESC')], [null], 'tid-1', tiebreakerExpr),
+      const { text } = buildAndStringify(
+        [regularPart('publishedAt', 'DESC')], [null], 'tid-1', tiebreakerExpr,
       );
       expect(text).toContain('IS NOT NULL');
     });
 
     it('should use FALSE for null ASC comparison', () => {
-      const { text } = sqlToString(
-        buildKeysetCondition([regularPart('publishedAt', 'ASC')], [null], 'tid-1', tiebreakerExpr),
+      const { text } = buildAndStringify(
+        [regularPart('publishedAt', 'ASC')], [null], 'tid-1', tiebreakerExpr,
       );
       expect(text).toContain('FALSE');
     });
@@ -85,17 +89,13 @@ describe('buildKeysetCondition', () => {
 
   describe('tiebreaker', () => {
     it('should always include tiebreaker comparison as last clause', () => {
-      const { text, values } = sqlToString(
-        buildKeysetCondition([], [], 'tid-1', tiebreakerExpr),
-      );
+      const { text, values } = buildAndStringify([], [], 'tid-1', tiebreakerExpr);
       expect(text).toContain('versionId');
       expect(values).toContain('tid-1');
     });
 
     it('should use custom tiebreaker expression', () => {
-      const { text, values } = sqlToString(
-        buildKeysetCondition([], [], 'tid-1', Prisma.sql`t."rowId"`),
-      );
+      const { text, values } = buildAndStringify([], [], 'tid-1', Prisma.sql`t."rowId"`);
       expect(text).toContain('rowId');
       expect(values).toContain('tid-1');
     });
@@ -103,8 +103,8 @@ describe('buildKeysetCondition', () => {
 
   describe('JSON expressions', () => {
     it('should work with JSON field expressions', () => {
-      const { text, values } = sqlToString(
-        buildKeysetCondition([jsonPart('data', 'priority', 'int', 'ASC')], [10], 'tid-1', tiebreakerExpr),
+      const { text, values } = buildAndStringify(
+        [jsonPart('data', 'priority', 'int', 'ASC')], [10], 'tid-1', tiebreakerExpr,
       );
       expect(text).toContain('priority');
       expect(values).toContain(10);
