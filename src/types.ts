@@ -116,6 +116,14 @@ export type OrderByConditionsTyped<TConfig extends FieldConfig> = {
 export type OrderByConditions<TConfig extends FieldConfig = FieldConfig> =
   OrderByConditionsTyped<TConfig>;
 
+export interface OrderByPart {
+  expression: unknown;
+  direction: 'ASC' | 'DESC';
+  fieldName: string;
+  isJson: boolean;
+  jsonConfig?: JsonOrderByInput;
+}
+
 export interface QueryBuilderOptions<TConfig extends FieldConfig = FieldConfig> {
   tableName: string;
   tableAlias?: string;
