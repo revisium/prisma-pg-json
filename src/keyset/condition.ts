@@ -55,6 +55,11 @@ function buildEqualityClause(
   return Prisma.sql`${expression} = ${value}`;
 }
 
+// Assumes PostgreSQL default NULL ordering: ASC = NULLS LAST, DESC = NULLS FIRST.
+// ASC + null cursor: NULL is last, no rows after it → FALSE.
+// DESC + null cursor: NULL is first, all non-null rows follow → IS NOT NULL.
+// If ORDER BY uses NULLS FIRST/NULLS LAST overrides, this logic must be adjusted.
+// OrderByPart currently does not carry nulls configuration.
 function buildComparisonClause(
   expression: PrismaSql,
   value: CursorValue,
