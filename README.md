@@ -574,6 +574,7 @@ The library provides utilities for building keyset pagination with multi-column 
 
 ```typescript
 import {
+  Prisma,
   encodeCursor,
   decodeCursor,
   computeSortHash,

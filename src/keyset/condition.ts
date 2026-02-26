@@ -1,20 +1,21 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
-import { OrderByPart } from '../types';
+import { OrderByPart, CursorValue } from '../types';
 
 export function buildKeysetCondition(
   parts: OrderByPart[],
-  cursorValues: (string | number | boolean | null)[],
+  cursorValues: CursorValue[],
   tiebreaker: string,
   tiebreakerExpression: PrismaSql,
+  tiebreakerDirection: 'ASC' | 'DESC' = 'DESC',
 ): PrismaSql {
   const allParts: { expression: PrismaSql; direction: 'ASC' | 'DESC' }[] = [
     ...parts.map((p) => ({ expression: p.expression, direction: p.direction })),
     {
       expression: tiebreakerExpression,
-      direction: 'DESC' as const,
+      direction: tiebreakerDirection,
     },
   ];
-  const allValues: (string | number | boolean | null)[] = [
+  const allValues: CursorValue[] = [
     ...cursorValues,
     tiebreaker,
   ];
@@ -46,7 +47,7 @@ export function buildKeysetCondition(
 
 function buildEqualityClause(
   expression: PrismaSql,
-  value: string | number | boolean | null,
+  value: CursorValue,
 ): PrismaSql {
   if (value === null) {
     return Prisma.sql`${expression} IS NULL`;
@@ -56,11 +57,11 @@ function buildEqualityClause(
 
 function buildComparisonClause(
   expression: PrismaSql,
-  value: string | number | boolean | null,
+  value: CursorValue,
   direction: 'ASC' | 'DESC',
 ): PrismaSql {
   if (value === null) {
-    if (direction === 'ASC') {
+    if (direction === 'DESC') {
       return Prisma.sql`${expression} IS NOT NULL`;
     }
     return Prisma.sql`FALSE`;

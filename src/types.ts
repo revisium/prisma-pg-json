@@ -1,3 +1,5 @@
+import type { PrismaSql } from './prisma-adapter';
+
 export type StringFilter = {
   equals?: string;
   not?: string | StringFilter;
@@ -116,8 +118,10 @@ export type OrderByConditionsTyped<TConfig extends FieldConfig> = {
 export type OrderByConditions<TConfig extends FieldConfig = FieldConfig> =
   OrderByConditionsTyped<TConfig>;
 
+export type CursorValue = string | number | boolean | null;
+
 export interface OrderByPart {
-  expression: unknown;
+  expression: PrismaSql;
   direction: 'ASC' | 'DESC';
   fieldName: string;
   isJson: boolean;

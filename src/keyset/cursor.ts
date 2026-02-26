@@ -1,15 +1,15 @@
-import { createHash } from 'crypto';
-import { JsonOrderByInput, OrderByPart } from '../types';
+import { createHash } from 'node:crypto';
+import { JsonOrderByInput, OrderByPart, CursorValue } from '../types';
 import { parseJsonPath } from '../utils/parseJsonPath';
 
 interface CursorPayload {
-  v: (string | number | boolean | null)[];
+  v: CursorValue[];
   t: string;
   h: string;
 }
 
 export function encodeCursor(
-  values: (string | number | boolean | null)[],
+  values: CursorValue[],
   tiebreaker: string,
   sortHash: string,
 ): string {
@@ -18,7 +18,7 @@ export function encodeCursor(
 }
 
 export function decodeCursor(cursor: string): {
-  values: (string | number | boolean | null)[];
+  values: CursorValue[];
   tiebreaker: string;
   sortHash: string;
 } | null {
@@ -35,10 +35,18 @@ export function decodeCursor(cursor: string): {
       return null;
     }
 
+    if (!payload.v.every(isValidCursorValue)) {
+      return null;
+    }
+
     return { values: payload.v, tiebreaker: payload.t, sortHash: payload.h };
   } catch {
     return null;
   }
+}
+
+function isValidCursorValue(value: unknown): value is CursorValue {
+  return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
 }
 
 export function computeSortHash(parts: OrderByPart[]): string {
@@ -53,77 +61,71 @@ export function computeSortHash(parts: OrderByPart[]): string {
       return `${p.fieldName}:${p.direction}`;
     })
     .join('|');
-  return createHash('md5').update(key).digest('hex').substring(0, 16);
+  return createHash('sha256').update(key).digest('hex').substring(0, 16);
 }
 
 export function extractCursorValues(
   row: Record<string, unknown>,
   parts: OrderByPart[],
-): (string | number | boolean | null)[] {
+): CursorValue[] {
   return parts.map((part) => {
     if (part.isJson && part.jsonConfig) {
       return extractJsonValue(row[part.fieldName], part.jsonConfig);
     }
-    const value = row[part.fieldName];
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-    if (value === null || value === undefined) {
-      return null;
-    }
-    if (
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean'
-    ) {
-      return value;
-    }
-    return String(value);
+    return toCursorValue(row[part.fieldName]);
   });
+}
+
+function toCursorValue(value: unknown): CursorValue {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value;
+  }
+  return null;
 }
 
 function extractJsonValue(
   data: unknown,
   jsonConfig: JsonOrderByInput,
-): string | number | boolean | null {
+): CursorValue {
   if (data === null || data === undefined) {
     return null;
   }
 
   const pathSegments = parseJsonPath(jsonConfig.path);
+  const resolved = resolveJsonPath(data, pathSegments);
+  return toCursorValue(resolved);
+}
 
+function resolveJsonPath(data: unknown, pathSegments: string[]): unknown {
   let current: unknown = data;
+
   for (const segment of pathSegments) {
-    if (current === null || current === undefined) {
+    if (current === null || current === undefined || segment === '*') {
       return null;
     }
-    if (segment === '*') {
+    if (typeof current !== 'object') {
       return null;
     }
-    if (typeof current === 'object' && current !== null) {
-      if (Array.isArray(current)) {
-        const index = parseInt(segment, 10);
-        if (isNaN(index)) {
-          return null;
-        }
-        current = current[index];
-      } else {
-        current = (current as Record<string, unknown>)[segment];
+    if (Array.isArray(current)) {
+      const index = Number.parseInt(segment, 10);
+      if (Number.isNaN(index)) {
+        return null;
       }
+      current = current[index];
     } else {
-      return null;
+      current = (current as Record<string, unknown>)[segment];
     }
   }
 
-  if (current === null || current === undefined) {
-    return null;
-  }
-  if (
-    typeof current === 'string' ||
-    typeof current === 'number' ||
-    typeof current === 'boolean'
-  ) {
-    return current;
-  }
-  return null;
+  return current;
 }

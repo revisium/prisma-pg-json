@@ -11,6 +11,7 @@ export { generateOrderBy, generateOrderByClauses, generateOrderByParts } from '.
 export { parseJsonPath, arrayToJsonPath, validateJsonPath } from './utils/parseJsonPath';
 export { encodeCursor, decodeCursor, computeSortHash, extractCursorValues } from './keyset';
 export { buildKeysetCondition } from './keyset';
+export type { CursorValue } from './types';
 export { SEARCH_LANGUAGES } from './where/json/operators/search-operator';
 export type { SearchLanguage } from './where/json/operators/search-operator';
 export {

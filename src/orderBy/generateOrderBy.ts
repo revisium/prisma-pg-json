@@ -18,36 +18,55 @@ export function generateOrderByParts<TConfig extends FieldConfig = FieldConfig>(
     }
 
     for (const [fieldName, orderValue] of Object.entries(orderCondition)) {
-      if (typeof orderValue === 'string') {
-        if (orderValue === 'asc' || orderValue === 'desc') {
-          const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
-          const direction = orderValue.toUpperCase() as 'ASC' | 'DESC';
-          parts.push({
-            expression: fieldRef,
-            direction,
-            fieldName,
-            isJson: false,
-          });
-        }
-      } else if (typeof orderValue === 'object' && orderValue) {
-        const fieldType = fieldConfig[fieldName];
-        if (fieldType === 'json') {
-          const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
-          const jsonOrder = orderValue as JsonOrderByInput;
-          const { expression, direction } = processJsonFieldParts(fieldRef, jsonOrder);
-          parts.push({
-            expression,
-            direction,
-            fieldName,
-            isJson: true,
-            jsonConfig: jsonOrder,
-          });
-        }
+      const part = processFieldOrderBy(tableAlias, fieldName, orderValue, fieldConfig);
+      if (part) {
+        parts.push(part);
       }
     }
   }
 
   return parts;
+}
+
+function processFieldOrderBy(
+  tableAlias: string,
+  fieldName: string,
+  orderValue: unknown,
+  fieldConfig: FieldConfig,
+): OrderByPart | null {
+  if (typeof orderValue === 'string') {
+    return processStringOrder(tableAlias, fieldName, orderValue);
+  }
+  if (typeof orderValue === 'object' && orderValue && fieldConfig[fieldName] === 'json') {
+    return processJsonOrder(tableAlias, fieldName, orderValue as JsonOrderByInput);
+  }
+  return null;
+}
+
+function processStringOrder(
+  tableAlias: string,
+  fieldName: string,
+  orderValue: string,
+): OrderByPart | null {
+  if (orderValue !== 'asc' && orderValue !== 'desc') {
+    return null;
+  }
+  const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
+  const direction = orderValue.toUpperCase() as 'ASC' | 'DESC';
+  return { expression: fieldRef, direction, fieldName, isJson: false };
+}
+
+function processJsonOrder(
+  tableAlias: string,
+  fieldName: string,
+  jsonOrder: JsonOrderByInput,
+): OrderByPart | null {
+  const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
+  const result = processJsonFieldParts(fieldRef, jsonOrder);
+  if (!result) {
+    return null;
+  }
+  return { expression: result.expression, direction: result.direction, fieldName, isJson: true, jsonConfig: jsonOrder };
 }
 
 export function generateOrderByClauses<TConfig extends FieldConfig = FieldConfig>(
@@ -60,7 +79,7 @@ export function generateOrderByClauses<TConfig extends FieldConfig = FieldConfig
   }
 
   const orderClauses = parts.map(
-    (part) => Prisma.sql`${part.expression as PrismaSql} ${Prisma.raw(part.direction)}`,
+    (part) => Prisma.sql`${part.expression} ${Prisma.raw(part.direction)}`,
   );
 
   return Prisma.join(orderClauses, ', ');
@@ -78,18 +97,28 @@ export function generateOrderBy<TConfig extends FieldConfig = FieldConfig>(
   return Prisma.sql`ORDER BY ${clauses}`;
 }
 
+const VALID_DIRECTIONS = new Set(['asc', 'desc']);
+const VALID_TYPES = new Set(['text', 'int', 'float', 'boolean', 'timestamp']);
+const VALID_AGGREGATIONS = new Set(['first', 'last', 'min', 'max', 'avg']);
+
 function processJsonFieldParts(
   fieldRef: PrismaSql,
   jsonOrder: JsonOrderByInput,
-): { expression: PrismaSql; direction: 'ASC' | 'DESC' } {
+): { expression: PrismaSql; direction: 'ASC' | 'DESC' } | null {
   const jsonPath = convertToJsonPath(jsonOrder.path);
-  const direction = (jsonOrder.direction || 'asc').toUpperCase() as 'ASC' | 'DESC';
+  const rawDirection = (jsonOrder.direction || 'asc').toLowerCase();
+  if (!VALID_DIRECTIONS.has(rawDirection)) {
+    return null;
+  }
+  const direction = rawDirection.toUpperCase() as 'ASC' | 'DESC';
   const aggregation = jsonOrder.aggregation;
 
-  const validTypes = ['text', 'int', 'float', 'boolean', 'timestamp'];
-  const type = validTypes.includes(jsonOrder.type || '') ? jsonOrder.type || 'text' : 'text';
+  const type = VALID_TYPES.has(jsonOrder.type || '') ? jsonOrder.type || 'text' : 'text';
 
   if (aggregation) {
+    if (!VALID_AGGREGATIONS.has(aggregation)) {
+      return null;
+    }
     return {
       expression: buildAggregationExpression(fieldRef, jsonPath, type, aggregation),
       direction,
@@ -142,7 +171,7 @@ function buildAggregationExpression(
         .filter((s) => s.length > 0);
       elemAccess = Prisma.sql`elem#>>'{${Prisma.raw(subPathSegments.join(','))}}'`;
     } else {
-      elemAccess = Prisma.sql`elem`;
+      elemAccess = Prisma.sql`elem#>>'{}'`;
     }
 
     return Prisma.sql`(
@@ -152,10 +181,12 @@ function buildAggregationExpression(
   }
 
   if (aggregation === 'last') {
-    const modifiedPath = jsonPath.replace(/\$$/, '[last]');
+    const suffix = '[last]';
+    const modifiedPath = jsonPath.endsWith('$') ? jsonPath.replace(/\$$/, suffix) : jsonPath + suffix;
     return Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
   } else if (aggregation === 'first') {
-    const modifiedPath = jsonPath.replace(/\$$/, '[0]');
+    const suffix = '[0]';
+    const modifiedPath = jsonPath.endsWith('$') ? jsonPath.replace(/\$$/, suffix) : jsonPath + suffix;
     return Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
   }
 
@@ -168,7 +199,7 @@ function buildAggregationExpression(
   const aggregationFunc = aggregation.toUpperCase();
 
   return Prisma.sql`(
-    SELECT ${Prisma.raw(aggregationFunc)}((elem)::${Prisma.raw(type)})
+    SELECT ${Prisma.raw(aggregationFunc)}((elem#>>'{}')::${Prisma.raw(type)})
     FROM jsonb_array_elements((${fieldRef}#>'${Prisma.raw(basePathSql)}')::jsonb) AS elem
   )`;
 }

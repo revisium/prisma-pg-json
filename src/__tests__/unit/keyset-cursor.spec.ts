@@ -5,16 +5,12 @@ import {
   computeSortHash,
   extractCursorValues,
 } from '../../keyset/cursor';
-import { OrderByPart } from '../../types';
+import { regularPart, jsonPart } from './keyset-test-helpers';
 
 describe('keyset-cursor', () => {
   describe('encodeCursor / decodeCursor', () => {
     it('should roundtrip string values', () => {
-      const values = ['hello', 'world'];
-      const tiebreaker = 'tid-123';
-      const sortHash = 'abcdef0123456789';
-
-      const cursor = encodeCursor(values, tiebreaker, sortHash);
+      const cursor = encodeCursor(['hello', 'world'], 'tid-123', 'abcdef0123456789');
       const decoded = decodeCursor(cursor);
 
       expect(decoded).toEqual({
@@ -26,30 +22,22 @@ describe('keyset-cursor', () => {
 
     it('should roundtrip number values', () => {
       const cursor = encodeCursor([42, 3.14], 'tb', 'hash1234567890ab');
-      const decoded = decodeCursor(cursor);
-
-      expect(decoded?.values).toEqual([42, 3.14]);
+      expect(decodeCursor(cursor)?.values).toEqual([42, 3.14]);
     });
 
     it('should roundtrip null values', () => {
       const cursor = encodeCursor([null, 'a', null], 'tb', 'hash1234567890ab');
-      const decoded = decodeCursor(cursor);
-
-      expect(decoded?.values).toEqual([null, 'a', null]);
+      expect(decodeCursor(cursor)?.values).toEqual([null, 'a', null]);
     });
 
     it('should roundtrip boolean values', () => {
       const cursor = encodeCursor([true, false], 'tb', 'hash1234567890ab');
-      const decoded = decodeCursor(cursor);
-
-      expect(decoded?.values).toEqual([true, false]);
+      expect(decodeCursor(cursor)?.values).toEqual([true, false]);
     });
 
     it('should roundtrip empty values array', () => {
       const cursor = encodeCursor([], 'tb', 'hash1234567890ab');
-      const decoded = decodeCursor(cursor);
-
-      expect(decoded?.values).toEqual([]);
+      expect(decodeCursor(cursor)?.values).toEqual([]);
     });
 
     it('should return null for invalid base64', () => {
@@ -62,9 +50,7 @@ describe('keyset-cursor', () => {
     });
 
     it('should return null for JSON missing required fields', () => {
-      const cursor = Buffer.from(JSON.stringify({ v: [1] })).toString(
-        'base64url',
-      );
+      const cursor = Buffer.from(JSON.stringify({ v: [1] })).toString('base64url');
       expect(decodeCursor(cursor)).toBeNull();
     });
 
@@ -86,15 +72,7 @@ describe('keyset-cursor', () => {
 
   describe('computeSortHash', () => {
     it('should produce consistent hash for same parts', () => {
-      const parts: OrderByPart[] = [
-        {
-          expression: Prisma.sql`r."createdAt"`,
-          direction: 'DESC',
-          fieldName: 'createdAt',
-          isJson: false,
-        },
-      ];
-
+      const parts = [regularPart('createdAt', 'DESC')];
       const hash1 = computeSortHash(parts);
       const hash2 = computeSortHash(parts);
 
@@ -103,166 +81,66 @@ describe('keyset-cursor', () => {
     });
 
     it('should produce different hash for different direction', () => {
-      const partsAsc: OrderByPart[] = [
-        {
-          expression: Prisma.sql`r."createdAt"`,
-          direction: 'ASC',
-          fieldName: 'createdAt',
-          isJson: false,
-        },
-      ];
-      const partsDesc: OrderByPart[] = [
-        {
-          expression: Prisma.sql`r."createdAt"`,
-          direction: 'DESC',
-          fieldName: 'createdAt',
-          isJson: false,
-        },
-      ];
-
-      expect(computeSortHash(partsAsc)).not.toBe(computeSortHash(partsDesc));
+      expect(computeSortHash([regularPart('createdAt', 'ASC')])).not.toBe(
+        computeSortHash([regularPart('createdAt', 'DESC')]),
+      );
     });
 
     it('should produce different hash for different fields', () => {
-      const parts1: OrderByPart[] = [
-        {
-          expression: Prisma.sql`r."createdAt"`,
-          direction: 'DESC',
-          fieldName: 'createdAt',
-          isJson: false,
-        },
-      ];
-      const parts2: OrderByPart[] = [
-        {
-          expression: Prisma.sql`r."updatedAt"`,
-          direction: 'DESC',
-          fieldName: 'updatedAt',
-          isJson: false,
-        },
-      ];
-
-      expect(computeSortHash(parts1)).not.toBe(computeSortHash(parts2));
+      expect(computeSortHash([regularPart('createdAt', 'DESC')])).not.toBe(
+        computeSortHash([regularPart('updatedAt', 'DESC')]),
+      );
     });
 
     it('should include json config in hash', () => {
-      const parts1: OrderByPart[] = [
-        {
-          expression: Prisma.sql`(r."data"#>>'{price}')::int`,
-          direction: 'ASC',
-          fieldName: 'data',
-          isJson: true,
-          jsonConfig: { path: 'price', type: 'int', direction: 'asc' },
-        },
-      ];
-      const parts2: OrderByPart[] = [
-        {
-          expression: Prisma.sql`(r."data"#>>'{name}')::text`,
-          direction: 'ASC',
-          fieldName: 'data',
-          isJson: true,
-          jsonConfig: { path: 'name', type: 'text', direction: 'asc' },
-        },
-      ];
-
-      expect(computeSortHash(parts1)).not.toBe(computeSortHash(parts2));
+      expect(computeSortHash([jsonPart('data', 'price', 'int', 'ASC')])).not.toBe(
+        computeSortHash([jsonPart('data', 'name', 'text', 'ASC')]),
+      );
     });
   });
 
   describe('extractCursorValues', () => {
     it('should extract regular field values', () => {
-      const row = {
-        createdAt: new Date('2025-01-01T00:00:00.000Z'),
-        id: 'row-1',
-      };
-      const parts: OrderByPart[] = [
-        {
-          expression: Prisma.sql`r."createdAt"`,
-          direction: 'DESC',
-          fieldName: 'createdAt',
-          isJson: false,
-        },
-      ];
-
-      const values = extractCursorValues(row, parts);
-
-      expect(values).toEqual(['2025-01-01T00:00:00.000Z']);
+      const row = { createdAt: new Date('2025-01-01T00:00:00.000Z'), id: 'row-1' };
+      expect(extractCursorValues(row, [regularPart('createdAt', 'DESC')])).toEqual([
+        '2025-01-01T00:00:00.000Z',
+      ]);
     });
 
     it('should extract string values', () => {
       const row = { id: 'row-1' };
-      const parts: OrderByPart[] = [
-        {
-          expression: Prisma.sql`r."id"`,
-          direction: 'ASC',
-          fieldName: 'id',
-          isJson: false,
-        },
-      ];
-
-      expect(extractCursorValues(row, parts)).toEqual(['row-1']);
+      expect(extractCursorValues(row, [regularPart('id', 'ASC')])).toEqual(['row-1']);
     });
 
     it('should handle null values', () => {
       const row = { publishedAt: null };
-      const parts: OrderByPart[] = [
-        {
-          expression: Prisma.sql`r."publishedAt"`,
-          direction: 'DESC',
-          fieldName: 'publishedAt',
-          isJson: false,
-        },
-      ];
-
-      expect(extractCursorValues(row, parts)).toEqual([null]);
+      expect(extractCursorValues(row, [regularPart('publishedAt', 'DESC')])).toEqual([null]);
     });
 
     it('should extract JSON field values', () => {
       const row = { data: { priority: 10 } };
-      const parts: OrderByPart[] = [
-        {
-          expression: Prisma.sql`(r."data"#>>'{priority}')::int`,
-          direction: 'ASC',
-          fieldName: 'data',
-          isJson: true,
-          jsonConfig: { path: 'priority', type: 'int', direction: 'asc' },
-        },
-      ];
-
-      expect(extractCursorValues(row, parts)).toEqual([10]);
+      expect(extractCursorValues(row, [jsonPart('data', 'priority', 'int', 'ASC')])).toEqual([10]);
     });
 
     it('should extract nested JSON field values', () => {
       const row = { data: { nested: { value: 'hello' } } };
-      const parts: OrderByPart[] = [
+      const parts = [
         {
           expression: Prisma.sql`(r."data"#>>'{nested,value}')::text`,
-          direction: 'ASC',
+          direction: 'ASC' as const,
           fieldName: 'data',
           isJson: true,
-          jsonConfig: {
-            path: ['nested', 'value'],
-            type: 'text',
-            direction: 'asc',
-          },
+          jsonConfig: { path: ['nested', 'value'], type: 'text' as const, direction: 'asc' as const },
         },
       ];
-
       expect(extractCursorValues(row, parts)).toEqual(['hello']);
     });
 
     it('should return null for missing JSON path', () => {
       const row = { data: { other: 1 } };
-      const parts: OrderByPart[] = [
-        {
-          expression: Prisma.sql`(r."data"#>>'{missing}')::text`,
-          direction: 'ASC',
-          fieldName: 'data',
-          isJson: true,
-          jsonConfig: { path: 'missing', type: 'text', direction: 'asc' },
-        },
-      ];
-
-      expect(extractCursorValues(row, parts)).toEqual([null]);
+      expect(extractCursorValues(row, [jsonPart('data', 'missing', 'text', 'ASC')])).toEqual([
+        null,
+      ]);
     });
 
     it('should handle multiple parts', () => {
@@ -270,26 +148,11 @@ describe('keyset-cursor', () => {
         createdAt: new Date('2025-01-01T00:00:00.000Z'),
         data: { priority: 5 },
       };
-      const parts: OrderByPart[] = [
-        {
-          expression: Prisma.sql`(r."data"#>>'{priority}')::int`,
-          direction: 'DESC',
-          fieldName: 'data',
-          isJson: true,
-          jsonConfig: { path: 'priority', type: 'int', direction: 'desc' },
-        },
-        {
-          expression: Prisma.sql`r."createdAt"`,
-          direction: 'ASC',
-          fieldName: 'createdAt',
-          isJson: false,
-        },
+      const parts = [
+        jsonPart('data', 'priority', 'int', 'DESC'),
+        regularPart('createdAt', 'ASC'),
       ];
-
-      expect(extractCursorValues(row, parts)).toEqual([
-        5,
-        '2025-01-01T00:00:00.000Z',
-      ]);
+      expect(extractCursorValues(row, parts)).toEqual([5, '2025-01-01T00:00:00.000Z']);
     });
   });
 });

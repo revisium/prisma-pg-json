@@ -351,6 +351,28 @@ describe('generateOrderByParts function', () => {
 
       expect(parts).toEqual([]);
     });
+
+    it('should skip JSON field with invalid direction', () => {
+      const parts = generateOrderByParts({
+        tableAlias: 't',
+        // @ts-expect-error - testing invalid usage
+        orderBy: { data: { path: ['x'], direction: 'invalid' } },
+        fieldConfig,
+      });
+
+      expect(parts).toEqual([]);
+    });
+
+    it('should skip JSON field with invalid aggregation', () => {
+      const parts = generateOrderByParts({
+        tableAlias: 't',
+        // @ts-expect-error - testing invalid usage
+        orderBy: { data: { path: ['x'], direction: 'asc', aggregation: 'bad' } },
+        fieldConfig,
+      });
+
+      expect(parts).toEqual([]);
+    });
   });
 
   describe('consistency with generateOrderByClauses', () => {
