@@ -564,6 +564,92 @@ Prisma doesn't support sorting by JSON fields. This library enables:
 - Multiple JSON sorts with different types (numeric, text, date)
 - Array element sorting
 
+### Keyset Pagination
+
+Standard OFFSET-based pagination loses rows when data has duplicate sort values or when rows are inserted/deleted between pages. Keyset (cursor-based) pagination solves this by using the last seen row's values to determine the starting point for the next page.
+
+The library provides utilities for building keyset pagination with multi-column sort support:
+
+#### Cursor Encoding / Decoding
+
+```typescript
+import {
+  Prisma,
+  encodeCursor,
+  decodeCursor,
+  computeSortHash,
+  extractCursorValues,
+  OrderByPart,
+} from '@revisium/prisma-pg-json';
+
+// OrderByPart describes each sort column
+const parts: OrderByPart[] = [
+  {
+    expression: Prisma.sql`r."createdAt"`,
+    direction: 'DESC',
+    fieldName: 'createdAt',
+    isJson: false,
+  },
+];
+
+// Compute a hash of the sort configuration (detects sort changes between pages)
+const sortHash = computeSortHash(parts);
+
+// Extract cursor values from a row
+const row = { createdAt: new Date('2025-01-01'), versionId: 'v-123' };
+const values = extractCursorValues(row, parts);
+// → ['2025-01-01T00:00:00.000Z']
+
+// Encode into an opaque cursor string
+const cursor = encodeCursor(values, 'v-123', sortHash);
+
+// Decode back
+const decoded = decodeCursor(cursor);
+// → { values: ['2025-01-01T00:00:00.000Z'], tiebreaker: 'v-123', sortHash: '...' }
+```
+
+#### Building the WHERE Condition
+
+`buildKeysetCondition` generates a multi-column WHERE clause that skips past the cursor position. It handles mixed ASC/DESC directions and NULL values:
+
+```typescript
+import { buildKeysetCondition } from '@revisium/prisma-pg-json';
+
+const condition = buildKeysetCondition(
+  parts,                              // OrderByPart[] — sort columns
+  decoded.values,                     // cursor values from decodeCursor
+  decoded.tiebreaker,                 // tiebreaker value (e.g., row ID)
+  Prisma.sql`r."versionId"`,          // tiebreaker SQL expression
+);
+
+// Use in your query
+const query = Prisma.sql`
+  SELECT * FROM rows r
+  WHERE r."tableVersionId" = ${tableVersionId}
+    AND ${condition}
+  ORDER BY r."createdAt" DESC, r."versionId" DESC
+  LIMIT ${take + 1}
+`;
+```
+
+#### Using with generateOrderByParts
+
+`generateOrderByParts` (from the ORDER BY module) produces the `OrderByPart[]` array needed by the keyset utilities:
+
+```typescript
+import { generateOrderByParts } from '@revisium/prisma-pg-json';
+
+const parts = generateOrderByParts({
+  tableAlias: 'r',
+  orderBy: [{ createdAt: 'desc' }, { data: { path: 'priority', type: 'int', direction: 'asc' } }],
+  fieldConfig: { createdAt: 'date', data: 'json' },
+});
+
+const sortHash = computeSortHash(parts);
+const cursorValues = extractCursorValues(lastRow, parts);
+const cursor = encodeCursor(cursorValues, lastRow.id, sortHash);
+```
+
 ### Universal Design
 Works with any table structure - just define your field types and start querying.
 
