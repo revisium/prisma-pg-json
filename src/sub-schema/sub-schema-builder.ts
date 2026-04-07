@@ -367,6 +367,7 @@ function buildSinglePathQuery(
   const jsonPath = buildJsonPathAccess(path);
   const tableId = table.tableId;
   const tableVersionId = table.tableVersionId;
+  const fieldPath = unquotePath(path);
 
   return Prisma.sql`
     SELECT
@@ -374,7 +375,7 @@ function buildSinglePathQuery(
       ${tableVersionId}::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
-      ${path}::text as "fieldPath",
+      ${fieldPath}::text as "fieldPath",
       ${jsonPath} as "data"
     FROM "Row" r
     INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
@@ -411,10 +412,12 @@ function buildSingleArrayQuery(
   const tableVersionId = table.tableVersionId;
   const arrayPath = segments[0].path;
   const arrayJsonPath = buildJsonPathAccess(arrayPath);
+  const arrayFieldPath = unquotePath(arrayPath);
 
   if (hasTrailingPath) {
     const itemPath = segments[1].path;
     const itemJsonPath = buildItemJsonPathAccess(itemPath);
+    const itemFieldPath = unquotePath(itemPath);
 
     return Prisma.sql`
       SELECT
@@ -422,7 +425,7 @@ function buildSingleArrayQuery(
         ${tableVersionId}::text as "tableVersionId",
         r.id as "rowId",
         r."versionId" as "rowVersionId",
-        (${arrayPath}::text || '[' || (arr.idx - 1)::text || '].' || ${itemPath}::text) as "fieldPath",
+        (${arrayFieldPath}::text || '[' || (arr.idx - 1)::text || '].' || ${itemFieldPath}::text) as "fieldPath",
         ${itemJsonPath} as "data"
       FROM "Row" r
       INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
@@ -440,7 +443,7 @@ function buildSingleArrayQuery(
       ${tableVersionId}::text as "tableVersionId",
       r.id as "rowId",
       r."versionId" as "rowVersionId",
-      (${arrayPath}::text || '[' || (arr.idx - 1)::text || ']') as "fieldPath",
+      (${arrayFieldPath}::text || '[' || (arr.idx - 1)::text || ']') as "fieldPath",
       arr.elem as "data"
     FROM "Row" r
     INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
@@ -486,12 +489,12 @@ function buildCrossJoinsAndFieldPaths(segments: PathSegment[]): NestedArrayParts
       `);
 
       fieldPathParts.push({
-        sql: Prisma.sql`${segment.path}::text || '[' || (${Prisma.raw(arrAlias)}.idx - 1)::text || ']'`,
+        sql: Prisma.sql`${unquotePath(segment.path)}::text || '[' || (${Prisma.raw(arrAlias)}.idx - 1)::text || ']'`,
         hasDotPrefix: false,
       });
     } else if (i === segments.length - 1) {
       fieldPathParts.push({
-        sql: Prisma.sql`'.' || ${segment.path}::text`,
+        sql: Prisma.sql`'.' || ${unquotePath(segment.path)}::text`,
         hasDotPrefix: true,
       });
     }
@@ -561,11 +564,22 @@ function buildNestedArrayQuery(
   `;
 }
 
+function unquoteSegment(segment: string): string {
+  if (segment.startsWith('"') && segment.endsWith('"')) {
+    return segment.slice(1, -1);
+  }
+  return segment;
+}
+
+function unquotePath(path: string): string {
+  return path.split('.').map(unquoteSegment).join('.');
+}
+
 function buildPathAccess(base: PrismaSql, path: string): PrismaSql {
   const segments = path.split('.');
   let result = base;
   for (const segment of segments) {
-    result = Prisma.sql`${result}->${segment}`;
+    result = Prisma.sql`${result}->${unquoteSegment(segment)}`;
   }
   return result;
 }

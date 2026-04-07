@@ -224,6 +224,71 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should use custom CTE name 1
   )"
 `;
 
+exports[`SubSchema SQL Generation buildSubSchemaCte with quoted/hyphenated keys should generate CTE for quoted array path with hyphenated keys 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'test-results'::text as "tableId",
+      'ver_test_results_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'results'::text || '[' || (arr.idx - 1)::text || '].' || 'test-case'::text
+      ) as "fieldPath",
+      arr.elem -> 'test-case' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'results') = 'array' THEN r."data" -> 'results'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr (elem, idx)
+    WHERE
+      rt."B" = 'ver_test_results_001'
+      AND jsonb_typeof(arr.elem -> 'test-case') = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte with quoted/hyphenated keys should generate CTE for quoted nested object path 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'config'::text as "tableId",
+      'ver_config_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'api-settings.auth-token'::text as "fieldPath",
+      r."data" -> 'api-settings' -> 'auth-token' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_config_001'
+      AND jsonb_typeof(r."data" -> 'api-settings' -> 'auth-token') = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte with quoted/hyphenated keys should generate CTE for quoted single path (hyphenated key) 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'test-results'::text as "tableId",
+      'ver_test_results_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'test-case'::text as "fieldPath",
+      r."data" -> 'test-case' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_test_results_001'
+      AND jsonb_typeof(r."data" -> 'test-case') = 'object'
+  )"
+`;
+
 exports[`SubSchema SQL Generation buildSubSchemaOrderBy should generate ORDER BY for data field with nulls 1`] = `
 "ORDER BY
   "data" ->> 'size' DESC NULLS LAST"
