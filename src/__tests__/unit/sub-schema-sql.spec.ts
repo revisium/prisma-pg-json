@@ -149,6 +149,147 @@ describe('SubSchema SQL Generation', () => {
     });
   });
 
+  describe('buildSubSchemaCte with quoted/hyphenated keys', () => {
+    it('should handle quoted single path (hyphenated key)', () => {
+      const params: SubSchemaCteParams = {
+        tables: [
+          {
+            tableId: 'test-results',
+            tableVersionId: 'ver_001',
+            paths: [{ path: '"test-case"' }],
+          },
+        ],
+      };
+
+      const cte = buildSubSchemaCte(params);
+      const sql = sqlToString(cte);
+
+      expect(sql).toContain("-> 'test-case'");
+      expect(sql).toContain("'test-case'::text as \"fieldPath\"");
+      expect(sql).not.toContain("'\"test-case\"'");
+      expect(sql).toMatchSnapshot();
+    });
+
+    it('should handle quoted nested object path', () => {
+      const params: SubSchemaCteParams = {
+        tables: [
+          {
+            tableId: 'config',
+            tableVersionId: 'ver_001',
+            paths: [{ path: '"api-settings"."auth-token"' }],
+          },
+        ],
+      };
+
+      const cte = buildSubSchemaCte(params);
+      const sql = sqlToString(cte);
+
+      expect(sql).toContain("-> 'api-settings' -> 'auth-token'");
+      expect(sql).toContain("'api-settings.auth-token'::text as \"fieldPath\"");
+      expect(sql).not.toContain("'\"api-settings\"'");
+      expect(sql).toMatchSnapshot();
+    });
+
+    it('should handle quoted array path with trailing hyphenated key', () => {
+      const params: SubSchemaCteParams = {
+        tables: [
+          {
+            tableId: 'test-results',
+            tableVersionId: 'ver_001',
+            paths: [{ path: '"results"[*]."test-case"' }],
+          },
+        ],
+      };
+
+      const cte = buildSubSchemaCte(params);
+      const sql = sqlToString(cte);
+
+      expect(sql).toContain("-> 'results'");
+      expect(sql).toContain("-> 'test-case'");
+      expect(sql).toContain("'results'::text || '['");
+      expect(sql).toContain("|| 'test-case'::text");
+      expect(sql).not.toContain("'\"results\"'");
+      expect(sql).not.toContain("'\"test-case\"'");
+      expect(sql).toMatchSnapshot();
+    });
+
+    it('should handle quoted array path without trailing key', () => {
+      const params: SubSchemaCteParams = {
+        tables: [
+          {
+            tableId: 'media',
+            tableVersionId: 'ver_001',
+            paths: [{ path: '"gallery-items"[*]' }],
+          },
+        ],
+      };
+
+      const cte = buildSubSchemaCte(params);
+      const sql = sqlToString(cte);
+
+      expect(sql).toContain("-> 'gallery-items'");
+      expect(sql).toContain("'gallery-items'::text || '['");
+      expect(sql).not.toContain("'\"gallery-items\"'");
+      expect(sql).toMatchSnapshot();
+    });
+
+    it('should handle nested arrays with quoted keys', () => {
+      const params: SubSchemaCteParams = {
+        tables: [
+          {
+            tableId: 'catalog',
+            tableVersionId: 'ver_001',
+            paths: [{ path: '"product-lines"[*]."color-variants"[*]."image-url"' }],
+          },
+        ],
+      };
+
+      const cte = buildSubSchemaCte(params);
+      const sql = sqlToString(cte);
+
+      expect(sql).toContain("-> 'product-lines'");
+      expect(sql).toContain("-> 'color-variants'");
+      expect(sql).toContain("-> 'image-url'");
+      expect(sql).not.toContain("'\"product-lines\"'");
+      expect(sql).not.toContain("'\"color-variants\"'");
+      expect(sql).not.toContain("'\"image-url\"'");
+      expect(sql).toMatchSnapshot();
+    });
+
+    it('should handle mixed quoted and unquoted paths in same table', () => {
+      const params: SubSchemaCteParams = {
+        tables: [
+          {
+            tableId: 'articles',
+            tableVersionId: 'ver_001',
+            paths: [
+              { path: 'avatar' },
+              { path: '"cover-image"' },
+              { path: 'metadata."hero-banner"' },
+              { path: '"media-items"[*].file' },
+            ],
+          },
+        ],
+      };
+
+      const cte = buildSubSchemaCte(params);
+      const sql = sqlToString(cte);
+
+      // unquoted paths work as before
+      expect(sql).toContain("-> 'avatar'");
+      expect(sql).toContain("-> 'file'");
+      // quoted paths strip quotes
+      expect(sql).toContain("-> 'cover-image'");
+      expect(sql).toContain("-> 'hero-banner'");
+      expect(sql).toContain("-> 'media-items'");
+      // no literal double quotes in SQL values
+      expect(sql).not.toContain("'\"cover-image\"'");
+      expect(sql).not.toContain("'\"hero-banner\"'");
+      expect(sql).not.toContain("'\"media-items\"'");
+      expect(sql).toMatchSnapshot();
+    });
+  });
+
   describe('buildSubSchemaWhere', () => {
     it('should return empty for undefined where', () => {
       const whereClause = buildSubSchemaWhere(undefined);
