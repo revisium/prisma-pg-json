@@ -224,6 +224,199 @@ exports[`SubSchema SQL Generation buildSubSchemaCte should use custom CTE name 1
   )"
 `;
 
+exports[`SubSchema SQL Generation buildSubSchemaCte with quoted/hyphenated keys should handle mixed quoted and unquoted paths in same table 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'articles'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'avatar'::text as "fieldPath",
+      r."data" -> 'avatar' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(r."data" -> 'avatar') = 'object'
+    UNION ALL
+    SELECT
+      'articles'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'cover-image'::text as "fieldPath",
+      r."data" -> 'cover-image' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(r."data" -> 'cover-image') = 'object'
+    UNION ALL
+    SELECT
+      'articles'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'metadata.hero-banner'::text as "fieldPath",
+      r."data" -> 'metadata' -> 'hero-banner' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(r."data" -> 'metadata' -> 'hero-banner') = 'object'
+    UNION ALL
+    SELECT
+      'articles'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'media-items'::text || '[' || (arr.idx - 1)::text || '].' || 'file'::text
+      ) as "fieldPath",
+      arr.elem -> 'file' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'media-items') = 'array' THEN r."data" -> 'media-items'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr (elem, idx)
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(arr.elem -> 'file') = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte with quoted/hyphenated keys should handle nested arrays with quoted keys 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'catalog'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'product-lines'::text || '[' || (arr1.idx - 1)::text || ']' || '.' || 'color-variants'::text || '[' || (arr2.idx - 1)::text || ']' || '.' || 'image-url'::text
+      ) as "fieldPath",
+      arr2.elem -> 'image-url' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'product-lines') = 'array' THEN r."data" -> 'product-lines'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr1 (elem, idx)
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(arr1.elem -> 'color-variants') = 'array' THEN arr1.elem -> 'color-variants'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr2 (elem, idx)
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(arr2.elem -> 'image-url') = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte with quoted/hyphenated keys should handle quoted array path with trailing hyphenated key 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'test-results'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'results'::text || '[' || (arr.idx - 1)::text || '].' || 'test-case'::text
+      ) as "fieldPath",
+      arr.elem -> 'test-case' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'results') = 'array' THEN r."data" -> 'results'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr (elem, idx)
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(arr.elem -> 'test-case') = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte with quoted/hyphenated keys should handle quoted array path without trailing key 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'media'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      (
+        'gallery-items'::text || '[' || (arr.idx - 1)::text || ']'
+      ) as "fieldPath",
+      arr.elem as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(r."data" -> 'gallery-items') = 'array' THEN r."data" -> 'gallery-items'
+          ELSE '[]'::jsonb
+        END
+      ) WITH ORDINALITY AS arr (elem, idx)
+    WHERE
+      rt."B" = 'ver_001'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte with quoted/hyphenated keys should handle quoted nested object path 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'config'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'api-settings.auth-token'::text as "fieldPath",
+      r."data" -> 'api-settings' -> 'auth-token' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(r."data" -> 'api-settings' -> 'auth-token') = 'object'
+  )"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaCte with quoted/hyphenated keys should handle quoted single path (hyphenated key) 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'test-results'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'test-case'::text as "fieldPath",
+      r."data" -> 'test-case' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(r."data" -> 'test-case') = 'object'
+  )"
+`;
+
 exports[`SubSchema SQL Generation buildSubSchemaOrderBy should generate ORDER BY for data field with nulls 1`] = `
 "ORDER BY
   "data" ->> 'size' DESC NULLS LAST"
