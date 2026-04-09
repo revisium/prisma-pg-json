@@ -179,7 +179,7 @@ export class SearchOperator extends BaseOperator<string> {
     const { func, value: queryValue } = getQueryFuncAndValue(searchType, value);
     const searchInParam = getSearchInParameter(searchIn);
 
-    if (!jsonPath) {
+    if (jsonPath === null) {
       return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef}, '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(func)}(${Prisma.raw(`'${language}'`)}, ${queryValue})`;
     }
 
