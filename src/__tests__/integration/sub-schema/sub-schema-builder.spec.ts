@@ -5,6 +5,7 @@ import {
   buildSubSchemaQuery,
   buildSubSchemaCountQuery,
   buildSubSchemaCte,
+  buildSubSchemaWhere,
   buildSubSchemaOrderBy,
 } from '../../../sub-schema/sub-schema-builder';
 import { Prisma } from '../../../generated/client';
@@ -1791,6 +1792,302 @@ describe('SubSchemaBuilder Integration', () => {
       expect(results).toHaveLength(4);
       expect(results.map((r) => r.rowId)).toEqual(['post-new', 'post-new', 'post-old', 'post-old']);
       expect(results.map((r) => r.fieldPath)).toEqual(['gallery[0]', 'gallery[1]', 'gallery[0]', 'gallery[1]']);
+    });
+  });
+
+  describe('deeply nested object path', () => {
+    it('should extract from deeply nested object path (config.theme.logo.image)', async () => {
+      const tableVersionId = nanoid();
+      await createTestData([
+        {
+          tableId: 'settings',
+          tableVersionId,
+          rows: [
+            {
+              rowId: 'settings-1',
+              rowVersionId: nanoid(),
+              data: {
+                config: {
+                  theme: {
+                    logo: {
+                      image: createFile('f-logo', 'logo.png'),
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ]);
+
+      const query = buildSubSchemaQuery({
+        tables: [{ tableId: 'settings', tableVersionId, paths: [{ path: 'config.theme.logo.image' }] }],
+        take: 100,
+        skip: 0,
+      });
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].fieldPath).toBe('config.theme.logo.image');
+      expect((results[0].data as Record<string, unknown>).fileId).toBe('f-logo');
+    });
+  });
+
+  describe('composable API with CTE + WHERE + ORDER BY', () => {
+    it('should combine buildSubSchemaCte + buildSubSchemaWhere + buildSubSchemaOrderBy', async () => {
+      const tableVersionId = nanoid();
+      await createTestData([
+        {
+          tableId: 'media',
+          tableVersionId,
+          rows: [
+            { rowId: 'img-b', rowVersionId: nanoid(), data: { file: createFile('f1', 'beta.png', { size: 2000, status: 'uploaded' }) } },
+            { rowId: 'img-a', rowVersionId: nanoid(), data: { file: createFile('f2', 'alpha.png', { size: 3000, status: 'ready' }) } },
+            { rowId: 'img-c', rowVersionId: nanoid(), data: { file: createFile('f3', 'gamma.png', { size: 1000, status: 'uploaded' }) } },
+          ],
+        },
+      ]);
+
+      const tables: SubSchemaTableConfig[] = [
+        { tableId: 'media', tableVersionId, paths: [{ path: 'file' }] },
+      ];
+
+      const cte = buildSubSchemaCte({ tables });
+      const whereClause = buildSubSchemaWhere({
+        data: { path: 'status', equals: 'uploaded' },
+      });
+      const orderByClause = buildSubSchemaOrderBy([
+        { data: { path: 'size', order: 'asc', nulls: 'last' } },
+      ]);
+
+      const query = Prisma.sql`
+        ${cte}
+        SELECT "tableId", "tableVersionId", "rowId", "rowVersionId", "fieldPath", "data"
+        FROM sub_schema_items
+        ${whereClause}
+        ${orderByClause}
+        LIMIT 100 OFFSET 0
+      `;
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results).toHaveLength(2);
+      expect(results.map((r) => r.rowId)).toEqual(['img-c', 'img-b']);
+    });
+  });
+
+  describe('ordering - additional cases', () => {
+    let tableVersionId: string;
+
+    beforeEach(async () => {
+      tableVersionId = nanoid();
+      await createTestData([
+        {
+          tableId: 'docs',
+          tableVersionId,
+          rows: [
+            { rowId: 'doc-b', rowVersionId: nanoid(), data: { file: createFile('f1', 'beta.pdf', { size: 2000 }) } },
+            { rowId: 'doc-a', rowVersionId: nanoid(), data: { file: createFile('f2', 'alpha.pdf', { size: 3000 }) } },
+            { rowId: 'doc-c', rowVersionId: nanoid(), data: { file: createFile('f3', 'gamma.pdf') } },
+          ],
+        },
+      ]);
+    });
+
+    it('should order by tableId', async () => {
+      const tvId2 = nanoid();
+      await createTestData([
+        {
+          tableId: 'images',
+          tableVersionId: tvId2,
+          rows: [
+            { rowId: 'img-1', rowVersionId: nanoid(), data: { file: createFile('f4', 'pic.png') } },
+          ],
+        },
+      ]);
+
+      const query = buildSubSchemaQuery({
+        tables: [
+          { tableId: 'docs', tableVersionId, paths: [{ path: 'file' }] },
+          { tableId: 'images', tableVersionId: tvId2, paths: [{ path: 'file' }] },
+        ],
+        orderBy: [{ tableId: 'asc' }],
+        take: 100,
+        skip: 0,
+      });
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results.length).toBeGreaterThanOrEqual(4);
+      const tableIds = results.map((r) => r.tableId);
+      const docsIdx = tableIds.indexOf('docs');
+      const imgsIdx = tableIds.indexOf('images');
+      expect(docsIdx).toBeLessThan(imgsIdx);
+    });
+
+    it('should order by fieldPath', async () => {
+      const query = buildSubSchemaQuery({
+        tables: [
+          {
+            tableId: 'docs',
+            tableVersionId,
+            paths: [{ path: 'file' }],
+          },
+        ],
+        orderBy: [{ fieldPath: 'asc' }, { rowId: 'asc' }],
+        take: 100,
+        skip: 0,
+      });
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results.every((r) => r.fieldPath === 'file')).toBe(true);
+    });
+
+    it('should order by multiple fields (tableId asc, data size desc)', async () => {
+      const query = buildSubSchemaQuery({
+        tables: [
+          { tableId: 'docs', tableVersionId, paths: [{ path: 'file' }] },
+        ],
+        orderBy: [
+          { tableId: 'asc' },
+          { data: { path: 'size', order: 'desc', nulls: 'last' } },
+        ],
+        take: 100,
+        skip: 0,
+      });
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results).toHaveLength(3);
+      const sizes = results.map((r) => (r.data as Record<string, unknown>).size);
+      expect(sizes).toEqual([3000, 2000, 1000]);
+    });
+
+    it('should handle nulls first in data ordering', async () => {
+      const tvId = nanoid();
+      await createTestData([
+        {
+          tableId: 'nulltest',
+          tableVersionId: tvId,
+          rows: [
+            { rowId: 'with-size', rowVersionId: nanoid(), data: { file: { fileId: 'f1', fileName: 'a.png', size: 100, status: 'uploaded' } } },
+            { rowId: 'no-size', rowVersionId: nanoid(), data: { file: { fileId: 'f2', fileName: 'b.png', status: 'uploaded' } } },
+          ],
+        },
+      ]);
+
+      const query = buildSubSchemaQuery({
+        tables: [{ tableId: 'nulltest', tableVersionId: tvId, paths: [{ path: 'file' }] }],
+        orderBy: [{ data: { path: 'size', order: 'asc', nulls: 'first' } }],
+        take: 100,
+        skip: 0,
+      });
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results).toHaveLength(2);
+      expect(results[0].rowId).toBe('no-size');
+      expect(results[1].rowId).toBe('with-size');
+    });
+  });
+
+  describe('quoted/hyphenated keys (e2e)', () => {
+    it('should extract data from hyphenated key path', async () => {
+      const tableVersionId = nanoid();
+      await createTestData([
+        {
+          tableId: 'configs',
+          tableVersionId,
+          rows: [
+            {
+              rowId: 'cfg-1',
+              rowVersionId: nanoid(),
+              data: { 'api-key': createFile('f1', 'key.pem') },
+            },
+          ],
+        },
+      ]);
+
+      const query = buildSubSchemaQuery({
+        tables: [{ tableId: 'configs', tableVersionId, paths: [{ path: '"api-key"' }] }],
+        take: 100,
+        skip: 0,
+      });
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].fieldPath).toBe('api-key');
+      expect((results[0].data as Record<string, unknown>).fileId).toBe('f1');
+    });
+
+    it('should extract data from hyphenated array path', async () => {
+      const tableVersionId = nanoid();
+      await createTestData([
+        {
+          tableId: 'galleries',
+          tableVersionId,
+          rows: [
+            {
+              rowId: 'gal-1',
+              rowVersionId: nanoid(),
+              data: {
+                'media-items': [
+                  createFile('f1', 'pic1.png'),
+                  createFile('f2', 'pic2.png'),
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const query = buildSubSchemaQuery({
+        tables: [{ tableId: 'galleries', tableVersionId, paths: [{ path: '"media-items"[*]' }] }],
+        take: 100,
+        skip: 0,
+      });
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+
+      expect(results).toHaveLength(2);
+      expect(results.map((r) => r.fieldPath).sort()).toEqual(['media-items[0]', 'media-items[1]']);
+    });
+  });
+
+  describe('pagination validation (e2e)', () => {
+    it('should throw for negative take', async () => {
+      await expect(async () => {
+        buildSubSchemaQuery({
+          tables: [{ tableId: 't', tableVersionId: 'v', paths: [{ path: 'f' }] }],
+          take: -1,
+          skip: 0,
+        });
+      }).rejects.toThrow();
+    });
+
+    it('should accept boundary values', async () => {
+      const tableVersionId = nanoid();
+      await createTestData([
+        {
+          tableId: 'boundary',
+          tableVersionId,
+          rows: [
+            { rowId: 'r1', rowVersionId: nanoid(), data: { file: createFile('f1', 'a.png') } },
+          ],
+        },
+      ]);
+
+      const query = buildSubSchemaQuery({
+        tables: [{ tableId: 'boundary', tableVersionId, paths: [{ path: 'file' }] }],
+        take: 1,
+        skip: 0,
+      });
+
+      const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
+      expect(results).toHaveLength(1);
     });
   });
 });
