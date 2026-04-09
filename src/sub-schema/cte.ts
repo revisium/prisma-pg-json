@@ -50,9 +50,7 @@ export function buildCteQueries(tables: SubSchemaTableConfig[]): PrismaSql {
     return getEmptyCteSelect();
   }
 
-  return queries.reduce((acc, query) =>
-    Prisma.sql`${acc} UNION ALL ${query}`,
-  );
+  return Prisma.join(queries, ' UNION ALL ');
 }
 
 function buildSinglePathQuery(
@@ -240,7 +238,7 @@ function buildNestedArrayQuery(
   const { crossJoins, fieldPathParts, arrayCount } = buildCrossJoinsAndFieldPaths(segments);
   const fieldPathExpr = joinFieldPathParts(fieldPathParts);
   const { dataExpr, whereCondition } = buildDataExprAndWhere(segments, arrayCount, hasTrailingPath);
-  const crossJoinsSql = crossJoins.reduce((acc, join) => Prisma.sql`${acc} ${join}`);
+  const crossJoinsSql = Prisma.join(crossJoins, ' ');
 
   return Prisma.sql`
     SELECT
