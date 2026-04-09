@@ -99,6 +99,37 @@ function resolveBracketContent(bracketContent: string): string {
   return bracketContent;
 }
 
+interface PathParserState {
+  pathParts: string[];
+  currentPart: string;
+  inBrackets: boolean;
+  bracketContent: string;
+}
+
+function processPathChar(state: PathParserState, char: string): void {
+  if (char === '[') {
+    if (state.currentPart) {
+      state.pathParts.push(state.currentPart);
+      state.currentPart = '';
+    }
+    state.inBrackets = true;
+    state.bracketContent = '';
+  } else if (char === ']' && state.inBrackets) {
+    state.pathParts.push(resolveBracketContent(state.bracketContent));
+    state.inBrackets = false;
+    state.bracketContent = '';
+  } else if (char === '.' && !state.inBrackets) {
+    if (state.currentPart) {
+      state.pathParts.push(state.currentPart);
+      state.currentPart = '';
+    }
+  } else if (state.inBrackets) {
+    state.bracketContent += char;
+  } else {
+    state.currentPart += char;
+  }
+}
+
 function parseStringPath(path: string): string[] {
   const trimmedPath = validatePathInput(path);
 
@@ -108,44 +139,26 @@ function parseStringPath(path: string): string[] {
     return [normalizedPath];
   }
 
-  const pathParts: string[] = [];
-  let currentPart = '';
-  let inBrackets = false;
-  let bracketContent = '';
+  const state: PathParserState = {
+    pathParts: [],
+    currentPart: '',
+    inBrackets: false,
+    bracketContent: '',
+  };
 
   for (const char of normalizedPath) {
-    if (char === '[') {
-      if (currentPart) {
-        pathParts.push(currentPart);
-        currentPart = '';
-      }
-      inBrackets = true;
-      bracketContent = '';
-    } else if (char === ']' && inBrackets) {
-      pathParts.push(resolveBracketContent(bracketContent));
-      inBrackets = false;
-      bracketContent = '';
-    } else if (char === '.' && !inBrackets) {
-      if (currentPart) {
-        pathParts.push(currentPart);
-        currentPart = '';
-      }
-    } else if (inBrackets) {
-      bracketContent += char;
-    } else {
-      currentPart += char;
-    }
+    processPathChar(state, char);
   }
 
-  if (inBrackets) {
+  if (state.inBrackets) {
     throw new Error('Unclosed bracket in JSON path');
   }
 
-  if (currentPart) {
-    pathParts.push(currentPart);
+  if (state.currentPart) {
+    state.pathParts.push(state.currentPart);
   }
 
-  return pathParts;
+  return state.pathParts;
 }
 
 /**
@@ -200,7 +213,8 @@ export function arrayToJsonPath(pathArray: string[]): string {
         segment.includes(']') ||
         segment.includes('"')
       ) {
-        return `["${segment.replaceAll('"', String.raw`\"`)}"]`;
+        const escaped = segment.replaceAll('"', String.raw`\"`);
+        return `["${escaped}"]`;
       }
       return segment;
     })
