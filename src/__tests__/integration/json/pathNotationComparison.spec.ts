@@ -67,7 +67,8 @@ describe('Path Notation Comparison', () => {
     expect(results.length).toBe(expectedIds.length);
     const resultIds = results.map((r) => r.id);
     resultIds.sort((a, b) => a.localeCompare(b));
-    expect(resultIds).toEqual(expectedIds.sort((a, b) => a.localeCompare(b)));
+    const sortedExpectedIds = [...expectedIds].sort((a, b) => a.localeCompare(b));
+    expect(resultIds).toEqual(sortedExpectedIds);
     return results;
   };
 

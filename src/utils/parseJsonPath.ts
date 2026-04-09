@@ -200,7 +200,7 @@ export function arrayToJsonPath(pathArray: string[]): string {
         segment.includes(']') ||
         segment.includes('"')
       ) {
-        return `["${segment.replaceAll('"', '\\"')}"]`;
+        return `["${segment.replaceAll('"', String.raw`\"`)}"]`;
       }
       return segment;
     })
