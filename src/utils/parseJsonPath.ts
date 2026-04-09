@@ -32,7 +32,7 @@ export function convertToJsonPath(path: string | string[]): string {
   } else {
     normalizedPath = path.map((segment) => {
       if (typeof segment === 'string' && /^-\d+$/.test(segment)) {
-        const index = parseInt(segment, 10);
+        const index = Number.parseInt(segment, 10);
         if (index === -1) {
           return 'last';
         } else {
@@ -65,11 +65,11 @@ export function convertToJsonPath(path: string | string[]): string {
         return segment;
       })
       .join('.')
-      .replace(/\.\[/g, '[')
+      .replaceAll('.[', '[')
   ); // Fix .[ to [
 }
 
-function parseStringPath(path: string): string[] {
+function validatePathInput(path: string): string {
   if (!path || typeof path !== 'string') {
     throw new Error('JSON path cannot be empty');
   }
@@ -83,6 +83,25 @@ function parseStringPath(path: string): string[] {
     throw new Error('Root path $ is not supported');
   }
 
+  return trimmedPath;
+}
+
+function resolveBracketContent(bracketContent: string): string {
+  if (/^-\d+$/.test(bracketContent)) {
+    const index = Number.parseInt(bracketContent, 10);
+    if (index === -1) {
+      return 'last';
+    }
+    throw new Error(
+      `Negative index ${index} is not supported yet. Only -1 (converted to 'last') is supported.`,
+    );
+  }
+  return bracketContent;
+}
+
+function parseStringPath(path: string): string[] {
+  const trimmedPath = validatePathInput(path);
+
   const normalizedPath = trimmedPath.startsWith('$.') ? trimmedPath.substring(2) : trimmedPath;
 
   if (!normalizedPath.includes('.') && !normalizedPath.includes('[')) {
@@ -94,9 +113,7 @@ function parseStringPath(path: string): string[] {
   let inBrackets = false;
   let bracketContent = '';
 
-  for (let i = 0; i < normalizedPath.length; i++) {
-    const char = normalizedPath[i];
-
+  for (const char of normalizedPath) {
     if (char === '[') {
       if (currentPart) {
         pathParts.push(currentPart);
@@ -104,34 +121,19 @@ function parseStringPath(path: string): string[] {
       }
       inBrackets = true;
       bracketContent = '';
-    } else if (char === ']') {
-      if (inBrackets) {
-        if (/^-\d+$/.test(bracketContent)) {
-          const index = parseInt(bracketContent, 10);
-          if (index === -1) {
-            pathParts.push('last');
-          } else {
-            throw new Error(
-              `Negative index ${index} is not supported yet. Only -1 (converted to 'last') is supported.`,
-            );
-          }
-        } else {
-          pathParts.push(bracketContent);
-        }
-        inBrackets = false;
-        bracketContent = '';
-      }
+    } else if (char === ']' && inBrackets) {
+      pathParts.push(resolveBracketContent(bracketContent));
+      inBrackets = false;
+      bracketContent = '';
     } else if (char === '.' && !inBrackets) {
       if (currentPart) {
         pathParts.push(currentPart);
         currentPart = '';
       }
+    } else if (inBrackets) {
+      bracketContent += char;
     } else {
-      if (inBrackets) {
-        bracketContent += char;
-      } else {
-        currentPart += char;
-      }
+      currentPart += char;
     }
   }
 
@@ -198,12 +200,12 @@ export function arrayToJsonPath(pathArray: string[]): string {
         segment.includes(']') ||
         segment.includes('"')
       ) {
-        return `["${segment.replace(/"/g, '\\"')}"]`;
+        return `["${segment.replaceAll('"', '\\"')}"]`;
       }
       return segment;
     })
     .join('.')
-    .replace(/\.\[/g, '[');
+    .replaceAll('.[', '[');
 }
 
 /**

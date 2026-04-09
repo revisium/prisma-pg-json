@@ -1,6 +1,5 @@
-import './setup';
-import { nanoid } from 'nanoid';
 import { prisma } from './setup';
+import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
 import { WhereConditionsTyped } from '../../types';
 
@@ -242,16 +241,8 @@ describe('String Filters Integration', () => {
   });
 
   it('should handle string search operation', async () => {
-    await testQuery({ schemaHash: { search: 'cat' } }, [
-      ids['str-1'],
-      ids['str-2'],
-      ids['str-4'],
-    ]);
-    await testQuery({ schemaHash: { search: 'dog' } }, [
-      ids['str-1'],
-      ids['str-3'],
-      ids['str-4'],
-    ]);
+    await testQuery({ schemaHash: { search: 'cat' } }, [ids['str-1'], ids['str-2'], ids['str-4']]);
+    await testQuery({ schemaHash: { search: 'dog' } }, [ids['str-1'], ids['str-3'], ids['str-4']]);
     await testQuery({ schemaHash: { search: 'cat | dog' } }, [ids['str-1'], ids['str-4']]);
     await testQuery({ schemaHash: { search: 'CAT | DOG' } }, [ids['str-1'], ids['str-4']]);
     await testQuery({ schemaHash: { search: 'cat & dog' } }, [ids['str-1'], ids['str-4']]);

@@ -1,6 +1,106 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import { StringFilter } from '../types';
 
+function likeCondition(
+  fieldRef: PrismaSql,
+  pattern: string,
+  isCaseInsensitive: boolean,
+): PrismaSql {
+  if (isCaseInsensitive) {
+    return Prisma.sql`LOWER(${fieldRef}) LIKE LOWER(${pattern})`;
+  }
+  return Prisma.sql`${fieldRef} LIKE ${pattern}`;
+}
+
+function processStringPatterns(
+  fieldRef: PrismaSql,
+  filter: StringFilter,
+  isCaseInsensitive: boolean,
+  conditions: PrismaSql[],
+): void {
+  if (filter.equals !== undefined) {
+    if (isCaseInsensitive) {
+      conditions.push(Prisma.sql`LOWER(${fieldRef}) = LOWER(${filter.equals})`);
+    } else {
+      conditions.push(Prisma.sql`${fieldRef} = ${filter.equals}`);
+    }
+  }
+  if (filter.contains !== undefined) {
+    conditions.push(likeCondition(fieldRef, `%${filter.contains}%`, isCaseInsensitive));
+  }
+  if (filter.startsWith !== undefined) {
+    conditions.push(likeCondition(fieldRef, `${filter.startsWith}%`, isCaseInsensitive));
+  }
+  if (filter.endsWith !== undefined) {
+    conditions.push(likeCondition(fieldRef, `%${filter.endsWith}`, isCaseInsensitive));
+  }
+}
+
+function processStringArrayFilters(
+  fieldRef: PrismaSql,
+  filter: StringFilter,
+  isCaseInsensitive: boolean,
+  conditions: PrismaSql[],
+): void {
+  if (filter.in !== undefined && Array.isArray(filter.in) && filter.in.length > 0) {
+    if (isCaseInsensitive) {
+      const lowercaseValues = filter.in.map((val) => val.toLowerCase());
+      conditions.push(Prisma.sql`LOWER(${fieldRef}) IN (${Prisma.join(lowercaseValues, ', ')})`);
+    } else {
+      conditions.push(Prisma.sql`${fieldRef} IN (${Prisma.join(filter.in, ', ')})`);
+    }
+  }
+  if (filter.notIn !== undefined && Array.isArray(filter.notIn) && filter.notIn.length > 0) {
+    if (isCaseInsensitive) {
+      const lowercaseValues = filter.notIn.map((val) => val.toLowerCase());
+      conditions.push(
+        Prisma.sql`LOWER(${fieldRef}) NOT IN (${Prisma.join(lowercaseValues, ', ')})`,
+      );
+    } else {
+      conditions.push(Prisma.sql`${fieldRef} NOT IN (${Prisma.join(filter.notIn, ', ')})`);
+    }
+  }
+}
+
+function processStringComparisons(
+  fieldRef: PrismaSql,
+  filter: StringFilter,
+  conditions: PrismaSql[],
+): void {
+  if (filter.gt !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} > ${filter.gt}`);
+  }
+  if (filter.gte !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} >= ${filter.gte}`);
+  }
+  if (filter.lt !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} < ${filter.lt}`);
+  }
+  if (filter.lte !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} <= ${filter.lte}`);
+  }
+  if (filter.search !== undefined) {
+    conditions.push(
+      Prisma.sql`to_tsvector('english', ${fieldRef}) @@ plainto_tsquery('english', ${filter.search})`,
+    );
+  }
+}
+
+function processStringNot(
+  fieldRef: PrismaSql,
+  not: string | StringFilter,
+  isCaseInsensitive: boolean,
+): PrismaSql {
+  if (typeof not === 'string') {
+    if (isCaseInsensitive) {
+      return Prisma.sql`LOWER(${fieldRef}) != LOWER(${not})`;
+    }
+    return Prisma.sql`${fieldRef} != ${not}`;
+  }
+  const notCondition = generateStringFilter(fieldRef, not);
+  return Prisma.sql`NOT (${notCondition})`;
+}
+
 /**
  * Generate a WHERE condition for a string column.
  *
@@ -15,7 +115,6 @@ export function generateStringFilter(
   fieldRef: PrismaSql,
   filter: string | StringFilter,
 ): PrismaSql {
-
   if (typeof filter === 'string') {
     return Prisma.sql`${fieldRef} = ${filter}`;
   }
@@ -23,94 +122,12 @@ export function generateStringFilter(
   const conditions: PrismaSql[] = [];
   const isCaseInsensitive = filter.mode === 'insensitive';
 
-  if (filter.equals !== undefined) {
-    if (isCaseInsensitive) {
-      conditions.push(Prisma.sql`LOWER(${fieldRef}) = LOWER(${filter.equals})`);
-    } else {
-      conditions.push(Prisma.sql`${fieldRef} = ${filter.equals}`);
-    }
-  }
-
-  if (filter.contains !== undefined) {
-    const pattern = `%${filter.contains}%`;
-    if (isCaseInsensitive) {
-      conditions.push(Prisma.sql`LOWER(${fieldRef}) LIKE LOWER(${pattern})`);
-    } else {
-      conditions.push(Prisma.sql`${fieldRef} LIKE ${pattern}`);
-    }
-  }
-
-  if (filter.startsWith !== undefined) {
-    const pattern = `${filter.startsWith}%`;
-    if (isCaseInsensitive) {
-      conditions.push(Prisma.sql`LOWER(${fieldRef}) LIKE LOWER(${pattern})`);
-    } else {
-      conditions.push(Prisma.sql`${fieldRef} LIKE ${pattern}`);
-    }
-  }
-
-  if (filter.endsWith !== undefined) {
-    const pattern = `%${filter.endsWith}`;
-    if (isCaseInsensitive) {
-      conditions.push(Prisma.sql`LOWER(${fieldRef}) LIKE LOWER(${pattern})`);
-    } else {
-      conditions.push(Prisma.sql`${fieldRef} LIKE ${pattern}`);
-    }
-  }
-
-  if (filter.in !== undefined && Array.isArray(filter.in) && filter.in.length > 0) {
-    if (isCaseInsensitive) {
-      const lowercaseValues = filter.in.map((val) => val.toLowerCase());
-      conditions.push(Prisma.sql`LOWER(${fieldRef}) IN (${Prisma.join(lowercaseValues, ', ')})`);
-    } else {
-      conditions.push(Prisma.sql`${fieldRef} IN (${Prisma.join(filter.in, ', ')})`);
-    }
-  }
-
-  if (filter.notIn !== undefined && Array.isArray(filter.notIn) && filter.notIn.length > 0) {
-    if (isCaseInsensitive) {
-      const lowercaseValues = filter.notIn.map((val) => val.toLowerCase());
-      conditions.push(
-        Prisma.sql`LOWER(${fieldRef}) NOT IN (${Prisma.join(lowercaseValues, ', ')})`,
-      );
-    } else {
-      conditions.push(Prisma.sql`${fieldRef} NOT IN (${Prisma.join(filter.notIn, ', ')})`);
-    }
-  }
-
-  if (filter.gt !== undefined) {
-    conditions.push(Prisma.sql`${fieldRef} > ${filter.gt}`);
-  }
-
-  if (filter.gte !== undefined) {
-    conditions.push(Prisma.sql`${fieldRef} >= ${filter.gte}`);
-  }
-
-  if (filter.lt !== undefined) {
-    conditions.push(Prisma.sql`${fieldRef} < ${filter.lt}`);
-  }
-
-  if (filter.lte !== undefined) {
-    conditions.push(Prisma.sql`${fieldRef} <= ${filter.lte}`);
-  }
-
-  if (filter.search !== undefined) {
-    conditions.push(
-      Prisma.sql`to_tsvector('english', ${fieldRef}) @@ plainto_tsquery('english', ${filter.search})`,
-    );
-  }
+  processStringPatterns(fieldRef, filter, isCaseInsensitive, conditions);
+  processStringArrayFilters(fieldRef, filter, isCaseInsensitive, conditions);
+  processStringComparisons(fieldRef, filter, conditions);
 
   if (filter.not !== undefined) {
-    if (typeof filter.not === 'string') {
-      if (isCaseInsensitive) {
-        conditions.push(Prisma.sql`LOWER(${fieldRef}) != LOWER(${filter.not})`);
-      } else {
-        conditions.push(Prisma.sql`${fieldRef} != ${filter.not}`);
-      }
-    } else {
-      const notCondition = generateStringFilter(fieldRef, filter.not);
-      conditions.push(Prisma.sql`NOT (${notCondition})`);
-    }
+    conditions.push(processStringNot(fieldRef, filter.not, isCaseInsensitive));
   }
 
   if (conditions.length === 0) {

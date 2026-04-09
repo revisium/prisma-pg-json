@@ -76,7 +76,13 @@ function processJsonOrder(
   if (!result) {
     return null;
   }
-  return { expression: result.expression, direction: result.direction, fieldName, isJson: true, jsonConfig: jsonOrder };
+  return {
+    expression: result.expression,
+    direction: result.direction,
+    fieldName,
+    isJson: true,
+    jsonConfig: jsonOrder,
+  };
 }
 
 /**
@@ -156,13 +162,7 @@ function processJsonFieldParts(
   const pathSegments = jsonPath
     .replace('$.', '')
     .split(/[.[\]]/)
-    .filter((s) => s.length > 0)
-    .map((segment) => {
-      if (/^-?\d+$/.test(segment)) {
-        return segment;
-      }
-      return segment;
-    });
+    .filter((s) => s.length > 0);
   const jsonPathExpression = Prisma.sql`${fieldRef}#>>'{${Prisma.raw(pathSegments.join(','))}}'`;
   const typedExpression = Prisma.sql`(${jsonPathExpression})::${Prisma.raw(type)}`;
 
@@ -210,11 +210,15 @@ function buildAggregationExpression(
 
   if (aggregation === 'last') {
     const suffix = '[last]';
-    const modifiedPath = jsonPath.endsWith('$') ? jsonPath.replace(/\$$/, suffix) : jsonPath + suffix;
+    const modifiedPath = jsonPath.endsWith('$')
+      ? jsonPath.replace(/\$$/, suffix)
+      : jsonPath + suffix;
     return Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
   } else if (aggregation === 'first') {
     const suffix = '[0]';
-    const modifiedPath = jsonPath.endsWith('$') ? jsonPath.replace(/\$$/, suffix) : jsonPath + suffix;
+    const modifiedPath = jsonPath.endsWith('$')
+      ? jsonPath.replace(/\$$/, suffix)
+      : jsonPath + suffix;
     return Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
   }
 

@@ -1,8 +1,41 @@
-import './setup';
-import { nanoid } from 'nanoid';
 import { prisma } from './setup';
+import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
-import { WhereConditionsTyped } from '../../types';
+import { FieldConfig, WhereConditionsTyped } from '../../types';
+
+function makeTestQuery<T extends FieldConfig>(fieldConfig: T) {
+  return async (where: WhereConditionsTyped<T>, expectedIds: string[]) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      orderBy: { createdAt: 'asc' },
+      where,
+    });
+
+    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
+    expect(results.length).toBe(expectedIds.length);
+    expect(results.map((r) => r.id)).toEqual(expectedIds);
+  };
+}
+
+function makeTestQueryOrdered<T extends FieldConfig>(fieldConfig: T) {
+  return async (
+    where: WhereConditionsTyped<T> | undefined,
+    orderBy: 'asc' | 'desc',
+    expectedIds: string[],
+  ) => {
+    const query = buildQuery({
+      tableName: 'test_tables',
+      fieldConfig,
+      where,
+      orderBy: { createdAt: orderBy },
+    });
+
+    const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
+    expect(results.length).toBe(expectedIds.length);
+    expect(results.map((r) => r.id)).toEqual(expectedIds);
+  };
+}
 
 describe('Date Filters Integration', () => {
   describe('Basic Date Operations', () => {
@@ -16,21 +49,7 @@ describe('Date Filters Integration', () => {
 
     const fieldConfig = { createdAt: 'date', id: 'string' } as const;
 
-    const testQuery = async (
-      where: WhereConditionsTyped<typeof fieldConfig>,
-      expectedIds: string[],
-    ) => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where,
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(expectedIds.length);
-      expect(results.map((r) => r.id)).toEqual(expectedIds);
-    };
+    const testQuery = makeTestQuery(fieldConfig);
 
     beforeEach(async () => {
       ids = {
@@ -165,21 +184,7 @@ describe('Date Filters Integration', () => {
 
     const fieldConfig = { createdAt: 'date', id: 'string' } as const;
 
-    const testQuery = async (
-      where: WhereConditionsTyped<typeof fieldConfig>,
-      expectedIds: string[],
-    ) => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where,
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(expectedIds.length);
-      expect(results.map((r) => r.id)).toEqual(expectedIds);
-    };
+    const testQuery = makeTestQuery(fieldConfig);
 
     beforeEach(async () => {
       ids = { 'str-1': nanoid(), 'str-2': nanoid(), 'str-3': nanoid() };
@@ -235,22 +240,7 @@ describe('Date Filters Integration', () => {
 
     const fieldConfig = { createdAt: 'date' } as const;
 
-    const testQuery = async (
-      where: WhereConditionsTyped<typeof fieldConfig> | undefined,
-      orderBy: 'asc' | 'desc',
-      expectedIds: string[],
-    ) => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        where,
-        orderBy: { createdAt: orderBy },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(expectedIds.length);
-      expect(results.map((r) => r.id)).toEqual(expectedIds);
-    };
+    const testQuery = makeTestQueryOrdered(fieldConfig);
 
     beforeEach(async () => {
       ids = { 'order-newest': nanoid(), 'order-oldest': nanoid(), 'order-middle': nanoid() };
@@ -295,38 +285,9 @@ describe('Date Filters Integration', () => {
 
     const fieldConfig = { createdAt: 'date', name: 'string' } as const;
 
-    const testQuery = async (
-      where: WhereConditionsTyped<typeof fieldConfig>,
-      expectedIds: string[],
-    ) => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        orderBy: { createdAt: 'asc' },
-        where,
-      });
+    const testQuery = makeTestQuery(fieldConfig);
 
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(expectedIds.length);
-      expect(results.map((r) => r.id)).toEqual(expectedIds);
-    };
-
-    const testQueryOrdered = async (
-      where: WhereConditionsTyped<typeof fieldConfig>,
-      orderBy: 'asc' | 'desc',
-      expectedIds: string[],
-    ) => {
-      const query = buildQuery({
-        tableName: 'test_tables',
-        fieldConfig,
-        where,
-        orderBy: { createdAt: orderBy },
-      });
-
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      expect(results.length).toBe(expectedIds.length);
-      expect(results.map((r) => r.id)).toEqual(expectedIds);
-    };
+    const testQueryOrdered = makeTestQueryOrdered(fieldConfig);
 
     beforeEach(async () => {
       ids = { 'combo-apple': nanoid(), 'combo-banana': nanoid(), 'combo-cherry': nanoid() };

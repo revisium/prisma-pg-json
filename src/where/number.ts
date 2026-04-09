@@ -14,7 +14,6 @@ export function generateNumberFilter(
   fieldRef: PrismaSql,
   filter: number | NumberFilter,
 ): PrismaSql {
-
   if (typeof filter === 'number') {
     return Prisma.sql`${fieldRef} = ${filter}`;
   }
@@ -50,12 +49,7 @@ export function generateNumberFilter(
   }
 
   if (filter.not !== undefined) {
-    if (typeof filter.not === 'number') {
-      conditions.push(Prisma.sql`${fieldRef} != ${filter.not}`);
-    } else {
-      const notCondition = generateNumberFilter(fieldRef, filter.not);
-      conditions.push(Prisma.sql`NOT (${notCondition})`);
-    }
+    conditions.push(generateNumberNot(fieldRef, filter.not));
   }
 
   if (conditions.length === 0) {
@@ -67,4 +61,12 @@ export function generateNumberFilter(
   }
 
   return Prisma.join(conditions, ' AND ');
+}
+
+function generateNumberNot(fieldRef: PrismaSql, not: number | NumberFilter): PrismaSql {
+  if (typeof not === 'number') {
+    return Prisma.sql`${fieldRef} != ${not}`;
+  }
+  const notCondition = generateNumberFilter(fieldRef, not);
+  return Prisma.sql`NOT (${notCondition})`;
 }

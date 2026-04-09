@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -87,7 +86,7 @@ describe('Array Wildcard Operations (path with "*")', () => {
                 keywords: ['excellent', 'perfect'],
               },
               {
-                rating: 5.0,
+                rating: 5,
                 comment: 'Excellent!',
                 keywords: ['excellent', 'perfect', 'amazing'],
               },
@@ -116,7 +115,7 @@ describe('Array Wildcard Operations (path with "*")', () => {
             ],
             reviews: [
               {
-                rating: 4.0,
+                rating: 4,
                 comment: 'Good product',
                 keywords: ['good', 'quality'],
               },
@@ -203,7 +202,7 @@ describe('Array Wildcard Operations (path with "*")', () => {
             ],
             reviews: [
               {
-                rating: 5.0,
+                rating: 5,
                 comment: 'Perfect!',
                 keywords: ['perfect', 'amazing'],
               },
@@ -251,7 +250,7 @@ describe('Array Wildcard Operations (path with "*")', () => {
       ids.user3,
       ids.user5,
     ]);
-    await testQuery({ data: { path: ['reviews', '*', 'rating'], equals: 5.0 } }, [
+    await testQuery({ data: { path: ['reviews', '*', 'rating'], equals: 5 } }, [
       ids.user1,
       ids.user5,
     ]);

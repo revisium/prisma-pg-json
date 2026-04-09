@@ -1,6 +1,55 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import { DateFilter } from '../types';
 
+function toDate(value: string | Date): Date {
+  return typeof value === 'string' ? new Date(value) : value;
+}
+
+function processDateComparisons(
+  fieldRef: PrismaSql,
+  filter: DateFilter,
+  conditions: PrismaSql[],
+): void {
+  if (filter.equals !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} = ${toDate(filter.equals)}`);
+  }
+  if (filter.gt !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} > ${toDate(filter.gt)}`);
+  }
+  if (filter.gte !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} >= ${toDate(filter.gte)}`);
+  }
+  if (filter.lt !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} < ${toDate(filter.lt)}`);
+  }
+  if (filter.lte !== undefined) {
+    conditions.push(Prisma.sql`${fieldRef} <= ${toDate(filter.lte)}`);
+  }
+}
+
+function processDateArrayFilters(
+  fieldRef: PrismaSql,
+  filter: DateFilter,
+  conditions: PrismaSql[],
+): void {
+  if (filter.in !== undefined && Array.isArray(filter.in) && filter.in.length > 0) {
+    const values = filter.in.map(toDate);
+    conditions.push(Prisma.sql`${fieldRef} IN (${Prisma.join(values, ', ')})`);
+  }
+  if (filter.notIn !== undefined && Array.isArray(filter.notIn) && filter.notIn.length > 0) {
+    const values = filter.notIn.map(toDate);
+    conditions.push(Prisma.sql`${fieldRef} NOT IN (${Prisma.join(values, ', ')})`);
+  }
+}
+
+function processDateNot(fieldRef: PrismaSql, not: string | Date | DateFilter): PrismaSql {
+  if (typeof not === 'string' || not instanceof Date) {
+    return Prisma.sql`${fieldRef} != ${toDate(not)}`;
+  }
+  const notCondition = generateDateFilter(fieldRef, not);
+  return Prisma.sql`NOT (${notCondition})`;
+}
+
 /**
  * Generate a WHERE condition for a date/timestamp column.
  *
@@ -15,7 +64,6 @@ export function generateDateFilter(
   fieldRef: PrismaSql,
   filter: string | Date | DateFilter,
 ): PrismaSql {
-
   if (typeof filter === 'string') {
     return Prisma.sql`${fieldRef} = ${new Date(filter)}`;
   }
@@ -26,49 +74,11 @@ export function generateDateFilter(
 
   const conditions: PrismaSql[] = [];
 
-  if (filter.equals !== undefined) {
-    const value = typeof filter.equals === 'string' ? new Date(filter.equals) : filter.equals;
-    conditions.push(Prisma.sql`${fieldRef} = ${value}`);
-  }
-
-  if (filter.gt !== undefined) {
-    const value = typeof filter.gt === 'string' ? new Date(filter.gt) : filter.gt;
-    conditions.push(Prisma.sql`${fieldRef} > ${value}`);
-  }
-
-  if (filter.gte !== undefined) {
-    const value = typeof filter.gte === 'string' ? new Date(filter.gte) : filter.gte;
-    conditions.push(Prisma.sql`${fieldRef} >= ${value}`);
-  }
-
-  if (filter.lt !== undefined) {
-    const value = typeof filter.lt === 'string' ? new Date(filter.lt) : filter.lt;
-    conditions.push(Prisma.sql`${fieldRef} < ${value}`);
-  }
-
-  if (filter.lte !== undefined) {
-    const value = typeof filter.lte === 'string' ? new Date(filter.lte) : filter.lte;
-    conditions.push(Prisma.sql`${fieldRef} <= ${value}`);
-  }
-
-  if (filter.in !== undefined && Array.isArray(filter.in) && filter.in.length > 0) {
-    const values = filter.in.map((val) => (typeof val === 'string' ? new Date(val) : val));
-    conditions.push(Prisma.sql`${fieldRef} IN (${Prisma.join(values, ', ')})`);
-  }
-
-  if (filter.notIn !== undefined && Array.isArray(filter.notIn) && filter.notIn.length > 0) {
-    const values = filter.notIn.map((val) => (typeof val === 'string' ? new Date(val) : val));
-    conditions.push(Prisma.sql`${fieldRef} NOT IN (${Prisma.join(values, ', ')})`);
-  }
+  processDateComparisons(fieldRef, filter, conditions);
+  processDateArrayFilters(fieldRef, filter, conditions);
 
   if (filter.not !== undefined) {
-    if (typeof filter.not === 'string' || filter.not instanceof Date) {
-      const value = typeof filter.not === 'string' ? new Date(filter.not) : filter.not;
-      conditions.push(Prisma.sql`${fieldRef} != ${value}`);
-    } else {
-      const notCondition = generateDateFilter(fieldRef, filter.not);
-      conditions.push(Prisma.sql`NOT (${notCondition})`);
-    }
+    conditions.push(processDateNot(fieldRef, filter.not));
   }
 
   if (conditions.length === 0) {

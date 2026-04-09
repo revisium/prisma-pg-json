@@ -17,7 +17,7 @@ export function generateJsonbValue(value: unknown): PrismaSql {
 }
 
 export function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 export function getComparisonOperator(operator: string): string {

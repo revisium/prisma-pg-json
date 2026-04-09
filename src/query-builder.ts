@@ -4,6 +4,7 @@ import {
   FieldType,
   JsonFilter,
   GenerateWhereParams,
+  WhereConditionsTyped,
 } from './types';
 import { Prisma, PrismaSql } from './prisma-adapter';
 import { generateStringFilter } from './where/string';
@@ -131,27 +132,7 @@ function generateWhereClause<TConfig extends FieldConfig = FieldConfig>(
     }
   }
 
-  if (where.AND && Array.isArray(where.AND) && where.AND.length > 0) {
-    const andConditions = where.AND.map((cond) =>
-      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
-    );
-    conditions.push(Prisma.sql`(${Prisma.join(andConditions, ' AND ')})`);
-  }
-
-  if (where.OR && Array.isArray(where.OR) && where.OR.length > 0) {
-    const orConditions = where.OR.map((cond) =>
-      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
-    );
-    conditions.push(Prisma.sql`(${Prisma.join(orConditions, ' OR ')})`);
-  }
-
-  if (where.NOT) {
-    const notConditions = Array.isArray(where.NOT) ? where.NOT : [where.NOT];
-    const notClauses = notConditions.map((cond) =>
-      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
-    );
-    conditions.push(Prisma.sql`NOT (${Prisma.join(notClauses, ' AND ')})`);
-  }
+  processLogicalOperators(where, fieldConfig, tableAlias, conditions);
 
   if (conditions.length === 0) {
     return Prisma.sql`TRUE`;
@@ -184,5 +165,34 @@ function generateFieldCondition(
       return generateJsonFilter(fieldRef, value as JsonFilter, fieldName, tableAlias);
     default:
       throw new Error(`Unsupported field type: ${fieldType}`);
+  }
+}
+
+function processLogicalOperators<TConfig extends FieldConfig>(
+  where: WhereConditionsTyped<TConfig>,
+  fieldConfig: TConfig,
+  tableAlias: string,
+  conditions: PrismaSql[],
+): void {
+  if (where.AND && Array.isArray(where.AND) && where.AND.length > 0) {
+    const andConditions = where.AND.map((cond) =>
+      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
+    );
+    conditions.push(Prisma.sql`(${Prisma.join(andConditions, ' AND ')})`);
+  }
+
+  if (where.OR && Array.isArray(where.OR) && where.OR.length > 0) {
+    const orConditions = where.OR.map((cond) =>
+      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
+    );
+    conditions.push(Prisma.sql`(${Prisma.join(orConditions, ' OR ')})`);
+  }
+
+  if (where.NOT) {
+    const notConditions = Array.isArray(where.NOT) ? where.NOT : [where.NOT];
+    const notClauses = notConditions.map((cond) =>
+      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
+    );
+    conditions.push(Prisma.sql`NOT (${Prisma.join(notClauses, ' AND ')})`);
   }
 }

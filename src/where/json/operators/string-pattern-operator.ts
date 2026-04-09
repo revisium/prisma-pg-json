@@ -32,7 +32,7 @@ export class StringPatternOperator extends BaseOperator<string> {
 
   preprocessValue(value: unknown): string {
     if (typeof value !== 'string') {
-      throw new Error(`${this.key} requires a string value`);
+      throw new TypeError(`${this.key} requires a string value`);
     }
     return value;
   }

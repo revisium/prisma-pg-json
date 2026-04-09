@@ -11,7 +11,7 @@ export class InOperator extends BaseOperator<unknown[]> {
 
   preprocessValue(value: unknown): unknown[] {
     if (!Array.isArray(value)) {
-      throw new Error('in operator requires an array value');
+      throw new TypeError('in operator requires an array value');
     }
     return value;
   }
@@ -34,12 +34,9 @@ export class InOperator extends BaseOperator<unknown[]> {
   }
 
   getErrorMessage(context: string): string {
-    switch (context) {
-      case 'validation failed':
-        return 'in operator requires an array value';
-      default:
-        return super.getErrorMessage(context);
+    if (context === 'validation failed') {
+      return 'in operator requires an array value';
     }
+    return super.getErrorMessage(context);
   }
-
 }

@@ -119,7 +119,7 @@ describe('Pagination on large dataset (15K rows)', () => {
           collected.add(row.id as string);
         }
 
-        cursor = config.extractCursor(rows[rows.length - 1]);
+        cursor = config.extractCursor(rows.at(-1)!);
         pageCount++;
 
         if (rows.length < PAGE_SIZE) {
