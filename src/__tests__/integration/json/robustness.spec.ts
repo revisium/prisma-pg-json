@@ -3,8 +3,6 @@ import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
 import { WhereConditionsTyped } from '../../../types';
-import { Prisma } from '../../../generated/client';
-
 describe('Robustness tests', () => {
   const fieldConfig = {
     data: 'json',
@@ -146,10 +144,9 @@ describe('Robustness tests', () => {
     });
 
     it('should handle deeply nested JSON (10 levels)', async () => {
-      let nested: Prisma.InputJsonObject = { value: 'found' };
-      for (let i = 9; i >= 0; i--) {
-        nested = { [`level${i}`]: nested };
-      }
+      const nested = JSON.parse(
+        '{"level0":{"level1":{"level2":{"level3":{"level4":{"level5":{"level6":{"level7":{"level8":{"level9":{"value":"found"}}}}}}}}}}',
+      );
 
       await prisma.testTable.create({
         data: {
