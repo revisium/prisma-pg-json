@@ -2,12 +2,6 @@ import { Prisma, PrismaSql } from '../../../prisma-adapter';
 import type { JsonFilter } from '../../../types';
 import { BaseOperator } from './base-operator';
 
-interface SearchContext {
-  language: string;
-  searchType: 'plain' | 'phrase' | 'prefix' | 'tsquery';
-  searchIn: 'all' | 'values' | 'keys' | 'strings' | 'numbers' | 'booleans';
-}
-
 export const SEARCH_LANGUAGES = [
   'simple',
   'arabic',
@@ -100,9 +94,29 @@ function getQueryFuncAndValue(
   }
 }
 
+function extractContext(filter?: JsonFilter): {
+  language: SearchLanguage;
+  searchType: 'plain' | 'phrase' | 'prefix' | 'tsquery';
+  searchIn: 'all' | 'values' | 'keys' | 'strings' | 'numbers' | 'booleans';
+} {
+  const language = validateLanguage(filter?.searchLanguage || 'simple');
+  return {
+    language,
+    searchType: filter?.searchType || 'plain',
+    searchIn: filter?.searchIn || 'all',
+  };
+}
+
 export class SearchOperator extends BaseOperator<string> {
   readonly key = 'search';
-  private context?: SearchContext;
+  private fallbackFilter?: JsonFilter;
+
+  /** @deprecated Use execute() with filter parameter instead. Kept for test compatibility. */
+  setContext(filter: JsonFilter): void {
+    const language = filter.searchLanguage || 'simple';
+    validateLanguage(language);
+    this.fallbackFilter = filter;
+  }
 
   validate(value: string): boolean {
     return typeof value === 'string' && value.length > 0;
@@ -119,25 +133,31 @@ export class SearchOperator extends BaseOperator<string> {
     return true;
   }
 
-  setContext(filter: JsonFilter): void {
-    const language = filter.searchLanguage || 'simple';
-    validateLanguage(language);
+  execute(
+    fieldRef: PrismaSql,
+    jsonPath: string,
+    value: unknown,
+    isInsensitive: boolean,
+    isSpecialPath: boolean = false,
+    filter?: JsonFilter,
+  ): PrismaSql {
+    const processedValue = this.preprocessValue(value);
 
-    this.context = {
-      language,
-      searchType: filter.searchType || 'plain',
-      searchIn: filter.searchIn || 'all',
-    };
+    if (!this.validate(processedValue)) {
+      throw new Error(this.getErrorMessage('validation failed'));
+    }
+
+    const ctx = extractContext(filter ?? this.fallbackFilter);
+
+    if (isSpecialPath) {
+      return this.buildSearchSql(fieldRef, null, processedValue, ctx);
+    }
+
+    return this.buildSearchSql(fieldRef, jsonPath, processedValue, ctx);
   }
 
   handleSpecialPath(fieldRef: PrismaSql, value: string): PrismaSql {
-    const language = validateLanguage(this.context?.language || 'simple');
-    const searchType = this.context?.searchType || 'plain';
-    const searchIn = this.context?.searchIn || 'all';
-    const { func, value: queryValue } = getQueryFuncAndValue(searchType, value);
-    const searchInParam = getSearchInParameter(searchIn);
-
-    return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef}, '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(func)}(${Prisma.raw(`'${language}'`)}, ${queryValue})`;
+    return this.buildSearchSql(fieldRef, null, value, extractContext(this.fallbackFilter));
   }
 
   generateCondition(
@@ -146,11 +166,22 @@ export class SearchOperator extends BaseOperator<string> {
     value: string,
     _isInsensitive: boolean,
   ): PrismaSql {
-    const language = validateLanguage(this.context?.language || 'simple');
-    const searchType = this.context?.searchType || 'plain';
-    const searchIn = this.context?.searchIn || 'all';
+    return this.buildSearchSql(fieldRef, jsonPath, value, extractContext(this.fallbackFilter));
+  }
+
+  private buildSearchSql(
+    fieldRef: PrismaSql,
+    jsonPath: string | null,
+    value: string,
+    ctx: ReturnType<typeof extractContext>,
+  ): PrismaSql {
+    const { language, searchType, searchIn } = ctx;
     const { func, value: queryValue } = getQueryFuncAndValue(searchType, value);
     const searchInParam = getSearchInParameter(searchIn);
+
+    if (!jsonPath) {
+      return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef}, '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(func)}(${Prisma.raw(`'${language}'`)}, ${queryValue})`;
+    }
 
     const pathArray = this.parseJsonPathToArray(jsonPath);
 
@@ -165,11 +196,6 @@ export class SearchOperator extends BaseOperator<string> {
     const withoutDollar = jsonPath.startsWith('$.') ? jsonPath.substring(2) : jsonPath;
 
     return withoutDollar.split(/[.[\]]/).filter((s) => s !== '');
-  }
-
-
-  validatePath(_path: string[] | string): boolean {
-    return true;
   }
 
   getErrorMessage(context: string): string {

@@ -1,9 +1,17 @@
 import { PrismaSql } from '../../../prisma-adapter';
 import { generateJsonPathCondition } from '../jsonpath';
 import { BaseOperator } from './base-operator';
+import type { JsonFilter } from '../../../types';
 
-export class GteOperator extends BaseOperator<unknown> {
-  readonly key = 'gte' as const;
+type ComparisonKey = 'gt' | 'gte' | 'lt' | 'lte';
+
+export class ComparisonOperator extends BaseOperator<unknown> {
+  readonly key: ComparisonKey;
+
+  constructor(key: ComparisonKey) {
+    super();
+    this.key = key;
+  }
 
   validate(value: unknown): boolean {
     return value !== undefined && value !== null &&
@@ -16,6 +24,6 @@ export class GteOperator extends BaseOperator<unknown> {
     value: unknown,
     isInsensitive: boolean,
   ): PrismaSql {
-    return generateJsonPathCondition(fieldRef, jsonPath, 'gte', value, isInsensitive);
+    return generateJsonPathCondition(fieldRef, jsonPath, this.key as keyof JsonFilter, value, isInsensitive);
   }
 }

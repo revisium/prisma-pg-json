@@ -146,6 +146,23 @@ function parseStringPath(path: string): string[] {
   return pathParts;
 }
 
+/**
+ * Parse a JSON path string into an array of segments.
+ *
+ * If the input is already an array, returns it as-is.
+ *
+ * @param path - JSON path as string (`'user.name'`, `'items[0].price'`) or array
+ * @returns Array of path segments
+ *
+ * @example
+ * ```typescript
+ * parseJsonPath('user.profile.name')    // ['user', 'profile', 'name']
+ * parseJsonPath('items[0].price')       // ['items', '0', 'price']
+ * parseJsonPath('tags[*].name')         // ['tags', '*', 'name']
+ * parseJsonPath('items[-1]')            // ['items', 'last']
+ * parseJsonPath(['already', 'parsed'])  // ['already', 'parsed']
+ * ```
+ */
 export function parseJsonPath(path: string | string[]): string[] {
   if (Array.isArray(path)) {
     return path;
@@ -153,6 +170,22 @@ export function parseJsonPath(path: string | string[]): string[] {
   return parseStringPath(path);
 }
 
+/**
+ * Convert an array of path segments back to a JSON path string.
+ *
+ * Inverse of `parseJsonPath()`. Numeric segments become bracket notation,
+ * `*` becomes `[*]`, `last` becomes `[last]`.
+ *
+ * @param pathArray - Array of path segments
+ * @returns JSON path string
+ *
+ * @example
+ * ```typescript
+ * arrayToJsonPath(['user', 'name'])        // 'user.name'
+ * arrayToJsonPath(['items', '0', 'price']) // 'items[0].price'
+ * arrayToJsonPath(['tags', '*', 'name'])   // 'tags[*].name'
+ * ```
+ */
 export function arrayToJsonPath(pathArray: string[]): string {
   return pathArray
     .map((segment) => {

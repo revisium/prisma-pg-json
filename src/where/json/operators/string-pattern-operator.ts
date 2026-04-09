@@ -3,8 +3,28 @@ import { escapeRegex } from '../jsonpath/utils';
 import { BaseOperator } from './base-operator';
 import { generateJsonPathLikeRegex } from '../../../utils/sql-jsonpath';
 
-export class StringContainsOperator extends BaseOperator<string> {
-  readonly key = 'string_contains';
+type StringPatternKey = 'string_contains' | 'string_starts_with' | 'string_ends_with';
+
+export class StringPatternOperator extends BaseOperator<string> {
+  readonly key: StringPatternKey;
+  private readonly buildPattern: (escaped: string) => string;
+
+  constructor(key: StringPatternKey) {
+    super();
+    this.key = key;
+
+    switch (key) {
+      case 'string_contains':
+        this.buildPattern = (v) => `.*${v}.*`;
+        break;
+      case 'string_starts_with':
+        this.buildPattern = (v) => `^${v}.*`;
+        break;
+      case 'string_ends_with':
+        this.buildPattern = (v) => `.*${v}$`;
+        break;
+    }
+  }
 
   validate(value: string): boolean {
     return typeof value === 'string' && value.length > 0;
@@ -12,7 +32,7 @@ export class StringContainsOperator extends BaseOperator<string> {
 
   preprocessValue(value: unknown): string {
     if (typeof value !== 'string') {
-      throw new Error('string_contains requires a string value');
+      throw new Error(`${this.key} requires a string value`);
     }
     return value;
   }
@@ -23,9 +43,7 @@ export class StringContainsOperator extends BaseOperator<string> {
     value: string,
     isInsensitive: boolean,
   ): PrismaSql {
-    const escapedValue = escapeRegex(value);
-    const pattern = `.*${escapedValue}.*`;
-
+    const pattern = this.buildPattern(escapeRegex(value));
     return generateJsonPathLikeRegex(fieldRef, jsonPath, pattern, isInsensitive);
   }
 
@@ -39,15 +57,11 @@ export class StringContainsOperator extends BaseOperator<string> {
   getErrorMessage(context: string): string {
     switch (context) {
       case 'validation failed':
-        return 'string_contains requires a non-empty string value';
+        return `${this.key} requires a non-empty string value`;
       case 'special path not supported':
-        return 'string_contains does not support operations on empty path';
+        return `${this.key} does not support operations on empty path`;
       default:
         return super.getErrorMessage(context);
     }
-  }
-
-  getSearchPattern(value: string): string {
-    return `.*${escapeRegex(value)}.*`;
   }
 }

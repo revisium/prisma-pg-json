@@ -55,7 +55,9 @@ export abstract class BaseOperator<T = unknown> {
   }
 
   /**
-   * Main execution method that coordinates all logic
+   * Main execution method that coordinates all logic.
+   *
+   * @param filter - Optional full JsonFilter object for operators that need additional context
    */
   execute(
     fieldRef: PrismaSql,
@@ -63,6 +65,7 @@ export abstract class BaseOperator<T = unknown> {
     value: unknown,
     isInsensitive: boolean,
     isSpecialPath: boolean = false,
+    _filter?: JsonFilter,
   ): PrismaSql {
     const processedValue = this.preprocessValue(value);
 
