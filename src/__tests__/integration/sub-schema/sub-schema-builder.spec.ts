@@ -2058,14 +2058,14 @@ describe('SubSchemaBuilder Integration', () => {
   });
 
   describe('pagination validation (e2e)', () => {
-    it('should throw for negative take', async () => {
-      await expect(async () => {
+    it('should throw for negative take', () => {
+      expect(() => {
         buildSubSchemaQuery({
           tables: [{ tableId: 't', tableVersionId: 'v', paths: [{ path: 'f' }] }],
           take: -1,
           skip: 0,
         });
-      }).rejects.toThrow();
+      }).toThrow();
     });
 
     it('should accept boundary values', async () => {

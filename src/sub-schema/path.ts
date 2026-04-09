@@ -30,5 +30,9 @@ export function parsePath(path: string): ParsedPath {
     }
   }
 
+  if (segments.length === 0) {
+    throw new Error(`Invalid path: "${path}". Array wildcard [*] requires a field name.`);
+  }
+
   return { isArray: true, segments };
 }

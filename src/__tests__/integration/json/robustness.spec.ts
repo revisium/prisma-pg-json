@@ -145,7 +145,7 @@ describe('Robustness tests', () => {
 
     it('should handle deeply nested JSON (10 levels)', async () => {
       const nested = JSON.parse(
-        '{"level0":{"level1":{"level2":{"level3":{"level4":{"level5":{"level6":{"level7":{"level8":{"level9":{"value":"found"}}}}}}}}}}',
+        '{"level0":{"level1":{"level2":{"level3":{"level4":{"level5":{"level6":{"level7":{"level8":{"level9":{"value":"found"}}}}}}}}}}}',
       );
 
       await prisma.testTable.create({

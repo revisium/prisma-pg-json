@@ -13,7 +13,7 @@ function isSubSchemaOrderByParams(params: unknown): params is SubSchemaOrderByPa
   if (typeof params !== 'object' || params === null || Array.isArray(params)) {
     return false;
   }
-  return 'orderBy' in params || 'tableAlias' in params;
+  return 'orderBy' in params || 'tableAlias' in params || 'rowTableAlias' in params;
 }
 
 export function buildSubSchemaOrderBy(params?: SubSchemaOrderByItem[] | SubSchemaOrderByParams): PrismaSql {

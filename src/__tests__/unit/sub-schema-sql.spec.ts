@@ -843,10 +843,7 @@ describe('SubSchema SQL Generation', () => {
 
       expect(sql).toContain('sub_schema_items');
       expect(sql).toContain('LIMIT');
-      // Extract the outer query (after CTE) to check for WHERE/ORDER BY
-      const outerQuery = sql.split('FROM sub_schema_items')[1] || '';
-      expect(outerQuery).not.toContain('WHERE');
-      expect(outerQuery).not.toContain('ORDER BY');
+      expect(sql).toMatchSnapshot();
     });
 
     it('should generate query with where but no orderBy', () => {
@@ -858,9 +855,9 @@ describe('SubSchema SQL Generation', () => {
       });
       const sql = sqlToString(query);
 
-      const outerQuery = sql.split('FROM sub_schema_items')[1] || '';
-      expect(outerQuery).toContain('WHERE');
-      expect(outerQuery).not.toContain('ORDER BY');
+      expect(sql).toContain('sub_schema_items');
+      expect(sql).toContain('WHERE');
+      expect(sql).toMatchSnapshot();
     });
 
     it('should generate query with orderBy but no where', () => {
@@ -872,9 +869,9 @@ describe('SubSchema SQL Generation', () => {
       });
       const sql = sqlToString(query);
 
-      const outerQuery = sql.split('FROM sub_schema_items')[1] || '';
-      expect(outerQuery).not.toContain('WHERE');
-      expect(outerQuery).toContain('ORDER BY');
+      expect(sql).toContain('sub_schema_items');
+      expect(sql).toContain('ORDER BY');
+      expect(sql).toMatchSnapshot();
     });
   });
 

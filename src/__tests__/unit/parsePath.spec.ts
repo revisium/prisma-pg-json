@@ -137,13 +137,8 @@ describe('parsePath', () => {
       });
     });
 
-    it('should handle path with only [*]', () => {
-      const result = parsePath('[*]');
-
-      expect(result).toEqual({
-        isArray: true,
-        segments: [],
-      });
+    it('should throw for path with only [*]', () => {
+      expect(() => parsePath('[*]')).toThrow('Array wildcard [*] requires a field name');
     });
 
     it('should handle consecutive [*][*]', () => {
