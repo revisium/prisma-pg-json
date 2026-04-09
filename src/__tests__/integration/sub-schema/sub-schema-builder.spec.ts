@@ -2053,7 +2053,7 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.fieldPath).sort()).toEqual(['media-items[0]', 'media-items[1]']);
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual(['media-items[0]', 'media-items[1]']);
     });
   });
 

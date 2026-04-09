@@ -25,22 +25,18 @@ export function buildSubSchemaWhere(params?: SubSchemaWhereInput | SubSchemaWher
     return Prisma.empty;
   }
 
-  const isWhereParams = isSubSchemaWhereParams(params);
-  const where = isWhereParams ? params.where : params as SubSchemaWhereInput;
-  const tableAlias = isWhereParams ? params.tableAlias : undefined;
-
-  if (tableAlias) {
-    validateSqlIdentifier(tableAlias, 'tableAlias');
+  if (isSubSchemaWhereParams(params)) {
+    const { where, tableAlias } = params;
+    if (tableAlias) validateSqlIdentifier(tableAlias, 'tableAlias');
+    if (!where) return Prisma.empty;
+    return toWhereClause(buildWhereConditions(where, tableAlias));
   }
 
-  if (!where) {
-    return Prisma.empty;
-  }
+  return toWhereClause(buildWhereConditions(params));
+}
 
-  const conditions = buildWhereConditions(where, tableAlias);
-  if (conditions.length === 0) {
-    return Prisma.empty;
-  }
+function toWhereClause(conditions: PrismaSql[]): PrismaSql {
+  if (conditions.length === 0) return Prisma.empty;
   return Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 }
 
@@ -52,63 +48,51 @@ export function buildWhereClause(where: SubSchemaWhereInput): PrismaSql {
   return Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 }
 
+function addStringCondition(conditions: PrismaSql[], value: string | import('../types').StringFilter | undefined, column: string, tableAlias?: string): void {
+  if (value === undefined) return;
+  const filter = typeof value === 'string' ? { equals: value } : value;
+  conditions.push(generateStringFilter(getColumnRef(column, tableAlias), filter));
+}
+
 function buildWhereConditions(where: SubSchemaWhereInput, tableAlias?: string): PrismaSql[] {
   const conditions: PrismaSql[] = [];
 
-  if (where.tableId !== undefined) {
-    const filter = typeof where.tableId === 'string'
-      ? { equals: where.tableId }
-      : where.tableId;
-    conditions.push(generateStringFilter(getColumnRef('tableId', tableAlias), filter));
-  }
-
-  if (where.rowId !== undefined) {
-    const filter = typeof where.rowId === 'string'
-      ? { equals: where.rowId }
-      : where.rowId;
-    conditions.push(generateStringFilter(getColumnRef('rowId', tableAlias), filter));
-  }
-
-  if (where.fieldPath !== undefined) {
-    const filter = typeof where.fieldPath === 'string'
-      ? { equals: where.fieldPath }
-      : where.fieldPath;
-    conditions.push(generateStringFilter(getColumnRef('fieldPath', tableAlias), filter));
-  }
+  addStringCondition(conditions, where.tableId, 'tableId', tableAlias);
+  addStringCondition(conditions, where.rowId, 'rowId', tableAlias);
+  addStringCondition(conditions, where.fieldPath, 'fieldPath', tableAlias);
 
   if (where.data !== undefined) {
     conditions.push(generateJsonFilter(getColumnRef('data', tableAlias), where.data, 'data', ''));
   }
 
-  if (where.AND !== undefined && where.AND.length > 0) {
-    const andConditions = where.AND.flatMap(w => buildWhereConditions(w, tableAlias));
-    if (andConditions.length > 0) {
-      conditions.push(Prisma.sql`(${Prisma.join(andConditions, ' AND ')})`);
-    }
-  }
-
-  if (where.OR !== undefined && where.OR.length > 0) {
-    const orConditions = where.OR.flatMap(w => {
-      const conds = buildWhereConditions(w, tableAlias);
-      if (conds.length === 0) {
-        return [];
-      }
-      if (conds.length === 1) {
-        return [conds[0]];
-      }
-      return [Prisma.sql`(${Prisma.join(conds, ' AND ')})`];
-    });
-    if (orConditions.length > 0) {
-      conditions.push(Prisma.sql`(${Prisma.join(orConditions, ' OR ')})`);
-    }
-  }
-
-  if (where.NOT !== undefined) {
-    const notConditions = buildWhereConditions(where.NOT, tableAlias);
-    if (notConditions.length > 0) {
-      conditions.push(Prisma.sql`NOT (${Prisma.join(notConditions, ' AND ')})`);
-    }
-  }
+  buildLogicalConditions(conditions, where, tableAlias);
 
   return conditions;
+}
+
+function buildLogicalConditions(conditions: PrismaSql[], where: SubSchemaWhereInput, tableAlias?: string): void {
+  if (where.AND && where.AND.length > 0) {
+    const andConds = where.AND.flatMap(w => buildWhereConditions(w, tableAlias));
+    if (andConds.length > 0) {
+      conditions.push(Prisma.sql`(${Prisma.join(andConds, ' AND ')})`);
+    }
+  }
+
+  if (where.OR && where.OR.length > 0) {
+    const orConds = where.OR.flatMap(w => {
+      const conds = buildWhereConditions(w, tableAlias);
+      if (conds.length <= 1) return conds;
+      return [Prisma.sql`(${Prisma.join(conds, ' AND ')})`];
+    });
+    if (orConds.length > 0) {
+      conditions.push(Prisma.sql`(${Prisma.join(orConds, ' OR ')})`);
+    }
+  }
+
+  if (where.NOT) {
+    const notConds = buildWhereConditions(where.NOT, tableAlias);
+    if (notConds.length > 0) {
+      conditions.push(Prisma.sql`NOT (${Prisma.join(notConds, ' AND ')})`);
+    }
+  }
 }

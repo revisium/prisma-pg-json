@@ -21,63 +21,56 @@ export function buildSubSchemaOrderBy(params?: SubSchemaOrderByItem[] | SubSchem
     return Prisma.empty;
   }
 
-  const isOrderByParams = isSubSchemaOrderByParams(params);
-  const orderBy = isOrderByParams ? params.orderBy : params as SubSchemaOrderByItem[];
-  const tableAlias = isOrderByParams ? params.tableAlias : undefined;
-  const rowTableAlias = isOrderByParams ? params.rowTableAlias : undefined;
-
-  if (tableAlias) {
-    validateSqlIdentifier(tableAlias, 'tableAlias');
+  if (isSubSchemaOrderByParams(params)) {
+    const { orderBy, tableAlias, rowTableAlias } = params;
+    if (tableAlias) validateSqlIdentifier(tableAlias, 'tableAlias');
+    if (rowTableAlias) validateSqlIdentifier(rowTableAlias, 'rowTableAlias');
+    if (!orderBy || orderBy.length === 0) return Prisma.empty;
+    return buildOrderByClause(orderBy, tableAlias, rowTableAlias);
   }
 
-  if (rowTableAlias) {
-    validateSqlIdentifier(rowTableAlias, 'rowTableAlias');
-  }
-
-  if (!orderBy || orderBy.length === 0) {
-    return Prisma.empty;
-  }
-
-  return buildOrderByClause(orderBy, tableAlias, rowTableAlias);
+  if (params.length === 0) return Prisma.empty;
+  return buildOrderByClause(params);
 }
 
 export function buildOrderByClause(orderBy: SubSchemaOrderByItem[], tableAlias?: string, rowTableAlias?: string): PrismaSql {
-  const orderParts: PrismaSql[] = [];
-
-  for (const item of orderBy) {
-    if (item.tableId) {
-      const direction = item.tableId === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-      orderParts.push(Prisma.sql`${getColumnRef('tableId', tableAlias)} ${direction}`);
-    }
-
-    if (item.rowId) {
-      const direction = item.rowId === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-      orderParts.push(Prisma.sql`${getColumnRef('rowId', tableAlias)} ${direction}`);
-    }
-
-    if (item.rowCreatedAt) {
-      const direction = item.rowCreatedAt === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-      orderParts.push(Prisma.sql`${getColumnRef('createdAt', rowTableAlias)} ${direction}`);
-    }
-
-    if (item.fieldPath) {
-      const direction = item.fieldPath === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-      orderParts.push(Prisma.sql`${getColumnRef('fieldPath', tableAlias)} ${direction}`);
-    }
-
-    if (item.data) {
-      const jsonPath = buildDataOrderByPath(item.data.path, tableAlias);
-      const direction = item.data.order === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-      const nulls = item.data.nulls === 'first' ? Prisma.sql`NULLS FIRST` : Prisma.sql`NULLS LAST`;
-      orderParts.push(Prisma.sql`${jsonPath} ${direction} ${nulls}`);
-    }
-  }
+  const orderParts = orderBy.flatMap((item) =>
+    buildOrderByItemParts(item, tableAlias, rowTableAlias),
+  );
 
   if (orderParts.length === 0) {
     return Prisma.empty;
   }
 
   return Prisma.sql`ORDER BY ${Prisma.join(orderParts, ', ')}`;
+}
+
+function directionSql(dir: 'asc' | 'desc'): PrismaSql {
+  return dir === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+}
+
+function buildOrderByItemParts(item: SubSchemaOrderByItem, tableAlias?: string, rowTableAlias?: string): PrismaSql[] {
+  const parts: PrismaSql[] = [];
+
+  if (item.tableId) {
+    parts.push(Prisma.sql`${getColumnRef('tableId', tableAlias)} ${directionSql(item.tableId)}`);
+  }
+  if (item.rowId) {
+    parts.push(Prisma.sql`${getColumnRef('rowId', tableAlias)} ${directionSql(item.rowId)}`);
+  }
+  if (item.rowCreatedAt) {
+    parts.push(Prisma.sql`${getColumnRef('createdAt', rowTableAlias)} ${directionSql(item.rowCreatedAt)}`);
+  }
+  if (item.fieldPath) {
+    parts.push(Prisma.sql`${getColumnRef('fieldPath', tableAlias)} ${directionSql(item.fieldPath)}`);
+  }
+  if (item.data) {
+    const jsonPath = buildDataOrderByPath(item.data.path, tableAlias);
+    const nulls = item.data.nulls === 'first' ? Prisma.sql`NULLS FIRST` : Prisma.sql`NULLS LAST`;
+    parts.push(Prisma.sql`${jsonPath} ${directionSql(item.data.order)} ${nulls}`);
+  }
+
+  return parts;
 }
 
 function buildDataOrderByPath(path: string | string[], tableAlias?: string): PrismaSql {
@@ -92,5 +85,5 @@ function buildDataOrderByPath(path: string | string[], tableAlias?: string): Pri
   for (let i = 0; i < segments.length - 1; i++) {
     result = Prisma.sql`${result}->${segments[i]}`;
   }
-  return Prisma.sql`${result}->>${segments[segments.length - 1]}`;
+  return Prisma.sql`${result}->>${segments.at(-1)}`;
 }

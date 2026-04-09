@@ -10,7 +10,7 @@ export function validatePagination(take: number, skip: number): void {
   }
 }
 
-const SQL_IDENTIFIER_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+const SQL_IDENTIFIER_REGEX = /^[a-zA-Z_]\w*$/;
 
 export function validateSqlIdentifier(value: string, name: string): void {
   if (!SQL_IDENTIFIER_REGEX.test(value)) {

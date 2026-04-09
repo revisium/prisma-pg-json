@@ -50,16 +50,9 @@ export function buildCteQueries(tables: SubSchemaTableConfig[]): PrismaSql {
     return getEmptyCteSelect();
   }
 
-  if (queries.length === 1) {
-    return queries[0];
-  }
-
-  return queries.reduce((acc, query, index) => {
-    if (index === 0) {
-      return query;
-    }
-    return Prisma.sql`${acc} UNION ALL ${query}`;
-  });
+  return queries.reduce((acc, query) =>
+    Prisma.sql`${acc} UNION ALL ${query}`,
+  );
 }
 
 function buildSinglePathQuery(
@@ -95,8 +88,7 @@ function buildArrayPathQuery(
   const { segments } = parsed;
 
   const arraySegments = segments.filter(s => s.isArray);
-  const lastSegment = segments[segments.length - 1];
-  const hasTrailingPath = !lastSegment.isArray;
+  const hasTrailingPath = !segments.at(-1)!.isArray;
 
   if (arraySegments.length === 1) {
     return buildSingleArrayQuery(table, segments, hasTrailingPath);
@@ -214,7 +206,7 @@ function joinFieldPathParts(parts: FieldPathPart[]): PrismaSql {
       return Prisma.sql`${acc} || ${part.sql}`;
     }
     return Prisma.sql`${acc} || '.' || ${part.sql}`;
-  }, Prisma.empty as PrismaSql);
+  }, Prisma.empty);
 }
 
 function buildDataExprAndWhere(
@@ -225,7 +217,7 @@ function buildDataExprAndWhere(
   const lastArrAlias = `arr${arrayCount}`;
 
   if (hasTrailingPath) {
-    const trailingPath = segments[segments.length - 1].path;
+    const trailingPath = segments.at(-1)!.path;
     const dataExpr = buildPathAccess(Prisma.sql`${Prisma.raw(lastArrAlias)}.elem`, trailingPath);
     return {
       dataExpr,

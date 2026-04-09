@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -64,14 +63,14 @@ describe('Robustness tests', () => {
         data: {
           id: nanoid(),
           name: 'backslash',
-          data: { path: 'C:\\Users\\test\\file.txt' },
+          data: { path: String.raw`C:\Users\test\file.txt` },
         },
       });
 
       const results = await testQuery({
         data: {
           path: 'path',
-          string_ends_with: '\\file.txt',
+          string_ends_with: String.raw`\file.txt`,
         },
       });
 
