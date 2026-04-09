@@ -732,6 +732,106 @@ WHERE
   "data" #> '{status}' = to_jsonb(CAST('uploaded' AS text))"
 `;
 
+exports[`SubSchema SQL Generation buildSubSchemaQuery edge cases should generate query with orderBy but no where 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'files'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'doc'::text as "fieldPath",
+      r."data" -> 'doc' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(r."data" -> 'doc') = 'object'
+  )
+SELECT
+  "tableId",
+  "tableVersionId",
+  "rowId",
+  "rowVersionId",
+  "fieldPath",
+  "data"
+FROM
+  sub_schema_items
+ORDER BY
+  "rowId" ASC
+LIMIT
+  50
+OFFSET
+  0"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaQuery edge cases should generate query with where but no orderBy 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'files'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'doc'::text as "fieldPath",
+      r."data" -> 'doc' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(r."data" -> 'doc') = 'object'
+  )
+SELECT
+  "tableId",
+  "tableVersionId",
+  "rowId",
+  "rowVersionId",
+  "fieldPath",
+  "data"
+FROM
+  sub_schema_items
+WHERE
+  "tableId" = 'files'
+LIMIT
+  50
+OFFSET
+  0"
+`;
+
+exports[`SubSchema SQL Generation buildSubSchemaQuery edge cases should generate query without where or orderBy 1`] = `
+"WITH
+  sub_schema_items AS (
+    SELECT
+      'files'::text as "tableId",
+      'ver_001'::text as "tableVersionId",
+      r.id as "rowId",
+      r."versionId" as "rowVersionId",
+      'doc'::text as "fieldPath",
+      r."data" -> 'doc' as "data"
+    FROM
+      "Row" r
+      INNER JOIN "_RowToTable" rt ON r."versionId" = rt."A"
+    WHERE
+      rt."B" = 'ver_001'
+      AND jsonb_typeof(r."data" -> 'doc') = 'object'
+  )
+SELECT
+  "tableId",
+  "tableVersionId",
+  "rowId",
+  "rowVersionId",
+  "fieldPath",
+  "data"
+FROM
+  sub_schema_items
+LIMIT
+  50
+OFFSET
+  0"
+`;
+
 exports[`SubSchema SQL Generation buildSubSchemaWhere should generate WHERE for complex AND/OR conditions 1`] = `
 "WHERE
   (

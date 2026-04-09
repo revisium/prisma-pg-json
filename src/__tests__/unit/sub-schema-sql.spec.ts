@@ -5,6 +5,9 @@ import {
   buildSubSchemaOrderBy,
   buildSubSchemaQuery,
   buildSubSchemaCountQuery,
+  parsePath,
+  MAX_TAKE,
+  MAX_SKIP,
 } from '../../sub-schema/sub-schema-builder';
 import {
   SubSchemaQueryParams,
@@ -667,6 +670,271 @@ describe('SubSchema SQL Generation', () => {
       expect(() => {
         buildSubSchemaOrderBy({ orderBy: [{ tableId: 'asc' }], tableAlias: 'Alias_Name' });
       }).not.toThrow();
+    });
+  });
+
+  describe('parsePath', () => {
+    it('should parse simple path without wildcards', () => {
+      const result = parsePath('avatar');
+      expect(result).toEqual({
+        isArray: false,
+        segments: [{ path: 'avatar', isArray: false }],
+      });
+    });
+
+    it('should parse nested object path', () => {
+      const result = parsePath('profile.photo');
+      expect(result).toEqual({
+        isArray: false,
+        segments: [{ path: 'profile.photo', isArray: false }],
+      });
+    });
+
+    it('should parse deeply nested object path', () => {
+      const result = parsePath('config.theme.logo.image');
+      expect(result).toEqual({
+        isArray: false,
+        segments: [{ path: 'config.theme.logo.image', isArray: false }],
+      });
+    });
+
+    it('should parse simple array path', () => {
+      const result = parsePath('gallery[*]');
+      expect(result).toEqual({
+        isArray: true,
+        segments: [{ path: 'gallery', isArray: true }],
+      });
+    });
+
+    it('should parse array path with trailing key', () => {
+      const result = parsePath('attachments[*].file');
+      expect(result).toEqual({
+        isArray: true,
+        segments: [
+          { path: 'attachments', isArray: true },
+          { path: 'file', isArray: false },
+        ],
+      });
+    });
+
+    it('should parse nested arrays (2 levels)', () => {
+      const result = parsePath('items[*].variants[*].image');
+      expect(result).toEqual({
+        isArray: true,
+        segments: [
+          { path: 'items', isArray: true },
+          { path: 'variants', isArray: true },
+          { path: 'image', isArray: false },
+        ],
+      });
+    });
+
+    it('should parse nested arrays without trailing path', () => {
+      const result = parsePath('sections[*].photos[*]');
+      expect(result).toEqual({
+        isArray: true,
+        segments: [
+          { path: 'sections', isArray: true },
+          { path: 'photos', isArray: true },
+        ],
+      });
+    });
+
+    it('should parse array inside nested object', () => {
+      const result = parsePath('value.files[*]');
+      expect(result).toEqual({
+        isArray: true,
+        segments: [{ path: 'value.files', isArray: true }],
+      });
+    });
+
+    it('should parse array inside nested object with trailing key', () => {
+      const result = parsePath('value.files[*].file');
+      expect(result).toEqual({
+        isArray: true,
+        segments: [
+          { path: 'value.files', isArray: true },
+          { path: 'file', isArray: false },
+        ],
+      });
+    });
+  });
+
+  describe('pagination validation', () => {
+    it('should throw for negative take', () => {
+      expect(() => {
+        buildSubSchemaQuery({
+          tables: [{ tableId: 't', tableVersionId: 'v', paths: [{ path: 'f' }] }],
+          take: -1,
+          skip: 0,
+        });
+      }).toThrow(`take must be an integer between 0 and ${MAX_TAKE}`);
+    });
+
+    it('should throw for take exceeding MAX_TAKE', () => {
+      expect(() => {
+        buildSubSchemaQuery({
+          tables: [{ tableId: 't', tableVersionId: 'v', paths: [{ path: 'f' }] }],
+          take: MAX_TAKE + 1,
+          skip: 0,
+        });
+      }).toThrow(`take must be an integer between 0 and ${MAX_TAKE}`);
+    });
+
+    it('should throw for non-integer take', () => {
+      expect(() => {
+        buildSubSchemaQuery({
+          tables: [{ tableId: 't', tableVersionId: 'v', paths: [{ path: 'f' }] }],
+          take: 1.5,
+          skip: 0,
+        });
+      }).toThrow(`take must be an integer between 0 and ${MAX_TAKE}`);
+    });
+
+    it('should throw for negative skip', () => {
+      expect(() => {
+        buildSubSchemaQuery({
+          tables: [{ tableId: 't', tableVersionId: 'v', paths: [{ path: 'f' }] }],
+          take: 10,
+          skip: -1,
+        });
+      }).toThrow(`skip must be an integer between 0 and ${MAX_SKIP}`);
+    });
+
+    it('should throw for skip exceeding MAX_SKIP', () => {
+      expect(() => {
+        buildSubSchemaQuery({
+          tables: [{ tableId: 't', tableVersionId: 'v', paths: [{ path: 'f' }] }],
+          take: 10,
+          skip: MAX_SKIP + 1,
+        });
+      }).toThrow(`skip must be an integer between 0 and ${MAX_SKIP}`);
+    });
+
+    it('should accept zero take and skip', () => {
+      expect(() => {
+        buildSubSchemaQuery({
+          tables: [{ tableId: 't', tableVersionId: 'v', paths: [{ path: 'f' }] }],
+          take: 0,
+          skip: 0,
+        });
+      }).not.toThrow();
+    });
+
+    it('should accept max take and skip', () => {
+      expect(() => {
+        buildSubSchemaQuery({
+          tables: [{ tableId: 't', tableVersionId: 'v', paths: [{ path: 'f' }] }],
+          take: MAX_TAKE,
+          skip: MAX_SKIP,
+        });
+      }).not.toThrow();
+    });
+  });
+
+  describe('buildSubSchemaQuery edge cases', () => {
+    it('should generate query without where or orderBy', () => {
+      const query = buildSubSchemaQuery({
+        tables: [{ tableId: 'files', tableVersionId: 'ver_001', paths: [{ path: 'doc' }] }],
+        take: 50,
+        skip: 0,
+      });
+      const sql = sqlToString(query);
+
+      expect(sql).toContain('sub_schema_items');
+      expect(sql).toContain('LIMIT');
+      expect(sql).toMatchSnapshot();
+    });
+
+    it('should generate query with where but no orderBy', () => {
+      const query = buildSubSchemaQuery({
+        tables: [{ tableId: 'files', tableVersionId: 'ver_001', paths: [{ path: 'doc' }] }],
+        where: { tableId: 'files' },
+        take: 50,
+        skip: 0,
+      });
+      const sql = sqlToString(query);
+
+      expect(sql).toContain('sub_schema_items');
+      expect(sql).toContain('WHERE');
+      expect(sql).toMatchSnapshot();
+    });
+
+    it('should generate query with orderBy but no where', () => {
+      const query = buildSubSchemaQuery({
+        tables: [{ tableId: 'files', tableVersionId: 'ver_001', paths: [{ path: 'doc' }] }],
+        orderBy: [{ rowId: 'asc' }],
+        take: 50,
+        skip: 0,
+      });
+      const sql = sqlToString(query);
+
+      expect(sql).toContain('sub_schema_items');
+      expect(sql).toContain('ORDER BY');
+      expect(sql).toMatchSnapshot();
+    });
+  });
+
+  describe('ORDER BY data with nested path', () => {
+    it('should generate ORDER BY for nested data path', () => {
+      const orderBy: SubSchemaOrderByItem[] = [
+        { data: { path: 'metadata.dimensions.width', order: 'asc', nulls: 'last' } },
+      ];
+      const orderByClause = buildSubSchemaOrderBy(orderBy);
+      const sql = sqlToString(orderByClause);
+
+      expect(sql).toContain('ORDER BY');
+      expect(sql).toContain("'metadata'");
+      expect(sql).toContain("'dimensions'");
+      expect(sql).toContain("'width'");
+      expect(sql).toContain('ASC');
+      expect(sql).toContain('NULLS LAST');
+    });
+
+    it('should generate ORDER BY for data path as array', () => {
+      const orderBy: SubSchemaOrderByItem[] = [
+        { data: { path: ['stats', 'views'], order: 'desc', nulls: 'first' } },
+      ];
+      const orderByClause = buildSubSchemaOrderBy(orderBy);
+      const sql = sqlToString(orderByClause);
+
+      expect(sql).toContain('ORDER BY');
+      expect(sql).toContain("'stats'");
+      expect(sql).toContain("'views'");
+      expect(sql).toContain('DESC');
+      expect(sql).toContain('NULLS FIRST');
+    });
+  });
+
+  describe('WHERE with rowId filter', () => {
+    it('should generate WHERE for rowId equals', () => {
+      const where: SubSchemaWhereInput = { rowId: 'row-123' };
+      const whereClause = buildSubSchemaWhere(where);
+      const sql = sqlToString(whereClause);
+
+      expect(sql).toContain('WHERE');
+      expect(sql).toContain('"rowId"');
+      expect(sql).toContain("'row-123'");
+    });
+
+    it('should generate WHERE for rowId with string filter', () => {
+      const where: SubSchemaWhereInput = {
+        rowId: { startsWith: 'hero-' },
+      };
+      const whereClause = buildSubSchemaWhere(where);
+      const sql = sqlToString(whereClause);
+
+      expect(sql).toContain('"rowId"');
+      expect(sql).toContain('LIKE');
+    });
+
+    it('should generate WHERE for fieldPath equals', () => {
+      const where: SubSchemaWhereInput = { fieldPath: 'avatar' };
+      const whereClause = buildSubSchemaWhere(where);
+      const sql = sqlToString(whereClause);
+
+      expect(sql).toContain('"fieldPath"');
+      expect(sql).toContain("'avatar'");
     });
   });
 });
