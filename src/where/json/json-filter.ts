@@ -34,7 +34,7 @@ const operatorManager = new OperatorManager();
 /**
  * Generate a WHERE condition for a JSONB column using path-based filtering.
  *
- * Supports 14 operators: equals, not, gt, gte, lt, lte, in, notIn,
+ * Supports 15 operators: equals, not, gt, gte, lt, lte, in, notIn,
  * string_contains, string_starts_with, string_ends_with,
  * array_contains, array_starts_with, array_ends_with, search.
  *

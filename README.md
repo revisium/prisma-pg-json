@@ -815,7 +815,7 @@ validateJsonPath('')              // { isValid: false, error: 'JSON path cannot 
 
 ## Architecture
 
-```
+```text
 src/
 ├── index.ts                  # Public exports
 ├── prisma-adapter.ts         # Proxy pattern — no direct @prisma/client dependency
@@ -852,7 +852,7 @@ src/
 
 ### Data Flow
 
-```
+```text
 buildQuery(options)
   ├── generateWhere(where, fieldConfig, tableAlias)
   │     ├── generateStringFilter(fieldRef, filter)
@@ -871,7 +871,7 @@ buildQuery(options)
 ### Security Model
 
 - All user values parameterized via `Prisma.sql` tagged templates
-- `Prisma.raw()` only for trusted identifiers — validated at runtime against whitelists (`VALID_DIRECTIONS`, `VALID_TYPES`, `VALID_AGGREGATIONS`, `SEARCH_LANGUAGES`)
+- `Prisma.raw()` used for SQL identifiers (table aliases, field names, sort directions) — validated at runtime against whitelists where applicable (`VALID_DIRECTIONS`, `VALID_TYPES`, `VALID_AGGREGATIONS`, `SEARCH_LANGUAGES`). Table/field names come from consumer-provided `fieldConfig`, not user input.
 - Path traversal (`..`) rejected in JSON path validation
 - 40+ SQL injection attack test scenarios
 
