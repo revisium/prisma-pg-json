@@ -42,8 +42,4 @@ export class InOperator extends BaseOperator<unknown[]> {
     }
   }
 
-  // Custom behavior: empty array handling
-  handleEmptyArray(): PrismaSql {
-    return Prisma.sql`FALSE`;
-  }
 }

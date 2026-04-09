@@ -4,13 +4,8 @@ import { BaseOperator } from './operators/base-operator';
 import {
   EqualsOperator,
   NotOperator,
-  GtOperator,
-  GteOperator,
-  LtOperator,
-  LteOperator,
-  StringContainsOperator,
-  StringStartsWithOperator,
-  StringEndsWithOperator,
+  ComparisonOperator,
+  StringPatternOperator,
   ArrayContainsOperator,
   ArrayStartsWithOperator,
   ArrayEndsWithOperator,
@@ -27,16 +22,16 @@ export class OperatorManager {
   }
 
   private registerDefaultOperators(): void {
-    const defaultOperators = [
+    const defaultOperators: BaseOperator[] = [
       new EqualsOperator(),
       new NotOperator(),
-      new GtOperator(),
-      new GteOperator(),
-      new LtOperator(),
-      new LteOperator(),
-      new StringContainsOperator(),
-      new StringStartsWithOperator(),
-      new StringEndsWithOperator(),
+      new ComparisonOperator('gt'),
+      new ComparisonOperator('gte'),
+      new ComparisonOperator('lt'),
+      new ComparisonOperator('lte'),
+      new StringPatternOperator('string_contains'),
+      new StringPatternOperator('string_starts_with'),
+      new StringPatternOperator('string_ends_with'),
       new ArrayContainsOperator(),
       new ArrayStartsWithOperator(),
       new ArrayEndsWithOperator(),
@@ -80,16 +75,13 @@ export class OperatorManager {
       const operator = this.getOperator(key as keyof JsonFilter);
       if (operator) {
         try {
-          if (operator instanceof SearchOperator) {
-            operator.setContext(filter);
-          }
-
           const condition = operator.execute(
             fieldRef,
             jsonPath,
             value,
             isInsensitive,
             isSpecialPath,
+            filter,
           );
           conditions.push(condition);
         } catch (error) {

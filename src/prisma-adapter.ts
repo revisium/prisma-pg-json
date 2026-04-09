@@ -1,6 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type PrismaSql = any;
 
+/** Adapter interface matching Prisma's SQL template utilities. */
 export interface PrismaAdapter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sql(strings: TemplateStringsArray, ...values: any[]): PrismaSql;
@@ -36,10 +37,25 @@ class PrismaConfig {
 
 export const prismaConfig = new PrismaConfig();
 
+/**
+ * Configure the library with your Prisma instance.
+ *
+ * Must be called once at application startup before using any query building functions.
+ *
+ * @param adapter - The `Prisma` namespace from `@prisma/client`
+ *
+ * @example
+ * ```typescript
+ * import { Prisma } from '@prisma/client';
+ * import { configurePrisma } from '@revisium/prisma-pg-json';
+ * configurePrisma(Prisma);
+ * ```
+ */
 export function configurePrisma(adapter: PrismaAdapter): void {
   prismaConfig.configure(adapter);
 }
 
+/** Get the configured Prisma adapter. Throws if `configurePrisma()` hasn't been called. */
 export function getPrismaAdapter(): PrismaAdapter {
   return prismaConfig.getAdapter();
 }

@@ -1,6 +1,15 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import { NumberFilter } from '../types';
 
+/**
+ * Generate a WHERE condition for a numeric column.
+ *
+ * Supports: equals, not, gt, gte, lt, lte, in, notIn.
+ *
+ * @param fieldRef - SQL reference to the column
+ * @param filter - Number value for exact match, or NumberFilter object
+ * @returns Parameterized SQL condition
+ */
 export function generateNumberFilter(
   fieldRef: PrismaSql,
   filter: number | NumberFilter,

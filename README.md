@@ -66,9 +66,46 @@ configurePrisma(Prisma);
 
 > **Important**: Call `configurePrisma()` before using any query building functions. This allows the library to work with any Prisma client version and custom import paths.
 
-### Core Functions
+### buildQuery — Complete Query Builder
 
-The library provides two main functions for building WHERE and ORDER BY clauses:
+For simple cases, `buildQuery()` assembles a complete `SELECT ... WHERE ... ORDER BY ... LIMIT ... OFFSET` query in one call:
+
+```typescript
+import { buildQuery, configurePrisma } from '@revisium/prisma-pg-json';
+import { Prisma, PrismaClient } from '@prisma/client';
+
+configurePrisma(Prisma);
+const prisma = new PrismaClient();
+
+const sql = buildQuery({
+  tableName: 'users',
+  tableAlias: 'u',                // optional, defaults to first char of tableName
+  fields: ['id', 'name', 'age'],  // optional, defaults to ['*']
+  fieldConfig: {
+    name: 'string',
+    age: 'number',
+    isActive: 'boolean',
+    metadata: 'json',
+  },
+  where: {
+    name: { contains: 'john', mode: 'insensitive' },
+    age: { gte: 18 },
+    metadata: { path: 'role', equals: 'admin' },
+  },
+  orderBy: [
+    { age: 'desc' },
+    { metadata: { path: 'score', type: 'int', direction: 'asc' } },
+  ],
+  take: 20,   // default: 50
+  skip: 0,    // default: 0
+});
+
+const results = await prisma.$queryRaw(sql);
+```
+
+### Core Functions — generateWhere & generateOrderBy
+
+For more control (JOINs, CTEs, keyset pagination), use the individual functions to build SQL fragments:
 
 ```typescript
 import { generateWhere, generateOrderBy, FieldConfig } from '@revisium/prisma-pg-json';
@@ -652,6 +689,191 @@ const cursor = encodeCursor(cursorValues, lastRow.id, sortHash);
 
 ### Universal Design
 Works with any table structure - just define your field types and start querying.
+
+### Sub-Schema Queries
+
+Query nested JSON structures across multiple tables using CTE-based SQL with wildcard array support. Designed for schemas where JSONB fields contain `$ref`-style references to other data.
+
+```typescript
+import {
+  buildSubSchemaCte,
+  buildSubSchemaWhere,
+  buildSubSchemaOrderBy,
+  buildSubSchemaQuery,
+  buildSubSchemaCountQuery,
+  parsePath,
+  MAX_TAKE,
+  MAX_SKIP,
+} from '@revisium/prisma-pg-json';
+```
+
+#### Composable Functions
+
+Build CTE, WHERE, and ORDER BY separately for full control:
+
+```typescript
+// 1. Build the CTE that extracts sub-schema items
+const cte = buildSubSchemaCte({
+  tables: [
+    {
+      tableId: 'characters',
+      tableVersionId: 'ver_123',
+      paths: [
+        { path: 'avatar' },          // simple field
+        { path: 'gallery[*]' },      // array with wildcard
+        { path: 'items[*].image' },  // nested in array
+      ],
+    },
+  ],
+});
+
+// 2. Build WHERE clause
+const whereClause = buildSubSchemaWhere({
+  where: {
+    tableId: 'characters',
+    data: { path: 'status', equals: 'uploaded' },
+  },
+  tableAlias: 's',  // optional, for JOINed queries
+});
+
+// 3. Build ORDER BY clause
+const orderByClause = buildSubSchemaOrderBy({
+  orderBy: [{ rowId: 'asc' }, { fieldPath: 'asc' }],
+  tableAlias: 's',
+});
+
+// 4. Compose the final query
+const query = Prisma.sql`
+  ${cte}
+  SELECT s.* FROM sub_schema_items s
+  ${whereClause}
+  ${orderByClause}
+  LIMIT 50 OFFSET 0
+`;
+```
+
+#### All-in-One Functions
+
+For simple cases, `buildSubSchemaQuery` and `buildSubSchemaCountQuery` combine everything:
+
+```typescript
+const query = buildSubSchemaQuery({
+  tables: [{ tableId: 'characters', tableVersionId: 'ver_123', paths: [{ path: 'avatar' }] }],
+  where: { data: { path: 'type', equals: 'image' } },
+  orderBy: [{ rowId: 'asc' }],
+  take: 50,
+  skip: 0,
+});
+
+const countQuery = buildSubSchemaCountQuery({
+  tables: [{ tableId: 'characters', tableVersionId: 'ver_123', paths: [{ path: 'avatar' }] }],
+  where: { data: { path: 'type', equals: 'image' } },
+});
+```
+
+#### Path Format
+
+The `path` field uses dot-notation for nested objects and `[*]` for arrays:
+
+| Path | Description | Generated SQL |
+|------|-------------|---------------|
+| `'avatar'` | Top-level field | `data->'avatar'` |
+| `'profile.photo'` | Nested object | `data->'profile'->'photo'` |
+| `'gallery[*]'` | Array elements | `jsonb_array_elements(data->'gallery')` |
+| `'items[*].image'` | Field inside array | CROSS JOIN LATERAL with element access |
+
+#### Pagination Limits
+
+- `MAX_TAKE = 10000` — maximum rows per page
+- `MAX_SKIP = 1000000` — maximum offset
+
+### Path Utilities
+
+Parse, convert, and validate JSON path strings:
+
+```typescript
+import { parseJsonPath, arrayToJsonPath, validateJsonPath } from '@revisium/prisma-pg-json';
+
+// Parse string path to array of segments
+parseJsonPath('user.profile.name')     // ['user', 'profile', 'name']
+parseJsonPath('items[0].price')        // ['items', '0', 'price']
+parseJsonPath('tags[*].name')          // ['tags', '*', 'name']
+parseJsonPath('items[-1]')             // ['items', 'last']
+
+// Convert array back to string path
+arrayToJsonPath(['user', 'name'])        // 'user.name'
+arrayToJsonPath(['items', '0', 'price']) // 'items[0].price'
+arrayToJsonPath(['tags', '*', 'name'])   // 'tags[*].name'
+
+// Validate path syntax
+validateJsonPath('user.email')    // { isValid: true }
+validateJsonPath('items[')        // { isValid: false, error: 'Unclosed bracket in JSON path' }
+validateJsonPath('')              // { isValid: false, error: 'JSON path cannot be empty' }
+```
+
+`parseJsonPath` accepts both string and array input — if passed an array, it returns it unchanged.
+
+## Architecture
+
+```text
+src/
+├── index.ts                  # Public exports
+├── prisma-adapter.ts         # Proxy pattern — no direct @prisma/client dependency
+├── query-builder.ts          # buildQuery() — complete SELECT builder
+├── types.ts                  # Filter, OrderBy, FieldConfig types
+│
+├── where/                    # WHERE clause generation
+│   ├── string.ts             # String filters (equals, contains, startsWith, ...)
+│   ├── number.ts             # Number filters (gt, gte, lt, lte, in, ...)
+│   ├── boolean.ts            # Boolean filters (equals, not)
+│   ├── date.ts               # Date filters (gt, gte, lt, lte, in, ...)
+│   └── json/                 # JSON/JSONB filters — strategy pattern
+│       ├── json-filter.ts    # Entry point, path validation
+│       ├── operator-manager.ts  # Operator registry and routing
+│       ├── operators/        # 14 operator classes (equals, gt, search, ...)
+│       │   └── base-operator.ts # Abstract base class
+│       └── jsonpath/         # PostgreSQL jsonpath SQL helpers
+│
+├── orderBy/                  # ORDER BY clause generation
+│   └── generateOrderBy.ts    # generateOrderBy, generateOrderByClauses, generateOrderByParts
+│
+├── keyset/                   # Cursor-based pagination
+│   ├── cursor.ts             # encodeCursor, decodeCursor, computeSortHash, extractCursorValues
+│   └── condition.ts          # buildKeysetCondition — multi-column WHERE
+│
+├── sub-schema/               # CTE queries for nested JSON schemas
+│   ├── sub-schema-builder.ts # buildSubSchemaCte, buildSubSchemaWhere, buildSubSchemaOrderBy, ...
+│   └── types.ts              # SubSchemaTableConfig, SubSchemaWhereInput, ...
+│
+└── utils/
+    ├── parseJsonPath.ts      # parseJsonPath, arrayToJsonPath, validateJsonPath
+    └── sql-jsonpath.ts       # jsonb_path_exists SQL helpers
+```
+
+### Data Flow
+
+```text
+buildQuery(options)
+  ├── generateWhere(where, fieldConfig, tableAlias)
+  │     ├── generateStringFilter(fieldRef, filter)
+  │     ├── generateNumberFilter(fieldRef, filter)
+  │     ├── generateBooleanFilter(fieldRef, filter)
+  │     ├── generateDateFilter(fieldRef, filter)
+  │     └── generateJsonFilter(fieldRef, filter)
+  │           └── OperatorManager → BaseOperator subclasses
+  │
+  ├── generateOrderBy(orderBy, fieldConfig, tableAlias)
+  │     └── processJsonOrder → type casting + aggregation subqueries
+  │
+  └── Prisma.sql`SELECT ... WHERE ... ORDER BY ... LIMIT ... OFFSET ...`
+```
+
+### Security Model
+
+- All user values parameterized via `Prisma.sql` tagged templates
+- `Prisma.raw()` used for SQL identifiers (table aliases, field names, sort directions) — validated at runtime against whitelists where applicable (`VALID_DIRECTIONS`, `VALID_TYPES`, `VALID_AGGREGATIONS`, `SEARCH_LANGUAGES`). Table/field names come from consumer-provided `fieldConfig`, not user input.
+- Path traversal (`..`) rejected in JSON path validation
+- 40+ SQL injection attack test scenarios
 
 ## License
 

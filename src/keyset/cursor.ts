@@ -8,6 +8,14 @@ interface CursorPayload {
   h: string;
 }
 
+/**
+ * Encode cursor values into an opaque base64url string for keyset pagination.
+ *
+ * @param values - Sort column values extracted from the last row
+ * @param tiebreaker - Unique row identifier (e.g., versionId) for deterministic ordering
+ * @param sortHash - Hash from `computeSortHash()` to detect sort order changes
+ * @returns Opaque cursor string to pass as `after` parameter
+ */
 export function encodeCursor(
   values: CursorValue[],
   tiebreaker: string,
@@ -17,6 +25,14 @@ export function encodeCursor(
   return Buffer.from(JSON.stringify(payload)).toString('base64url');
 }
 
+/**
+ * Decode an opaque cursor string back into its components.
+ *
+ * Returns null for invalid or malformed cursors (never throws).
+ *
+ * @param cursor - Opaque cursor string from `encodeCursor()`
+ * @returns Decoded values, tiebreaker, and sortHash, or null if invalid
+ */
 export function decodeCursor(cursor: string): {
   values: CursorValue[];
   tiebreaker: string;
@@ -49,6 +65,16 @@ function isValidCursorValue(value: unknown): value is CursorValue {
   return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
 }
 
+/**
+ * Compute a SHA256-based hash of the sort configuration.
+ *
+ * Used to detect when the sort order changes between pagination pages.
+ * If the hash from a decoded cursor doesn't match the current sort,
+ * the cursor should be rejected.
+ *
+ * @param parts - OrderByPart array from `generateOrderByParts()`
+ * @returns 16-character hex hash string
+ */
 export function computeSortHash(parts: OrderByPart[]): string {
   const key = parts
     .map((p) => {
@@ -64,6 +90,16 @@ export function computeSortHash(parts: OrderByPart[]): string {
   return createHash('sha256').update(key).digest('hex').substring(0, 16);
 }
 
+/**
+ * Extract cursor values from a result row based on the sort configuration.
+ *
+ * For JSON fields, walks the JSON data using the configured path.
+ * Wildcard `*` segments return null (aggregation is computed in SQL).
+ *
+ * @param row - Result row object
+ * @param parts - OrderByPart array from `generateOrderByParts()`
+ * @returns Array of cursor values matching the sort columns
+ */
 export function extractCursorValues(
   row: Record<string, unknown>,
   parts: OrderByPart[],
