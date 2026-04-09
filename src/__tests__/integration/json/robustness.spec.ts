@@ -121,7 +121,7 @@ describe('Robustness tests', () => {
 
   describe('large JSON documents', () => {
     it('should handle JSON with many fields (200 keys)', async () => {
-      const largeObj: Record<string, unknown> = {};
+      const largeObj: Record<string, string> = {};
       for (let i = 0; i < 200; i++) {
         largeObj[`field_${i}`] = `value_${i}`;
       }
@@ -145,9 +145,9 @@ describe('Robustness tests', () => {
     });
 
     it('should handle deeply nested JSON (10 levels)', async () => {
-      let nested: Record<string, unknown> = { value: 'found' };
+      let nested: Record<string, Record<string, unknown> | string> = { value: 'found' };
       for (let i = 9; i >= 0; i--) {
-        nested = { [`level${i}`]: nested };
+        nested = { [`level${i}`]: nested } as Record<string, Record<string, unknown> | string>;
       }
 
       await prisma.testTable.create({
@@ -193,7 +193,7 @@ describe('Robustness tests', () => {
     });
 
     it('should search across large JSON document', async () => {
-      const doc: Record<string, unknown> = {};
+      const doc: Record<string, { title: string; content: string }> = {};
       for (let i = 0; i < 50; i++) {
         doc[`section_${i}`] = {
           title: `Section ${i}`,
