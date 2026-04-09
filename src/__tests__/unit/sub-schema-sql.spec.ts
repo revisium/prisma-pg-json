@@ -8,6 +8,7 @@ import {
   parsePath,
   MAX_TAKE,
   MAX_SKIP,
+  SubSchemaCteParams,
 } from '../../sub-schema/sub-schema-builder';
 import {
   SubSchemaQueryParams,
@@ -15,7 +16,6 @@ import {
   SubSchemaWhereInput,
   SubSchemaOrderByItem,
 } from '../../sub-schema/types';
-import { SubSchemaCteParams } from '../../sub-schema/sub-schema-builder';
 import { configurePrisma, PrismaSql } from '../../prisma-adapter';
 import { Prisma } from '@prisma/client';
 
@@ -168,8 +168,8 @@ describe('SubSchema SQL Generation', () => {
       const sql = sqlToString(cte);
 
       expect(sql).toContain("-> 'test-case'");
-      expect(sql).toContain("'test-case'::text as \"fieldPath\"");
-      expect(sql).not.toContain("'\"test-case\"'");
+      expect(sql).toContain('\'test-case\'::text as "fieldPath"');
+      expect(sql).not.toContain('\'"test-case"\'');
       expect(sql).toMatchSnapshot();
     });
 
@@ -188,8 +188,8 @@ describe('SubSchema SQL Generation', () => {
       const sql = sqlToString(cte);
 
       expect(sql).toContain("-> 'api-settings' -> 'auth-token'");
-      expect(sql).toContain("'api-settings.auth-token'::text as \"fieldPath\"");
-      expect(sql).not.toContain("'\"api-settings\"'");
+      expect(sql).toContain('\'api-settings.auth-token\'::text as "fieldPath"');
+      expect(sql).not.toContain('\'"api-settings"\'');
       expect(sql).toMatchSnapshot();
     });
 
@@ -211,8 +211,8 @@ describe('SubSchema SQL Generation', () => {
       expect(sql).toContain("-> 'test-case'");
       expect(sql).toContain("'results'::text || '['");
       expect(sql).toContain("|| 'test-case'::text");
-      expect(sql).not.toContain("'\"results\"'");
-      expect(sql).not.toContain("'\"test-case\"'");
+      expect(sql).not.toContain('\'"results"\'');
+      expect(sql).not.toContain('\'"test-case"\'');
       expect(sql).toMatchSnapshot();
     });
 
@@ -232,7 +232,7 @@ describe('SubSchema SQL Generation', () => {
 
       expect(sql).toContain("-> 'gallery-items'");
       expect(sql).toContain("'gallery-items'::text || '['");
-      expect(sql).not.toContain("'\"gallery-items\"'");
+      expect(sql).not.toContain('\'"gallery-items"\'');
       expect(sql).toMatchSnapshot();
     });
 
@@ -253,9 +253,9 @@ describe('SubSchema SQL Generation', () => {
       expect(sql).toContain("-> 'product-lines'");
       expect(sql).toContain("-> 'color-variants'");
       expect(sql).toContain("-> 'image-url'");
-      expect(sql).not.toContain("'\"product-lines\"'");
-      expect(sql).not.toContain("'\"color-variants\"'");
-      expect(sql).not.toContain("'\"image-url\"'");
+      expect(sql).not.toContain('\'"product-lines"\'');
+      expect(sql).not.toContain('\'"color-variants"\'');
+      expect(sql).not.toContain('\'"image-url"\'');
       expect(sql).toMatchSnapshot();
     });
 
@@ -286,16 +286,16 @@ describe('SubSchema SQL Generation', () => {
       expect(sql).toContain("-> 'hero-banner'");
       expect(sql).toContain("-> 'media-items'");
       // no literal double quotes in SQL values
-      expect(sql).not.toContain("'\"cover-image\"'");
-      expect(sql).not.toContain("'\"hero-banner\"'");
-      expect(sql).not.toContain("'\"media-items\"'");
+      expect(sql).not.toContain('\'"cover-image"\'');
+      expect(sql).not.toContain('\'"hero-banner"\'');
+      expect(sql).not.toContain('\'"media-items"\'');
       expect(sql).toMatchSnapshot();
     });
   });
 
   describe('buildSubSchemaWhere', () => {
     it('should return empty for undefined where', () => {
-      const whereClause = buildSubSchemaWhere(undefined);
+      const whereClause = buildSubSchemaWhere();
       expect(sqlToString(whereClause)).toBe('');
     });
 
@@ -329,10 +329,7 @@ describe('SubSchema SQL Generation', () => {
           { data: { path: 'status', equals: 'uploaded' } },
           { data: { path: 'mimeType', string_starts_with: 'image/' } },
         ],
-        OR: [
-          { data: { path: 'size', gte: 1000 } },
-          { data: { path: 'size', lte: 100 } },
-        ],
+        OR: [{ data: { path: 'size', gte: 1000 } }, { data: { path: 'size', lte: 100 } }],
       };
       const whereClause = buildSubSchemaWhere(where);
       const sql = sqlToString(whereClause);
@@ -353,7 +350,7 @@ describe('SubSchema SQL Generation', () => {
 
   describe('buildSubSchemaOrderBy', () => {
     it('should return empty for undefined orderBy', () => {
-      const orderByClause = buildSubSchemaOrderBy(undefined);
+      const orderByClause = buildSubSchemaOrderBy();
       expect(sqlToString(orderByClause)).toBe('');
     });
 
@@ -447,15 +444,9 @@ describe('SubSchema SQL Generation', () => {
             { data: { path: 'status', equals: 'uploaded' } },
             { data: { path: 'mimeType', string_starts_with: 'image/' } },
           ],
-          OR: [
-            { data: { path: 'size', gte: 1000 } },
-            { data: { path: 'size', lte: 100 } },
-          ],
+          OR: [{ data: { path: 'size', gte: 1000 } }, { data: { path: 'size', lte: 100 } }],
         },
-        orderBy: [
-          { tableId: 'asc' },
-          { data: { path: 'size', order: 'desc', nulls: 'last' } },
-        ],
+        orderBy: [{ tableId: 'asc' }, { data: { path: 'size', order: 'desc', nulls: 'last' } }],
         take: 20,
         skip: 10,
       };
@@ -472,10 +463,7 @@ describe('SubSchema SQL Generation', () => {
           {
             tableId: 'media',
             tableVersionId: 'ver_media_001',
-            paths: [
-              { path: 'cover' },
-              { path: 'gallery[*]' },
-            ],
+            paths: [{ path: 'cover' }, { path: 'gallery[*]' }],
           },
         ],
         where: {
@@ -603,14 +591,8 @@ describe('SubSchema SQL Generation', () => {
 
     it('should use tableAlias in nested AND/OR/NOT conditions', () => {
       const where: SubSchemaWhereInput = {
-        AND: [
-          { tableId: 'characters' },
-          { data: { path: 'status', equals: 'uploaded' } },
-        ],
-        OR: [
-          { data: { path: 'size', gte: 1000 } },
-          { rowId: 'hero' },
-        ],
+        AND: [{ tableId: 'characters' }, { data: { path: 'status', equals: 'uploaded' } }],
+        OR: [{ data: { path: 'size', gte: 1000 } }, { rowId: 'hero' }],
         NOT: { fieldPath: 'avatar' },
       };
 
@@ -651,7 +633,10 @@ describe('SubSchema SQL Generation', () => {
 
     it('should throw error for invalid rowTableAlias in ORDER BY', () => {
       expect(() => {
-        buildSubSchemaOrderBy({ orderBy: [{ rowCreatedAt: 'desc' }], rowTableAlias: 'DROP TABLE;--' });
+        buildSubSchemaOrderBy({
+          orderBy: [{ rowCreatedAt: 'desc' }],
+          rowTableAlias: 'DROP TABLE;--',
+        });
       }).toThrow('Invalid rowTableAlias');
     });
 

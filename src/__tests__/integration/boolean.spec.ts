@@ -1,6 +1,5 @@
-import './setup';
-import { nanoid } from 'nanoid';
 import { prisma } from './setup';
+import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
 import { WhereConditionsTyped } from '../../types';
 
@@ -35,7 +34,6 @@ describe('Boolean Filters', () => {
     expect(results.length).toBe(expectedIds.length);
     expect(results.map((r) => r.id)).toEqual(expectedIds);
   };
-
 
   beforeEach(async () => {
     ids = {

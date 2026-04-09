@@ -59,15 +59,11 @@ describe('SearchOperator', () => {
     });
   });
 
-  describe('setContext', () => {
-    it('should set default context when no options provided', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-      });
-
+  describe('execute with filter context', () => {
+    it('should use default context when no filter options provided', () => {
+      const filter = { path: '', search: 'test' };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["all"]') @@ plainto_tsquery('simple', ?)`,
@@ -76,14 +72,9 @@ describe('SearchOperator', () => {
     });
 
     it('should set language from searchLanguage', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-        searchLanguage: 'english',
-      });
-
+      const filter = { path: '', search: 'test', searchLanguage: 'english' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('english', data, '["all"]') @@ plainto_tsquery('english', ?)`,
@@ -92,14 +83,9 @@ describe('SearchOperator', () => {
     });
 
     it('should set phrase search type', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-        searchType: 'phrase',
-      });
-
+      const filter = { path: '', search: 'test', searchType: 'phrase' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["all"]') @@ phraseto_tsquery('simple', ?)`,
@@ -108,14 +94,9 @@ describe('SearchOperator', () => {
     });
 
     it('should set plain search type', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-        searchType: 'plain',
-      });
-
+      const filter = { path: '', search: 'test', searchType: 'plain' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["all"]') @@ plainto_tsquery('simple', ?)`,
@@ -124,14 +105,9 @@ describe('SearchOperator', () => {
     });
 
     it('should set prefix search type', () => {
-      operator.setContext({
-        path: '',
-        search: 'test query',
-        searchType: 'prefix',
-      });
-
+      const filter = { path: '', search: 'test query', searchType: 'prefix' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test query');
+      const sql = operator.execute(fieldRef, '$', 'test query', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["all"]') @@ to_tsquery('simple', ?)`,
@@ -140,14 +116,9 @@ describe('SearchOperator', () => {
     });
 
     it('should set tsquery search type', () => {
-      operator.setContext({
-        path: '',
-        search: 'test:* & query:*',
-        searchType: 'tsquery',
-      });
-
+      const filter = { path: '', search: 'test:* & query:*', searchType: 'tsquery' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test:* & query:*');
+      const sql = operator.execute(fieldRef, '$', 'test:* & query:*', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["all"]') @@ to_tsquery('simple', ?)`,
@@ -158,11 +129,6 @@ describe('SearchOperator', () => {
 
   describe('handleSpecialPath', () => {
     it('should generate SQL for root level search', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.handleSpecialPath(fieldRef, 'test');
 
@@ -172,15 +138,10 @@ describe('SearchOperator', () => {
       expect(sql.values).toEqual(['test']);
     });
 
-    it('should use specified language', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-        searchLanguage: 'russian',
-      });
-
+    it('should use specified language via execute', () => {
+      const filter = { path: '', search: 'test', searchLanguage: 'russian' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('russian', data, '["all"]') @@ plainto_tsquery('russian', ?)`,
@@ -188,15 +149,10 @@ describe('SearchOperator', () => {
       expect(sql.values).toEqual(['test']);
     });
 
-    it('should use phrase search type', () => {
-      operator.setContext({
-        path: '',
-        search: 'exact phrase',
-        searchType: 'phrase',
-      });
-
+    it('should use phrase search type via execute', () => {
+      const filter = { path: '', search: 'exact phrase', searchType: 'phrase' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'exact phrase');
+      const sql = operator.execute(fieldRef, '$', 'exact phrase', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["all"]') @@ phraseto_tsquery('simple', ?)`,
@@ -207,11 +163,6 @@ describe('SearchOperator', () => {
 
   describe('generateCondition', () => {
     it('should generate SQL for specific path', () => {
-      operator.setContext({
-        path: 'content',
-        search: 'test',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(fieldRef, '$.content', 'test', false);
 
@@ -222,11 +173,6 @@ describe('SearchOperator', () => {
     });
 
     it('should handle nested path', () => {
-      operator.setContext({
-        path: 'user.profile.bio',
-        search: 'developer',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(fieldRef, '$.user.profile.bio', 'developer', false);
 
@@ -237,11 +183,6 @@ describe('SearchOperator', () => {
     });
 
     it('should handle array path', () => {
-      operator.setContext({
-        path: 'items[0].name',
-        search: 'product',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(fieldRef, '$.items[0].name', 'product', false);
 
@@ -251,15 +192,10 @@ describe('SearchOperator', () => {
       expect(sql.values).toEqual([['items', '0', 'name'], 'product']);
     });
 
-    it('should use phrase search type', () => {
-      operator.setContext({
-        path: 'text',
-        search: 'exact phrase',
-        searchType: 'phrase',
-      });
-
+    it('should use phrase search type via execute', () => {
+      const filter = { path: 'text', search: 'exact phrase', searchType: 'phrase' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.generateCondition(fieldRef, '$.text', 'exact phrase', false);
+      const sql = operator.execute(fieldRef, '$.text', 'exact phrase', false, false, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data #> ?::text[], '["all"]') @@ phraseto_tsquery('simple', ?)`,
@@ -267,15 +203,14 @@ describe('SearchOperator', () => {
       expect(sql.values).toEqual([['text'], 'exact phrase']);
     });
 
-    it('should use specified language', () => {
-      operator.setContext({
+    it('should use specified language via execute', () => {
+      const filter = {
         path: 'description',
         search: 'test',
-        searchLanguage: 'french',
-      });
-
+        searchLanguage: 'french' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.generateCondition(fieldRef, '$.description', 'test', false);
+      const sql = operator.execute(fieldRef, '$.description', 'test', false, false, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('french', data #> ?::text[], '["all"]') @@ plainto_tsquery('french', ?)`,
@@ -308,24 +243,14 @@ describe('SearchOperator', () => {
 
   describe('execute', () => {
     it('should execute with valid input for special path', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-      });
-
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.execute(fieldRef, '', 'test', false, true);
+      const sql = operator.execute(fieldRef, '$', 'test', false, true);
 
       expect(sql).toBeDefined();
       expect(sql.sql).toContain('jsonb_to_tsvector');
     });
 
     it('should execute with valid input for normal path', () => {
-      operator.setContext({
-        path: 'content',
-        search: 'test',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.execute(fieldRef, '$.content', 'test', false, false);
 
@@ -334,23 +259,13 @@ describe('SearchOperator', () => {
     });
 
     it('should throw error for invalid value', () => {
-      operator.setContext({
-        path: '',
-        search: '',
-      });
-
       const fieldRef = Prisma.sql`data`;
-      expect(() => operator.execute(fieldRef, '', '', false, true)).toThrow();
+      expect(() => operator.execute(fieldRef, '$', '', false, true)).toThrow();
     });
 
     it('should throw error for non-string value', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-      });
-
       const fieldRef = Prisma.sql`data`;
-      expect(() => operator.execute(fieldRef, '', 123 as unknown as string, false, true)).toThrow(
+      expect(() => operator.execute(fieldRef, '$', 123 as unknown as string, false, true)).toThrow(
         'search requires a string value',
       );
     });
@@ -358,11 +273,6 @@ describe('SearchOperator', () => {
 
   describe('path parsing edge cases', () => {
     it('should handle empty path string', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(fieldRef, '', 'test', false);
 
@@ -373,11 +283,6 @@ describe('SearchOperator', () => {
     });
 
     it('should handle $ path', () => {
-      operator.setContext({
-        path: '$',
-        search: 'test',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(fieldRef, '$', 'test', false);
 
@@ -388,11 +293,6 @@ describe('SearchOperator', () => {
     });
 
     it('should handle path with $.prefix', () => {
-      operator.setContext({
-        path: '$.content',
-        search: 'test',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(fieldRef, '$.content', 'test', false);
 
@@ -403,11 +303,6 @@ describe('SearchOperator', () => {
     });
 
     it('should handle complex nested path', () => {
-      operator.setContext({
-        path: 'user.profile.settings.theme',
-        search: 'dark',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(
         fieldRef,
@@ -423,11 +318,6 @@ describe('SearchOperator', () => {
     });
 
     it('should handle path with wildcards', () => {
-      operator.setContext({
-        path: 'items[*].name',
-        search: 'product',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(fieldRef, '$.items[*].name', 'product', false);
 
@@ -438,11 +328,6 @@ describe('SearchOperator', () => {
     });
 
     it('should handle array index path', () => {
-      operator.setContext({
-        path: 'items[0]',
-        search: 'first',
-      });
-
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(fieldRef, '$.items[0]', 'first', false);
 
@@ -453,18 +338,8 @@ describe('SearchOperator', () => {
     });
 
     it('should handle multiple array indices', () => {
-      operator.setContext({
-        path: 'data[0].nested[1].value',
-        search: 'test',
-      });
-
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.generateCondition(
-        fieldRef,
-        '$.data[0].nested[1].value',
-        'test',
-        false,
-      );
+      const sql = operator.generateCondition(fieldRef, '$.data[0].nested[1].value', 'test', false);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data #> ?::text[], '["all"]') @@ plainto_tsquery('simple', ?)`,
@@ -474,21 +349,20 @@ describe('SearchOperator', () => {
   });
 
   describe('language and search type combinations', () => {
-    const languages = ['simple', 'english', 'russian', 'french', 'german', 'spanish'];
-    const searchTypes: Array<'plain' | 'phrase'> = ['plain', 'phrase'];
+    const languages = ['simple', 'english', 'russian', 'french', 'german', 'spanish'] as const;
+    const searchTypes = ['plain', 'phrase'] as const;
 
     languages.forEach((language) => {
       searchTypes.forEach((searchType) => {
         it(`should handle ${language} language with ${searchType} search type`, () => {
-          operator.setContext({
+          const filter = {
             path: 'content',
             search: 'test query',
             searchLanguage: language,
             searchType,
-          });
-
+          };
           const fieldRef = Prisma.sql`data`;
-          const sql = operator.generateCondition(fieldRef, '$.content', 'test query', false);
+          const sql = operator.execute(fieldRef, '$.content', 'test query', false, false, filter);
 
           const queryFunc = searchType === 'phrase' ? 'phraseto_tsquery' : 'plainto_tsquery';
           expect(sql.sql).toEqual(
@@ -502,14 +376,9 @@ describe('SearchOperator', () => {
 
   describe('prefix search type', () => {
     it('should convert single word to prefix query', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-        searchType: 'prefix',
-      });
-
+      const filter = { path: '', search: 'test', searchType: 'prefix' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["all"]') @@ to_tsquery('simple', ?)`,
@@ -518,67 +387,50 @@ describe('SearchOperator', () => {
     });
 
     it('should convert multiple words to prefix query with AND', () => {
-      operator.setContext({
-        path: '',
-        search: 'hello world',
-        searchType: 'prefix',
-      });
-
+      const filter = { path: '', search: 'hello world', searchType: 'prefix' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'hello world');
+      const sql = operator.execute(fieldRef, '$', 'hello world', false, true, filter);
 
       expect(sql.values).toEqual(['hello:* & world:*']);
     });
 
     it('should handle multiple spaces between words', () => {
-      operator.setContext({
-        path: '',
-        search: 'hello   world',
-        searchType: 'prefix',
-      });
-
+      const filter = { path: '', search: 'hello   world', searchType: 'prefix' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'hello   world');
+      const sql = operator.execute(fieldRef, '$', 'hello   world', false, true, filter);
 
       expect(sql.values).toEqual(['hello:* & world:*']);
     });
 
     it('should handle leading and trailing spaces', () => {
-      operator.setContext({
-        path: '',
-        search: '  hello world  ',
-        searchType: 'prefix',
-      });
-
+      const filter = { path: '', search: '  hello world  ', searchType: 'prefix' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, '  hello world  ');
+      const sql = operator.execute(fieldRef, '$', '  hello world  ', false, true, filter);
 
       expect(sql.values).toEqual(['hello:* & world:*']);
     });
 
     it('should escape special tsquery characters', () => {
-      operator.setContext({
+      const filter = {
         path: '',
         search: 'hello & world | test',
-        searchType: 'prefix',
-      });
-
+        searchType: 'prefix' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'hello & world | test');
+      const sql = operator.execute(fieldRef, '$', 'hello & world | test', false, true, filter);
 
       expect(sql.values).toEqual(['hello:* & world:* & test:*']);
     });
 
     it('should work with specified language', () => {
-      operator.setContext({
+      const filter = {
         path: '',
         search: 'hello world',
-        searchType: 'prefix',
-        searchLanguage: 'russian',
-      });
-
+        searchType: 'prefix' as const,
+        searchLanguage: 'russian' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'hello world');
+      const sql = operator.execute(fieldRef, '$', 'hello world', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('russian', data, '["all"]') @@ to_tsquery('russian', ?)`,
@@ -587,14 +439,13 @@ describe('SearchOperator', () => {
     });
 
     it('should work with path-based search', () => {
-      operator.setContext({
+      const filter = {
         path: 'content',
         search: 'test query',
-        searchType: 'prefix',
-      });
-
+        searchType: 'prefix' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.generateCondition(fieldRef, '$.content', 'test query', false);
+      const sql = operator.execute(fieldRef, '$.content', 'test query', false, false, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data #> ?::text[], '["all"]') @@ to_tsquery('simple', ?)`,
@@ -605,14 +456,13 @@ describe('SearchOperator', () => {
 
   describe('tsquery search type', () => {
     it('should pass query directly to to_tsquery', () => {
-      operator.setContext({
+      const filter = {
         path: '',
         search: 'hello:* & world:*',
-        searchType: 'tsquery',
-      });
-
+        searchType: 'tsquery' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'hello:* & world:*');
+      const sql = operator.execute(fieldRef, '$', 'hello:* & world:*', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["all"]') @@ to_tsquery('simple', ?)`,
@@ -621,67 +471,69 @@ describe('SearchOperator', () => {
     });
 
     it('should support OR operator', () => {
-      operator.setContext({
+      const filter = {
         path: '',
         search: 'hello | world',
-        searchType: 'tsquery',
-      });
-
+        searchType: 'tsquery' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'hello | world');
+      const sql = operator.execute(fieldRef, '$', 'hello | world', false, true, filter);
 
       expect(sql.values).toEqual(['hello | world']);
     });
 
     it('should support NOT operator', () => {
-      operator.setContext({
+      const filter = {
         path: '',
         search: 'hello & !world',
-        searchType: 'tsquery',
-      });
-
+        searchType: 'tsquery' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'hello & !world');
+      const sql = operator.execute(fieldRef, '$', 'hello & !world', false, true, filter);
 
       expect(sql.values).toEqual(['hello & !world']);
     });
 
     it('should support phrase operator', () => {
-      operator.setContext({
+      const filter = {
         path: '',
         search: 'hello <-> world',
-        searchType: 'tsquery',
-      });
-
+        searchType: 'tsquery' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'hello <-> world');
+      const sql = operator.execute(fieldRef, '$', 'hello <-> world', false, true, filter);
 
       expect(sql.values).toEqual(['hello <-> world']);
     });
 
     it('should support complex expressions', () => {
-      operator.setContext({
+      const filter = {
         path: '',
         search: '(hello:* | world:*) & !test:*',
-        searchType: 'tsquery',
-      });
-
+        searchType: 'tsquery' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, '(hello:* | world:*) & !test:*');
+      const sql = operator.execute(
+        fieldRef,
+        '$',
+        '(hello:* | world:*) & !test:*',
+        false,
+        true,
+        filter,
+      );
 
       expect(sql.values).toEqual(['(hello:* | world:*) & !test:*']);
     });
 
     it('should work with specified language', () => {
-      operator.setContext({
+      const filter = {
         path: '',
         search: 'привет:* & мир:*',
-        searchType: 'tsquery',
-        searchLanguage: 'russian',
-      });
-
+        searchType: 'tsquery' as const,
+        searchLanguage: 'russian' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'привет:* & мир:*');
+      const sql = operator.execute(fieldRef, '$', 'привет:* & мир:*', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('russian', data, '["all"]') @@ to_tsquery('russian', ?)`,
@@ -690,14 +542,13 @@ describe('SearchOperator', () => {
     });
 
     it('should work with path-based search', () => {
-      operator.setContext({
+      const filter = {
         path: 'content',
         search: 'test:* & query:*',
-        searchType: 'tsquery',
-      });
-
+        searchType: 'tsquery' as const,
+      };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.generateCondition(fieldRef, '$.content', 'test:* & query:*', false);
+      const sql = operator.execute(fieldRef, '$.content', 'test:* & query:*', false, false, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data #> ?::text[], '["all"]') @@ to_tsquery('simple', ?)`,
@@ -706,8 +557,8 @@ describe('SearchOperator', () => {
     });
   });
 
-  describe('context without setContext', () => {
-    it('should use defaults when context not set', () => {
+  describe('context without filter', () => {
+    it('should use defaults when no filter provided', () => {
       const fieldRef = Prisma.sql`data`;
       const sql = operator.handleSpecialPath(fieldRef, 'test');
 
@@ -717,7 +568,7 @@ describe('SearchOperator', () => {
       expect(sql.values).toEqual(['test']);
     });
 
-    it('should use defaults in generateCondition when context not set', () => {
+    it('should use defaults in generateCondition when no filter provided', () => {
       const fieldRef = Prisma.sql`data`;
       const sql = operator.generateCondition(fieldRef, '$.content', 'test', false);
 
@@ -730,13 +581,9 @@ describe('SearchOperator', () => {
 
   describe('searchIn parameter', () => {
     it('should use all by default', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-      });
-
+      const filter = { path: '', search: 'test' };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["all"]') @@ plainto_tsquery('simple', ?)`,
@@ -745,14 +592,9 @@ describe('SearchOperator', () => {
     });
 
     it('should use values searchIn', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-        searchIn: 'values',
-      });
-
+      const filter = { path: '', search: 'test', searchIn: 'values' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["string", "numeric", "boolean"]') @@ plainto_tsquery('simple', ?)`,
@@ -761,14 +603,9 @@ describe('SearchOperator', () => {
     });
 
     it('should use keys searchIn', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-        searchIn: 'keys',
-      });
-
+      const filter = { path: '', search: 'test', searchIn: 'keys' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["key"]') @@ plainto_tsquery('simple', ?)`,
@@ -777,14 +614,9 @@ describe('SearchOperator', () => {
     });
 
     it('should use strings searchIn', () => {
-      operator.setContext({
-        path: '',
-        search: 'test',
-        searchIn: 'strings',
-      });
-
+      const filter = { path: '', search: 'test', searchIn: 'strings' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'test');
+      const sql = operator.execute(fieldRef, '$', 'test', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["string"]') @@ plainto_tsquery('simple', ?)`,
@@ -793,14 +625,9 @@ describe('SearchOperator', () => {
     });
 
     it('should use numbers searchIn', () => {
-      operator.setContext({
-        path: '',
-        search: '42',
-        searchIn: 'numbers',
-      });
-
+      const filter = { path: '', search: '42', searchIn: 'numbers' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, '42');
+      const sql = operator.execute(fieldRef, '$', '42', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["numeric"]') @@ plainto_tsquery('simple', ?)`,
@@ -809,14 +636,9 @@ describe('SearchOperator', () => {
     });
 
     it('should use booleans searchIn', () => {
-      operator.setContext({
-        path: '',
-        search: 'true',
-        searchIn: 'booleans',
-      });
-
+      const filter = { path: '', search: 'true', searchIn: 'booleans' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.handleSpecialPath(fieldRef, 'true');
+      const sql = operator.execute(fieldRef, '$', 'true', false, true, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data, '["boolean"]') @@ plainto_tsquery('simple', ?)`,
@@ -825,14 +647,9 @@ describe('SearchOperator', () => {
     });
 
     it('should use searchIn with path-based search', () => {
-      operator.setContext({
-        path: 'content',
-        search: 'test',
-        searchIn: 'strings',
-      });
-
+      const filter = { path: 'content', search: 'test', searchIn: 'strings' as const };
       const fieldRef = Prisma.sql`data`;
-      const sql = operator.generateCondition(fieldRef, '$.content', 'test', false);
+      const sql = operator.execute(fieldRef, '$.content', 'test', false, false, filter);
 
       expect(sql.sql).toEqual(
         `jsonb_to_tsvector('simple', data #> ?::text[], '["string"]') @@ plainto_tsquery('simple', ?)`,
@@ -841,4 +658,3 @@ describe('SearchOperator', () => {
     });
   });
 });
-

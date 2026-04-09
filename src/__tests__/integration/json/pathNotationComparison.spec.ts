@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -66,7 +65,10 @@ describe('Path Notation Comparison', () => {
 
     const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
     expect(results.length).toBe(expectedIds.length);
-    expect(results.map((r) => r.id).sort()).toEqual(expectedIds.sort());
+    const resultIds = results.map((r) => r.id);
+    resultIds.sort((a, b) => a.localeCompare(b));
+    const sortedExpectedIds = [...expectedIds].sort((a, b) => a.localeCompare(b));
+    expect(resultIds).toEqual(sortedExpectedIds);
     return results;
   };
 

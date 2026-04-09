@@ -1,6 +1,5 @@
-import './setup';
-import { nanoid } from 'nanoid';
 import { prisma, createTestData, createFile } from './setup';
+import { nanoid } from 'nanoid';
 import {
   buildSubSchemaQuery,
   buildSubSchemaCountQuery,
@@ -17,7 +16,6 @@ import {
 } from '../../../sub-schema/types';
 
 describe('SubSchemaBuilder Integration', () => {
-
   describe('single path extraction', () => {
     it('should extract single object path', async () => {
       const tableVersionId = nanoid();
@@ -34,7 +32,10 @@ describe('SubSchemaBuilder Integration', () => {
             {
               rowId: 'villain',
               rowVersionId: nanoid(),
-              data: { name: 'Villain', avatar: createFile('file-2', 'villain.png', { size: 2048 }) },
+              data: {
+                name: 'Villain',
+                avatar: createFile('file-2', 'villain.png', { size: 2048 }),
+              },
             },
           ],
         },
@@ -57,7 +58,10 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.rowId).sort()).toEqual(['hero', 'villain']);
+      expect(results.map((r) => r.rowId).sort((a, b) => a.localeCompare(b))).toEqual([
+        'hero',
+        'villain',
+      ]);
       expect(results[0].tableId).toBe('characters');
       expect(results[0].fieldPath).toBe('avatar');
       expect((results[0].data as Record<string, unknown>).fileId).toBeDefined();
@@ -75,7 +79,10 @@ describe('SubSchemaBuilder Integration', () => {
               rowVersionId: nanoid(),
               data: {
                 name: 'User 1',
-                settings: { theme: 'dark', banner: createFile('file-banner-1', 'banner.jpg', { size: 5000 }) },
+                settings: {
+                  theme: 'dark',
+                  banner: createFile('file-banner-1', 'banner.jpg', { size: 5000 }),
+                },
               },
             },
           ],
@@ -191,7 +198,7 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(3);
-      expect(results.map((r) => r.fieldPath).sort()).toEqual([
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual([
         'gallery[0]',
         'gallery[1]',
         'gallery[2]',
@@ -334,7 +341,7 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.fieldPath).sort()).toEqual([
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual([
         'attachments[0].file',
         'attachments[1].file',
       ]);
@@ -355,8 +362,14 @@ describe('SubSchemaBuilder Integration', () => {
               data: {
                 name: 'Project 1',
                 tasks: [
-                  { name: 'Task 1', metadata: { attachment: createFile('f1', 'task1.png', { size: 500 }) } },
-                  { name: 'Task 2', metadata: { attachment: createFile('f2', 'task2.png', { size: 600 }) } },
+                  {
+                    name: 'Task 1',
+                    metadata: { attachment: createFile('f1', 'task1.png', { size: 500 }) },
+                  },
+                  {
+                    name: 'Task 2',
+                    metadata: { attachment: createFile('f2', 'task2.png', { size: 600 }) },
+                  },
                 ],
               },
             },
@@ -381,7 +394,7 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.fieldPath).sort()).toEqual([
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual([
         'tasks[0].metadata.attachment',
         'tasks[1].metadata.attachment',
       ]);
@@ -428,7 +441,7 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.fieldPath).sort()).toEqual([
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual([
         'items[0].image',
         'items[3].image',
       ]);
@@ -446,7 +459,9 @@ describe('SubSchemaBuilder Integration', () => {
               rowVersionId: nanoid(),
               data: {
                 title: 'Article 1',
-                sections: [{ heading: 'Section 1', cover: createFile('a1s1', 'cover1.png', { size: 100 }) }],
+                sections: [
+                  { heading: 'Section 1', cover: createFile('a1s1', 'cover1.png', { size: 100 }) },
+                ],
               },
             },
             {
@@ -500,7 +515,10 @@ describe('SubSchemaBuilder Integration', () => {
               data: {
                 name: 'Container 1',
                 value: {
-                  files: [createFile('f1', 'file1.png', { size: 100 }), createFile('f2', 'file2.png', { size: 200 })],
+                  files: [
+                    createFile('f1', 'file1.png', { size: 100 }),
+                    createFile('f2', 'file2.png', { size: 200 }),
+                  ],
                 },
               },
             },
@@ -525,7 +543,7 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.fieldPath).sort()).toEqual([
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual([
         'value.files[0]',
         'value.files[1]',
       ]);
@@ -572,7 +590,7 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(3);
-      expect(results.map((r) => r.fieldPath).sort()).toEqual([
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual([
         'value.files[0].file',
         'value.files[1].file',
         'value.files[2].file',
@@ -645,12 +663,14 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(4);
-      expect(results.map((r) => r.fieldPath).sort()).toEqual([
-        'items[0].variants[0].image',
-        'items[0].variants[1].image',
-        'items[1].variants[0].image',
-        'items[0].variants[0].image',
-      ].sort());
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual(
+        [
+          'items[0].variants[0].image',
+          'items[0].variants[1].image',
+          'items[1].variants[0].image',
+          'items[0].variants[0].image',
+        ].sort((a, b) => a.localeCompare(b)),
+      );
 
       const product1Results = results.filter((r) => r.rowId === 'product-1');
       const product2Results = results.filter((r) => r.rowId === 'product-2');
@@ -682,9 +702,7 @@ describe('SubSchemaBuilder Integration', () => {
                   },
                   {
                     name: 'Section B',
-                    photos: [
-                      createFile('p3', 'photo3.jpg', { size: 300 }),
-                    ],
+                    photos: [createFile('p3', 'photo3.jpg', { size: 300 })],
                   },
                 ],
               },
@@ -710,7 +728,7 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(3);
-      expect(results.map((r) => r.fieldPath).sort()).toEqual([
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual([
         'sections[0].photos[0]',
         'sections[0].photos[1]',
         'sections[1].photos[0]',
@@ -732,7 +750,10 @@ describe('SubSchemaBuilder Integration', () => {
                 files: [
                   { type: 'image', asset: createFile('f1', 'photo.png', { size: 1000 }) },
                   { type: 'video', asset: createFile('f2', 'clip.mp4', { size: 50000 }) },
-                  { type: 'image', asset: createFile('f3', 'banner.jpg', { size: 2000, status: 'ready' }) },
+                  {
+                    type: 'image',
+                    asset: createFile('f3', 'banner.jpg', { size: 2000, status: 'ready' }),
+                  },
                 ],
               },
             },
@@ -762,7 +783,11 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.every((r) => (r.data as Record<string, unknown>).mimeType?.toString().startsWith('image/'))).toBe(true);
+      expect(
+        results.every((r) =>
+          (r.data as Record<string, unknown>).mimeType?.toString().startsWith('image/'),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -818,7 +843,10 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.tableId).sort()).toEqual(['characters', 'items']);
+      expect(results.map((r) => r.tableId).sort((a, b) => a.localeCompare(b))).toEqual([
+        'characters',
+        'items',
+      ]);
     });
 
     it('should handle table with multiple paths (single and array)', async () => {
@@ -835,7 +863,10 @@ describe('SubSchemaBuilder Integration', () => {
               data: {
                 name: 'Product 1',
                 mainImage: createFile('main', 'main.png', { size: 500 }),
-                gallery: [createFile('g1', 'gal1.png', { size: 100 }), createFile('g2', 'gal2.png', { size: 200 })],
+                gallery: [
+                  createFile('g1', 'gal1.png', { size: 100 }),
+                  createFile('g2', 'gal2.png', { size: 200 }),
+                ],
               },
             },
           ],
@@ -846,10 +877,7 @@ describe('SubSchemaBuilder Integration', () => {
         {
           tableId: 'products',
           tableVersionId,
-          paths: [
-            { path: 'mainImage' },
-            { path: 'gallery[*]' },
-          ],
+          paths: [{ path: 'mainImage' }, { path: 'gallery[*]' }],
         },
       ];
 
@@ -880,14 +908,28 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'characters',
           tableVersionId: tableVersionId1,
           rows: [
-            { rowId: 'hero', rowVersionId: nanoid(), data: { avatar: createFile('f1', 'hero.png', { size: 100 }) } },
-            { rowId: 'villain', rowVersionId: nanoid(), data: { avatar: createFile('f2', 'villain.png', { size: 200 }) } },
+            {
+              rowId: 'hero',
+              rowVersionId: nanoid(),
+              data: { avatar: createFile('f1', 'hero.png', { size: 100 }) },
+            },
+            {
+              rowId: 'villain',
+              rowVersionId: nanoid(),
+              data: { avatar: createFile('f2', 'villain.png', { size: 200 }) },
+            },
           ],
         },
         {
           tableId: 'items',
           tableVersionId: tableVersionId2,
-          rows: [{ rowId: 'sword', rowVersionId: nanoid(), data: { icon: createFile('f3', 'sword.png', { size: 50 }) } }],
+          rows: [
+            {
+              rowId: 'sword',
+              rowVersionId: nanoid(),
+              data: { icon: createFile('f3', 'sword.png', { size: 50 }) },
+            },
+          ],
         },
       ]);
     });
@@ -945,7 +987,10 @@ describe('SubSchemaBuilder Integration', () => {
               rowVersionId: nanoid(),
               data: {
                 mainImage: createFile('m1', 'main.png', { size: 100 }),
-                gallery: [createFile('g1', 'gal1.png', { size: 50 }), createFile('g2', 'gal2.png', { size: 60 })],
+                gallery: [
+                  createFile('g1', 'gal1.png', { size: 50 }),
+                  createFile('g2', 'gal2.png', { size: 60 }),
+                ],
               },
             },
           ],
@@ -956,10 +1001,7 @@ describe('SubSchemaBuilder Integration', () => {
         {
           tableId: 'posts',
           tableVersionId,
-          paths: [
-            { path: 'mainImage' },
-            { path: 'gallery[*]' },
-          ],
+          paths: [{ path: 'mainImage' }, { path: 'gallery[*]' }],
         },
       ];
 
@@ -989,10 +1031,28 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'files',
           tableVersionId,
           rows: [
-            { rowId: 'row-1', rowVersionId: nanoid(), data: { attachment: createFile('f1', 'document.pdf', { size: 100000 }) } },
-            { rowId: 'row-2', rowVersionId: nanoid(), data: { attachment: createFile('f2', 'image.png', { size: 50000 }) } },
-            { rowId: 'row-3', rowVersionId: nanoid(), data: { attachment: createFile('f3', 'video.mp4', { size: 500000, status: 'ready' }) } },
-            { rowId: 'row-4', rowVersionId: nanoid(), data: { attachment: createFile('f4', 'small-image.jpg', { size: 1000 }) } },
+            {
+              rowId: 'row-1',
+              rowVersionId: nanoid(),
+              data: { attachment: createFile('f1', 'document.pdf', { size: 100000 }) },
+            },
+            {
+              rowId: 'row-2',
+              rowVersionId: nanoid(),
+              data: { attachment: createFile('f2', 'image.png', { size: 50000 }) },
+            },
+            {
+              rowId: 'row-3',
+              rowVersionId: nanoid(),
+              data: {
+                attachment: createFile('f3', 'video.mp4', { size: 500000, status: 'ready' }),
+              },
+            },
+            {
+              rowId: 'row-4',
+              rowVersionId: nanoid(),
+              data: { attachment: createFile('f4', 'small-image.jpg', { size: 1000 }) },
+            },
           ],
         },
       ]);
@@ -1017,7 +1077,9 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(3);
-      expect(results.every((r) => (r.data as Record<string, unknown>).status === 'uploaded')).toBe(true);
+      expect(results.every((r) => (r.data as Record<string, unknown>).status === 'uploaded')).toBe(
+        true,
+      );
     });
 
     it('should filter by data field contains', async () => {
@@ -1039,7 +1101,11 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.every((r) => (r.data as Record<string, unknown>).fileName?.toString().includes('image'))).toBe(true);
+      expect(
+        results.every((r) =>
+          (r.data as Record<string, unknown>).fileName?.toString().includes('image'),
+        ),
+      ).toBe(true);
     });
 
     it('should filter by data field startsWith (mimeType prefix)', async () => {
@@ -1061,7 +1127,11 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.every((r) => (r.data as Record<string, unknown>).mimeType?.toString().startsWith('image/'))).toBe(true);
+      expect(
+        results.every((r) =>
+          (r.data as Record<string, unknown>).mimeType?.toString().startsWith('image/'),
+        ),
+      ).toBe(true);
     });
 
     it('should filter by data field numeric comparison (size)', async () => {
@@ -1083,7 +1153,9 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(3);
-      expect(results.every((r) => ((r.data as Record<string, unknown>).size as number) >= 50000)).toBe(true);
+      expect(
+        results.every((r) => ((r.data as Record<string, unknown>).size as number) >= 50000),
+      ).toBe(true);
     });
 
     it('should filter with size range', async () => {
@@ -1092,10 +1164,7 @@ describe('SubSchemaBuilder Integration', () => {
       ];
 
       const where: SubSchemaWhereInput = {
-        AND: [
-          { data: { path: 'size', gte: 10000 } },
-          { data: { path: 'size', lt: 200000 } },
-        ],
+        AND: [{ data: { path: 'size', gte: 10000 } }, { data: { path: 'size', lt: 200000 } }],
       };
 
       const query = buildSubSchemaQuery({
@@ -1127,10 +1196,26 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'media',
           tableVersionId,
           rows: [
-            { rowId: 'media-1', rowVersionId: nanoid(), data: { file: createFile('f1', 'photo.png', { size: 1000 }) } },
-            { rowId: 'media-2', rowVersionId: nanoid(), data: { file: createFile('f2', 'video.mp4', { size: 100000 }) } },
-            { rowId: 'media-3', rowVersionId: nanoid(), data: { file: createFile('f3', 'doc.pdf', { size: 5000, status: 'ready' }) } },
-            { rowId: 'media-4', rowVersionId: nanoid(), data: { file: createFile('f4', 'audio.mp3', { size: 3000 }) } },
+            {
+              rowId: 'media-1',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f1', 'photo.png', { size: 1000 }) },
+            },
+            {
+              rowId: 'media-2',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f2', 'video.mp4', { size: 100000 }) },
+            },
+            {
+              rowId: 'media-3',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f3', 'doc.pdf', { size: 5000, status: 'ready' }) },
+            },
+            {
+              rowId: 'media-4',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f4', 'audio.mp3', { size: 3000 }) },
+            },
           ],
         },
       ]);
@@ -1158,7 +1243,10 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.rowId).sort()).toEqual(['media-1', 'media-4']);
+      expect(results.map((r) => r.rowId).sort((a, b) => a.localeCompare(b))).toEqual([
+        'media-1',
+        'media-4',
+      ]);
     });
 
     it('should handle OR condition', async () => {
@@ -1183,7 +1271,10 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.rowId).sort()).toEqual(['media-1', 'media-2']);
+      expect(results.map((r) => r.rowId).sort((a, b) => a.localeCompare(b))).toEqual([
+        'media-1',
+        'media-2',
+      ]);
     });
 
     it('should handle NOT condition', async () => {
@@ -1205,7 +1296,9 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(3);
-      expect(results.every((r) => (r.data as Record<string, unknown>).status !== 'ready')).toBe(true);
+      expect(results.every((r) => (r.data as Record<string, unknown>).status !== 'ready')).toBe(
+        true,
+      );
     });
 
     it('should handle complex nested conditions', async () => {
@@ -1235,7 +1328,10 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.rowId).sort()).toEqual(['media-1', 'media-4']);
+      expect(results.map((r) => r.rowId).sort((a, b) => a.localeCompare(b))).toEqual([
+        'media-1',
+        'media-4',
+      ]);
     });
   });
 
@@ -1249,9 +1345,21 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'assets',
           tableVersionId,
           rows: [
-            { rowId: 'asset-b', rowVersionId: nanoid(), data: { file: createFile('f1', 'beta.png', { size: 2000 }) } },
-            { rowId: 'asset-a', rowVersionId: nanoid(), data: { file: createFile('f2', 'alpha.png', { size: 3000 }) } },
-            { rowId: 'asset-c', rowVersionId: nanoid(), data: { file: createFile('f3', 'gamma.png', { size: 1000 }) } },
+            {
+              rowId: 'asset-b',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f1', 'beta.png', { size: 2000 }) },
+            },
+            {
+              rowId: 'asset-a',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f2', 'alpha.png', { size: 3000 }) },
+            },
+            {
+              rowId: 'asset-c',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f3', 'gamma.png', { size: 1000 }) },
+            },
           ],
         },
       ]);
@@ -1338,7 +1446,9 @@ describe('SubSchemaBuilder Integration', () => {
 
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
-      expect(results.map((r) => (r.data as Record<string, unknown>).size)).toEqual([3000, 2000, 1000]);
+      expect(results.map((r) => (r.data as Record<string, unknown>).size)).toEqual([
+        3000, 2000, 1000,
+      ]);
     });
   });
 
@@ -1353,7 +1463,13 @@ describe('SubSchemaBuilder Integration', () => {
           rowId: `row-${String(i).padStart(2, '0')}`,
           rowVersionId: nanoid(),
           data: {
-            file: { fileId: `f${i}`, fileName: `file${i}.png`, mimeType: 'image/png', size: i * 100, status: 'uploaded' },
+            file: {
+              fileId: `f${i}`,
+              fileName: `file${i}.png`,
+              mimeType: 'image/png',
+              size: i * 100,
+              status: 'uploaded',
+            },
           },
         });
       }
@@ -1425,9 +1541,21 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'countable',
           tableVersionId,
           rows: [
-            { rowId: 'r1', rowVersionId: nanoid(), data: { file: createFile('f1', 'a.png', { size: 100 }) } },
-            { rowId: 'r2', rowVersionId: nanoid(), data: { file: createFile('f2', 'b.pdf', { size: 200 }) } },
-            { rowId: 'r3', rowVersionId: nanoid(), data: { file: createFile('f3', 'c.png', { size: 300, status: 'ready' }) } },
+            {
+              rowId: 'r1',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f1', 'a.png', { size: 100 }) },
+            },
+            {
+              rowId: 'r2',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f2', 'b.pdf', { size: 200 }) },
+            },
+            {
+              rowId: 'r3',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f3', 'c.png', { size: 300, status: 'ready' }) },
+            },
           ],
         },
       ]);
@@ -1522,10 +1650,26 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'items',
           tableVersionId,
           rows: [
-            { rowId: 'item-with-array', rowVersionId: nanoid(), data: { name: 'Item 1', images: [createFile('f1', 'a.png', { size: 100 })] } },
-            { rowId: 'item-with-null', rowVersionId: nanoid(), data: { name: 'Item 2', images: null } },
-            { rowId: 'item-with-string', rowVersionId: nanoid(), data: { name: 'Item 3', images: 'not-an-array' } },
-            { rowId: 'item-with-object', rowVersionId: nanoid(), data: { name: 'Item 4', images: { fileId: 'f2' } } },
+            {
+              rowId: 'item-with-array',
+              rowVersionId: nanoid(),
+              data: { name: 'Item 1', images: [createFile('f1', 'a.png', { size: 100 })] },
+            },
+            {
+              rowId: 'item-with-null',
+              rowVersionId: nanoid(),
+              data: { name: 'Item 2', images: null },
+            },
+            {
+              rowId: 'item-with-string',
+              rowVersionId: nanoid(),
+              data: { name: 'Item 3', images: 'not-an-array' },
+            },
+            {
+              rowId: 'item-with-object',
+              rowVersionId: nanoid(),
+              data: { name: 'Item 4', images: { fileId: 'f2' } },
+            },
           ],
         },
       ]);
@@ -1558,8 +1702,19 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'files',
           tableVersionId,
           rows: [
-            { rowId: 'file-1', rowVersionId: nanoid(), data: { name: 'File 1', file: createFile('f1', 'a.png', { size: 100 }) } },
-            { rowId: 'file-2', rowVersionId: nanoid(), data: { name: 'File 2', file: createFile('f2', 'b.jpg', { size: 200, status: 'ready' }) } },
+            {
+              rowId: 'file-1',
+              rowVersionId: nanoid(),
+              data: { name: 'File 1', file: createFile('f1', 'a.png', { size: 100 }) },
+            },
+            {
+              rowId: 'file-2',
+              rowVersionId: nanoid(),
+              data: {
+                name: 'File 2',
+                file: createFile('f2', 'b.jpg', { size: 200, status: 'ready' }),
+              },
+            },
           ],
         },
       ]);
@@ -1765,10 +1920,7 @@ describe('SubSchemaBuilder Integration', () => {
 
       const cte = buildSubSchemaCte({ tables });
       const orderByClause = buildSubSchemaOrderBy({
-        orderBy: [
-          { rowCreatedAt: 'desc' },
-          { fieldPath: 'asc' },
-        ],
+        orderBy: [{ rowCreatedAt: 'desc' }, { fieldPath: 'asc' }],
         tableAlias: 'ssi',
         rowTableAlias: 'r',
       });
@@ -1791,7 +1943,12 @@ describe('SubSchemaBuilder Integration', () => {
 
       expect(results).toHaveLength(4);
       expect(results.map((r) => r.rowId)).toEqual(['post-new', 'post-new', 'post-old', 'post-old']);
-      expect(results.map((r) => r.fieldPath)).toEqual(['gallery[0]', 'gallery[1]', 'gallery[0]', 'gallery[1]']);
+      expect(results.map((r) => r.fieldPath)).toEqual([
+        'gallery[0]',
+        'gallery[1]',
+        'gallery[0]',
+        'gallery[1]',
+      ]);
     });
   });
 
@@ -1821,7 +1978,9 @@ describe('SubSchemaBuilder Integration', () => {
       ]);
 
       const query = buildSubSchemaQuery({
-        tables: [{ tableId: 'settings', tableVersionId, paths: [{ path: 'config.theme.logo.image' }] }],
+        tables: [
+          { tableId: 'settings', tableVersionId, paths: [{ path: 'config.theme.logo.image' }] },
+        ],
         take: 100,
         skip: 0,
       });
@@ -1842,9 +2001,21 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'media',
           tableVersionId,
           rows: [
-            { rowId: 'img-b', rowVersionId: nanoid(), data: { file: createFile('f1', 'beta.png', { size: 2000, status: 'uploaded' }) } },
-            { rowId: 'img-a', rowVersionId: nanoid(), data: { file: createFile('f2', 'alpha.png', { size: 3000, status: 'ready' }) } },
-            { rowId: 'img-c', rowVersionId: nanoid(), data: { file: createFile('f3', 'gamma.png', { size: 1000, status: 'uploaded' }) } },
+            {
+              rowId: 'img-b',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f1', 'beta.png', { size: 2000, status: 'uploaded' }) },
+            },
+            {
+              rowId: 'img-a',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f2', 'alpha.png', { size: 3000, status: 'ready' }) },
+            },
+            {
+              rowId: 'img-c',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f3', 'gamma.png', { size: 1000, status: 'uploaded' }) },
+            },
           ],
         },
       ]);
@@ -1887,9 +2058,21 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'docs',
           tableVersionId,
           rows: [
-            { rowId: 'doc-b', rowVersionId: nanoid(), data: { file: createFile('f1', 'beta.pdf', { size: 2000 }) } },
-            { rowId: 'doc-a', rowVersionId: nanoid(), data: { file: createFile('f2', 'alpha.pdf', { size: 3000 }) } },
-            { rowId: 'doc-c', rowVersionId: nanoid(), data: { file: createFile('f3', 'gamma.pdf') } },
+            {
+              rowId: 'doc-b',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f1', 'beta.pdf', { size: 2000 }) },
+            },
+            {
+              rowId: 'doc-a',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f2', 'alpha.pdf', { size: 3000 }) },
+            },
+            {
+              rowId: 'doc-c',
+              rowVersionId: nanoid(),
+              data: { file: createFile('f3', 'gamma.pdf') },
+            },
           ],
         },
       ]);
@@ -1947,13 +2130,8 @@ describe('SubSchemaBuilder Integration', () => {
 
     it('should order by multiple fields (tableId asc, data size desc)', async () => {
       const query = buildSubSchemaQuery({
-        tables: [
-          { tableId: 'docs', tableVersionId, paths: [{ path: 'file' }] },
-        ],
-        orderBy: [
-          { tableId: 'asc' },
-          { data: { path: 'size', order: 'desc', nulls: 'last' } },
-        ],
+        tables: [{ tableId: 'docs', tableVersionId, paths: [{ path: 'file' }] }],
+        orderBy: [{ tableId: 'asc' }, { data: { path: 'size', order: 'desc', nulls: 'last' } }],
         take: 100,
         skip: 0,
       });
@@ -1972,8 +2150,16 @@ describe('SubSchemaBuilder Integration', () => {
           tableId: 'nulltest',
           tableVersionId: tvId,
           rows: [
-            { rowId: 'with-size', rowVersionId: nanoid(), data: { file: { fileId: 'f1', fileName: 'a.png', size: 100, status: 'uploaded' } } },
-            { rowId: 'no-size', rowVersionId: nanoid(), data: { file: { fileId: 'f2', fileName: 'b.png', status: 'uploaded' } } },
+            {
+              rowId: 'with-size',
+              rowVersionId: nanoid(),
+              data: { file: { fileId: 'f1', fileName: 'a.png', size: 100, status: 'uploaded' } },
+            },
+            {
+              rowId: 'no-size',
+              rowVersionId: nanoid(),
+              data: { file: { fileId: 'f2', fileName: 'b.png', status: 'uploaded' } },
+            },
           ],
         },
       ]);
@@ -2034,10 +2220,7 @@ describe('SubSchemaBuilder Integration', () => {
               rowId: 'gal-1',
               rowVersionId: nanoid(),
               data: {
-                'media-items': [
-                  createFile('f1', 'pic1.png'),
-                  createFile('f2', 'pic2.png'),
-                ],
+                'media-items': [createFile('f1', 'pic1.png'), createFile('f2', 'pic2.png')],
               },
             },
           ],
@@ -2053,7 +2236,10 @@ describe('SubSchemaBuilder Integration', () => {
       const results = await prisma.$queryRaw<SubSchemaItem[]>(query);
 
       expect(results).toHaveLength(2);
-      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual(['media-items[0]', 'media-items[1]']);
+      expect(results.map((r) => r.fieldPath).sort((a, b) => a.localeCompare(b))).toEqual([
+        'media-items[0]',
+        'media-items[1]',
+      ]);
     });
   });
 

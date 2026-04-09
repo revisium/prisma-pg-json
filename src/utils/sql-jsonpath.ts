@@ -74,18 +74,18 @@ export function generateJsonPathLikeRegex(
 ): PrismaSql {
   const flags = isInsensitive ? ' flag "i"' : '';
   // Escape quotes and other special characters for JSONPath string literal
-  const escapedPattern = pattern.replace(/["\\\n\r\t]/g, (match) => {
+  const escapedPattern = pattern.replaceAll(/["\\\n\r\t]/g, (match) => {
     switch (match) {
       case '"':
-        return '\\"';
+        return String.raw`\"`;
       case '\\':
-        return '\\\\';
+        return String.raw`\\`;
       case '\n':
-        return '\\n';
+        return String.raw`\n`;
       case '\r':
-        return '\\r';
+        return String.raw`\r`;
       case '\t':
-        return '\\t';
+        return String.raw`\t`;
       default:
         return match;
     }

@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -74,7 +73,7 @@ describe('JSON Array Operations', () => {
                 keywords: ['excellent', 'perfect'],
               },
               {
-                rating: 5.0,
+                rating: 5,
                 comment: 'Excellent!',
                 keywords: ['excellent', 'perfect', 'amazing'],
               },

@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
@@ -446,7 +445,6 @@ describe('JSON Path ORDER BY Integration', () => {
       );
     });
 
-
     // Add comprehensive tests for aggregation WITHOUT wildcards - now should work!
     it('should work with min aggregation on array path without wildcards', async () => {
       const query = buildQuery({
@@ -461,7 +459,6 @@ describe('JSON Path ORDER BY Integration', () => {
           },
         },
       });
-
 
       const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
       expect(results.length).toBeGreaterThan(0);
@@ -483,7 +480,6 @@ describe('JSON Path ORDER BY Integration', () => {
         },
       });
 
-
       const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
       expect(results.length).toBeGreaterThan(0);
       // Should be sorted by maximum score in each user's scores array (descending)
@@ -503,7 +499,6 @@ describe('JSON Path ORDER BY Integration', () => {
           },
         },
       });
-
 
       const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
       expect(results.length).toBeGreaterThan(0);
@@ -525,7 +520,6 @@ describe('JSON Path ORDER BY Integration', () => {
         },
       });
 
-
       const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
       expect(results.length).toBeGreaterThan(0);
       // Should work with text aggregation on JSON objects
@@ -545,7 +539,6 @@ describe('JSON Path ORDER BY Integration', () => {
           },
         },
       });
-
 
       const results = await prisma.$queryRaw<Array<{ name: string }>>(query);
       expect(results.length).toBeGreaterThan(0);

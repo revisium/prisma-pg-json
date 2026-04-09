@@ -159,7 +159,9 @@ describe('JSON Path Utilities', () => {
     });
 
     it('should escape quotes in segment names', () => {
-      expect(arrayToJsonPath(['user', 'field"with"quotes'])).toBe('user["field\\"with\\"quotes"]');
+      expect(arrayToJsonPath(['user', 'field"with"quotes'])).toBe(
+        String.raw`user["field\"with\"quotes"]`,
+      );
     });
   });
 

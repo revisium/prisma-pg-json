@@ -11,7 +11,7 @@ export class ArrayContainsOperator extends BaseOperator<unknown[]> {
 
   preprocessValue(value: unknown): unknown[] {
     if (!Array.isArray(value)) {
-      throw new Error('array_contains value must be an array');
+      throw new TypeError('array_contains value must be an array');
     }
     return value;
   }

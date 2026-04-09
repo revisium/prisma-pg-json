@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -27,7 +26,6 @@ describe('Negative Array Indexes', () => {
     expect(results.length).toBe(expectedIds.length);
     expect(results.map((r) => r.id)).toEqual(expectedIds);
   };
-
 
   const testQueryExpectError = (
     where: WhereConditionsTyped<typeof fieldConfig>,

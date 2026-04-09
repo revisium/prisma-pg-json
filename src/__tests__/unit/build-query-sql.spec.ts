@@ -36,7 +36,8 @@ function sqlToString(sql: ReturnType<typeof buildQuery>): string {
       } else if (value instanceof Date) {
         result += `'${value.toISOString()}'`;
       } else if (Array.isArray(value)) {
-        result += `ARRAY[${value.map((v) => (typeof v === 'string' ? `'${v}'` : v)).join(', ')}]`;
+        const arrayContent = value.map((v) => (typeof v === 'string' ? `'${v}'` : v)).join(', ');
+        result += `ARRAY[${arrayContent}]`;
       } else {
         result += JSON.stringify(value);
       }
@@ -583,10 +584,7 @@ describe('buildQuery SQL Generation', () => {
             { name: { contains: 'john', mode: 'insensitive' } },
             { data: { path: 'status', equals: 'active' } },
           ],
-          OR: [
-            { email: { endsWith: '@gmail.com' } },
-            { email: { endsWith: '@company.com' } },
-          ],
+          OR: [{ email: { endsWith: '@gmail.com' } }, { email: { endsWith: '@company.com' } }],
           NOT: {
             AND: [{ email: { contains: 'spam' } }, { isVerified: false }],
           },

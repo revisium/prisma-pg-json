@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -133,7 +132,10 @@ describe('JSON Null and Missing Paths', () => {
           id: ids.withArrayNull,
           name: 'WithArrayNull',
           data: {
-            items: [{ name: 'Item1', value: null }, { name: null, value: 30 }],
+            items: [
+              { name: 'Item1', value: null },
+              { name: null, value: 30 },
+            ],
           },
           createdAt: new Date('2025-01-08T00:00:00.000Z'),
         },
@@ -421,7 +423,10 @@ describe('JSON Null and Missing Paths', () => {
     it('should combine equals null with AND', async () => {
       await testQuery(
         {
-          AND: [{ data: { path: 'status', equals: null } }, { data: { path: 'score', equals: null } }],
+          AND: [
+            { data: { path: 'status', equals: null } },
+            { data: { path: 'score', equals: null } },
+          ],
         },
         [ids.withNull],
       );
@@ -430,7 +435,10 @@ describe('JSON Null and Missing Paths', () => {
     it('should combine not null with other conditions', async () => {
       await testQuery(
         {
-          AND: [{ data: { path: 'status', not: null } }, { data: { path: 'status', equals: 'active' } }],
+          AND: [
+            { data: { path: 'status', not: null } },
+            { data: { path: 'status', equals: 'active' } },
+          ],
         },
         [ids.withValue],
       );
@@ -439,7 +447,10 @@ describe('JSON Null and Missing Paths', () => {
     it('should use OR to match null or specific value', async () => {
       await testQuery(
         {
-          OR: [{ data: { path: 'status', equals: null } }, { data: { path: 'status', equals: 'active' } }],
+          OR: [
+            { data: { path: 'status', equals: null } },
+            { data: { path: 'status', equals: 'active' } },
+          ],
         },
         [ids.withValue, ids.withNull],
       );

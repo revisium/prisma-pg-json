@@ -15,7 +15,7 @@ import {
 } from './operators';
 
 export class OperatorManager {
-  private operators = new Map<keyof JsonFilter, BaseOperator>();
+  private readonly operators = new Map<keyof JsonFilter, BaseOperator>();
 
   constructor() {
     this.registerDefaultOperators();
@@ -104,7 +104,7 @@ export class OperatorManager {
       }
 
       const operator = this.getOperator(key as keyof JsonFilter);
-      if (operator && operator.supportsSpecialPath()) {
+      if (operator?.supportsSpecialPath()) {
         return true;
       }
     }

@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -30,7 +29,6 @@ describe('JSON Path in/notIn Operations', () => {
     expect(results.map((r) => r.id)).toEqual(expectedIds);
     return results;
   };
-
 
   const testQueryWithNames = async (
     where: WhereConditionsTyped<typeof fieldConfig>,

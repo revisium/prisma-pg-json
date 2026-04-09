@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -780,10 +779,7 @@ describe('JSON Full-Text Search', () => {
             id: arrayIds.arr1,
             name: 'Array1',
             data: {
-              items: [
-                { text: 'unique-marker-xyz' },
-                { text: 'other' },
-              ],
+              items: [{ text: 'unique-marker-xyz' }, { text: 'other' }],
             },
             createdAt: new Date('2025-01-15T00:00:00.000Z'),
           },
@@ -793,10 +789,7 @@ describe('JSON Full-Text Search', () => {
             data: {
               items: [
                 {
-                  nested: [
-                    { deep: 'unique-marker-xyz' },
-                    { deep: 'other' },
-                  ],
+                  nested: [{ deep: 'unique-marker-xyz' }, { deep: 'other' }],
                 },
               ],
             },
@@ -857,10 +850,7 @@ describe('JSON Full-Text Search', () => {
             name: 'MixedComplex',
             data: {
               field: {
-                list: [
-                  { name: 'item1' },
-                  { name: 'special-keyword-123' },
-                ],
+                list: [{ name: 'item1' }, { name: 'special-keyword-123' }],
               },
             },
             createdAt: new Date('2025-01-20T00:00:00.000Z'),

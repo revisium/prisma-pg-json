@@ -40,9 +40,7 @@ function validateLanguage(language: string): SearchLanguage {
   if (SEARCH_LANGUAGES.includes(language as SearchLanguage)) {
     return language as SearchLanguage;
   }
-  throw new Error(
-    `Invalid search language: ${language}. Allowed: ${SEARCH_LANGUAGES.join(', ')}`,
-  );
+  throw new Error(`Invalid search language: ${language}. Allowed: ${SEARCH_LANGUAGES.join(', ')}`);
 }
 
 function getSearchInParameter(
@@ -70,7 +68,7 @@ function toPrefixQuery(input: string): string {
     .split(/\s+/)
     .filter((word) => word.length > 0)
     .map((word) => {
-      const escaped = word.replace(/[&|!():*\\'"<>]/g, '');
+      const escaped = word.replaceAll(/[&|!():*\\'"<>]/g, '');
       return escaped.length > 0 ? `${escaped}:*` : '';
     })
     .filter((term) => term.length > 0)
@@ -109,14 +107,6 @@ function extractContext(filter?: JsonFilter): {
 
 export class SearchOperator extends BaseOperator<string> {
   readonly key = 'search';
-  private fallbackFilter?: JsonFilter;
-
-  /** @deprecated Use execute() with filter parameter instead. Kept for test compatibility. */
-  setContext(filter: JsonFilter): void {
-    const language = filter.searchLanguage || 'simple';
-    validateLanguage(language);
-    this.fallbackFilter = filter;
-  }
 
   validate(value: string): boolean {
     return typeof value === 'string' && value.length > 0;
@@ -124,7 +114,7 @@ export class SearchOperator extends BaseOperator<string> {
 
   preprocessValue(value: unknown): string {
     if (typeof value !== 'string') {
-      throw new Error('search requires a string value');
+      throw new TypeError('search requires a string value');
     }
     return value;
   }
@@ -147,7 +137,7 @@ export class SearchOperator extends BaseOperator<string> {
       throw new Error(this.getErrorMessage('validation failed'));
     }
 
-    const ctx = extractContext(filter ?? this.fallbackFilter);
+    const ctx = extractContext(filter);
 
     if (isSpecialPath) {
       return this.buildSearchSql(fieldRef, null, processedValue, ctx);
@@ -157,7 +147,7 @@ export class SearchOperator extends BaseOperator<string> {
   }
 
   handleSpecialPath(fieldRef: PrismaSql, value: string): PrismaSql {
-    return this.buildSearchSql(fieldRef, null, value, extractContext(this.fallbackFilter));
+    return this.buildSearchSql(fieldRef, null, value, extractContext());
   }
 
   generateCondition(
@@ -166,7 +156,7 @@ export class SearchOperator extends BaseOperator<string> {
     value: string,
     _isInsensitive: boolean,
   ): PrismaSql {
-    return this.buildSearchSql(fieldRef, jsonPath, value, extractContext(this.fallbackFilter));
+    return this.buildSearchSql(fieldRef, jsonPath, value, extractContext());
   }
 
   private buildSearchSql(
@@ -178,14 +168,15 @@ export class SearchOperator extends BaseOperator<string> {
     const { language, searchType, searchIn } = ctx;
     const { func, value: queryValue } = getQueryFuncAndValue(searchType, value);
     const searchInParam = getSearchInParameter(searchIn);
+    const langLiteral = Prisma.raw("'" + language + "'");
 
     if (jsonPath === null) {
-      return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef}, '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(func)}(${Prisma.raw(`'${language}'`)}, ${queryValue})`;
+      return Prisma.sql`jsonb_to_tsvector(${langLiteral}, ${fieldRef}, '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(func)}(${langLiteral}, ${queryValue})`;
     }
 
     const pathArray = this.parseJsonPathToArray(jsonPath);
 
-    return Prisma.sql`jsonb_to_tsvector(${Prisma.raw(`'${language}'`)}, ${fieldRef} #> ${pathArray}::text[], '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(func)}(${Prisma.raw(`'${language}'`)}, ${queryValue})`;
+    return Prisma.sql`jsonb_to_tsvector(${langLiteral}, ${fieldRef} #> ${pathArray}::text[], '${Prisma.raw(searchInParam)}') @@ ${Prisma.raw(func)}(${langLiteral}, ${queryValue})`;
   }
 
   private parseJsonPathToArray(jsonPath: string): string[] {
@@ -199,11 +190,9 @@ export class SearchOperator extends BaseOperator<string> {
   }
 
   getErrorMessage(context: string): string {
-    switch (context) {
-      case 'validation failed':
-        return 'search requires a non-empty string value';
-      default:
-        return super.getErrorMessage(context);
+    if (context === 'validation failed') {
+      return 'search requires a non-empty string value';
     }
+    return super.getErrorMessage(context);
   }
 }

@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -28,7 +27,6 @@ describe('Basic JSON Path Operations', () => {
     expect(results.length).toBe(expectedIds.length);
     expect(results.map((r) => r.id)).toEqual(expectedIds);
   };
-
 
   beforeEach(async () => {
     ids = {
@@ -154,10 +152,7 @@ describe('Basic JSON Path Operations', () => {
       ids.user2,
       ids.user5,
     ]);
-    await testQuery({ data: { path: ['isActive'], equals: false } }, [
-      ids.user3,
-      ids.user4,
-    ]);
+    await testQuery({ data: { path: ['isActive'], equals: false } }, [ids.user3, ids.user4]);
     await testQuery(
       {
         data: {
@@ -185,22 +180,10 @@ describe('Basic JSON Path Operations', () => {
 
   it('should handle JSON numeric comparisons', async () => {
     await testQuery({ data: { path: ['age'], gt: 30 } }, [ids.user1, ids.user5]);
-    await testQuery({ data: { path: ['age'], gte: 30 } }, [
-      ids.user1,
-      ids.user2,
-      ids.user5,
-    ]);
+    await testQuery({ data: { path: ['age'], gte: 30 } }, [ids.user1, ids.user2, ids.user5]);
     await testQuery({ data: { path: ['age'], lt: 30 } }, [ids.user3, ids.user4]);
-    await testQuery({ data: { path: ['age'], lte: 30 } }, [
-      ids.user2,
-      ids.user3,
-      ids.user4,
-    ]);
-    await testQuery({ data: { path: ['age'], gt: 25, lt: 35 } }, [
-      ids.user2,
-      ids.user4,
-      ids.user5,
-    ]);
+    await testQuery({ data: { path: ['age'], lte: 30 } }, [ids.user2, ids.user3, ids.user4]);
+    await testQuery({ data: { path: ['age'], gt: 25, lt: 35 } }, [ids.user2, ids.user4, ids.user5]);
     await testQuery({ data: { path: ['age'], gte: 25, lte: 35 } }, [
       ids.user1,
       ids.user2,

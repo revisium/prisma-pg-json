@@ -11,7 +11,7 @@ export class NotInOperator extends BaseOperator<unknown[]> {
 
   preprocessValue(value: unknown): unknown[] {
     if (!Array.isArray(value)) {
-      throw new Error('notIn operator requires an array value');
+      throw new TypeError('notIn operator requires an array value');
     }
     return value;
   }
@@ -34,11 +34,9 @@ export class NotInOperator extends BaseOperator<unknown[]> {
   }
 
   getErrorMessage(context: string): string {
-    switch (context) {
-      case 'validation failed':
-        return 'notIn operator requires an array value';
-      default:
-        return super.getErrorMessage(context);
+    if (context === 'validation failed') {
+      return 'notIn operator requires an array value';
     }
+    return super.getErrorMessage(context);
   }
 }

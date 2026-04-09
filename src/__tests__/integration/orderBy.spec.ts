@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
@@ -35,7 +34,7 @@ describe('ORDER BY', () => {
           id: ids.alice,
           name: 'Alice',
           age: 25,
-          score: 95.0,
+          score: 95,
           data: {
             profile: { priority: 1, rating: 4.8 },
             items: [{ price: 50 }, { price: 150 }],

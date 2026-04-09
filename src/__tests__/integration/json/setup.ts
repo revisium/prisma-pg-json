@@ -1,4 +1,1 @@
-import '../setup';
-import { prisma } from '../setup';
-
-export { prisma };
+export { prisma } from '../setup';

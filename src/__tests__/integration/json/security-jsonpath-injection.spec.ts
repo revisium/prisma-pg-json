@@ -1,4 +1,3 @@
-import './setup';
 import { prisma } from './setup';
 import { nanoid } from 'nanoid';
 import { buildQuery } from '../../../query-builder';
@@ -68,9 +67,7 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
               'user"name': 'Another Key with Quotes',
               settings: { theme: 'light' },
             },
-            products: [
-              { name: 'Product C', price: 300 },
-            ],
+            products: [{ name: 'Product C', price: 300 }],
           },
           createdAt: new Date('2025-01-02T00:00:00.000Z'),
         },
@@ -91,7 +88,7 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     });
 
     it('should handle backslashes in string_contains patterns safely', async () => {
-      const maliciousPattern = 'test\\") || true';
+      const maliciousPattern = String.raw`test\") || true`;
 
       await testQuery({
         data: {
@@ -240,7 +237,7 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle quoted keys with quotes safely', async () => {
       await testQuery({
         data: {
-          path: 'profile["user\\"name"]',
+          path: String.raw`profile["user\"name"]`,
           equals: 'Key with Quotes',
         },
       });

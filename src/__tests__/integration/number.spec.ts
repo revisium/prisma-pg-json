@@ -1,6 +1,5 @@
-import './setup';
-import { nanoid } from 'nanoid';
 import { prisma } from './setup';
+import { nanoid } from 'nanoid';
 import { buildQuery } from '../../query-builder';
 import { WhereConditionsTyped } from '../../types';
 
@@ -53,7 +52,7 @@ describe('Number Filters', () => {
           id: ids['num-2'],
           name: 'Bob',
           age: 30,
-          score: 90.0,
+          score: 90,
           data: {},
           createdAt: new Date('2025-01-02T00:00:00.000Z'),
         },
@@ -138,7 +137,7 @@ describe('Number Filters', () => {
   });
 
   it('should filter float numbers', async () => {
-    await testQuery({ score: { gte: 90.0 } }, [ids['num-2'], ids['num-4']]);
+    await testQuery({ score: { gte: 90 } }, [ids['num-2'], ids['num-4']]);
   });
 
   it('should combine number filters with other filters', async () => {
