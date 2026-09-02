@@ -32,6 +32,9 @@ function sqlToString(sql: PrismaSql): string {
         result += `'${value}'`;
       } else if (typeof value === 'number') {
         result += value.toString();
+      } else if (Array.isArray(value)) {
+        const arrayContent = value.map((v) => (typeof v === 'string' ? `'${v}'` : v)).join(', ');
+        result += `ARRAY[${arrayContent}]`;
       } else {
         result += JSON.stringify(value);
       }

@@ -92,7 +92,7 @@ WHERE
     AND u."age" >= 18
     AND u."age" <= 65
     AND LOWER(u."name") LIKE LOWER('%john%')
-    AND u."data" #> '{status}' = to_jsonb(CAST('active' AS text))
+    AND u."data" #> ARRAY['status']::text[] = to_jsonb(CAST('active' AS text))
   )
   AND (
     u."email" LIKE '%@gmail.com'
@@ -105,7 +105,7 @@ WHERE
     )
   )
 ORDER BY
-  (u."data" #>> '{score}')::int DESC,
+  (u."data" #>> ARRAY['score']::text[])::int DESC,
   u."createdAt" DESC,
   u."name" ASC
 LIMIT
@@ -153,13 +153,13 @@ WHERE
   )
   AND NOT (
     (
-      u."data" #> '{status}' = to_jsonb(CAST('banned' AS text))
-      OR u."data" #> '{status}' = to_jsonb(CAST('suspended' AS text))
-      OR u."data" #> '{status}' = to_jsonb(CAST('inactive' AS text))
+      u."data" #> ARRAY['status']::text[] = to_jsonb(CAST('banned' AS text))
+      OR u."data" #> ARRAY['status']::text[] = to_jsonb(CAST('suspended' AS text))
+      OR u."data" #> ARRAY['status']::text[] = to_jsonb(CAST('inactive' AS text))
     )
   )
 ORDER BY
-  (u."data" #>> '{experience}')::int DESC,
+  (u."data" #>> ARRAY['experience']::text[])::int DESC,
   u."createdAt" DESC
 LIMIT
   20
@@ -174,9 +174,9 @@ FROM
   "users" u
 WHERE
   (
-    u."data" #> '{profile,verified}' = to_jsonb(CAST(true AS boolean))
-    AND u."data" #> '{settings,notifications,email}' = to_jsonb(CAST(true AS boolean))
-    AND u."metadata" #> '{source}' = to_jsonb(CAST('organic' AS text))
+    u."data" #> ARRAY['profile', 'verified']::text[] = to_jsonb(CAST(true AS boolean))
+    AND u."data" #> ARRAY['settings', 'notifications', 'email']::text[] = to_jsonb(CAST(true AS boolean))
+    AND u."metadata" #> ARRAY['source']::text[] = to_jsonb(CAST('organic' AS text))
     AND jsonb_path_exists(
       u."metadata",
       '$.referrer ? (@ like_regex "^https://.*")'::jsonpath
@@ -381,13 +381,13 @@ FROM
 WHERE
   (
     (
-      u."data" #> '{role}' = to_jsonb(CAST('admin' AS text))
-      OR u."data" #> '{role}' = to_jsonb(CAST('moderator' AS text))
-      OR u."data" #> '{role}' = to_jsonb(CAST('editor' AS text))
+      u."data" #> ARRAY['role']::text[] = to_jsonb(CAST('admin' AS text))
+      OR u."data" #> ARRAY['role']::text[] = to_jsonb(CAST('moderator' AS text))
+      OR u."data" #> ARRAY['role']::text[] = to_jsonb(CAST('editor' AS text))
     )
     AND (
-      u."data" #> '{status}' != to_jsonb(CAST('banned' AS text))
-      AND u."data" #> '{status}' != to_jsonb(CAST('suspended' AS text))
+      u."data" #> ARRAY['status']::text[] != to_jsonb(CAST('banned' AS text))
+      AND u."data" #> ARRAY['status']::text[] != to_jsonb(CAST('suspended' AS text))
     )
   )
 LIMIT
@@ -402,7 +402,7 @@ exports[`buildQuery SQL Generation json filters should generate query with json 
 FROM
   "users" u
 WHERE
-  u."data" #> '{status}' = to_jsonb(CAST('active' AS text))
+  u."data" #> ARRAY['status']::text[] = to_jsonb(CAST('active' AS text))
 LIMIT
   50
 OFFSET
@@ -415,7 +415,7 @@ exports[`buildQuery SQL Generation json filters should generate query with neste
 FROM
   "users" u
 WHERE
-  u."data" #> '{profile,settings,theme}' = to_jsonb(CAST('dark' AS text))
+  u."data" #> ARRAY['profile', 'settings', 'theme']::text[] = to_jsonb(CAST('dark' AS text))
 LIMIT
   50
 OFFSET
@@ -496,8 +496,8 @@ WHERE
       u."isActive" = true
       AND u."age" >= 18
       AND (
-        u."data" #> '{role}' = to_jsonb(CAST('admin' AS text))
-        OR u."data" #> '{role}' = to_jsonb(CAST('moderator' AS text))
+        u."data" #> ARRAY['role']::text[] = to_jsonb(CAST('admin' AS text))
+        OR u."data" #> ARRAY['role']::text[] = to_jsonb(CAST('moderator' AS text))
       )
     )
     OR (
@@ -572,7 +572,7 @@ exports[`buildQuery SQL Generation orderBy should generate query with json order
 FROM
   "users" u
 ORDER BY
-  (u."data" #>> '{score}')::int DESC
+  (u."data" #>> ARRAY['score']::text[])::int DESC
 LIMIT
   50
 OFFSET
@@ -589,7 +589,7 @@ ORDER BY
     SELECT
       AVG((elem #>> '{}')::float)
     FROM
-      jsonb_array_elements((u."data" #> '{prices}')::jsonb) AS elem
+      jsonb_array_elements((u."data" #> ARRAY['prices']::text[])::jsonb) AS elem
   ) ASC
 LIMIT
   50
@@ -604,7 +604,7 @@ FROM
   "users" u
 ORDER BY
   u."createdAt" DESC,
-  (u."data" #>> '{priority}')::int ASC,
+  (u."data" #>> ARRAY['priority']::text[])::int ASC,
   u."name" ASC
 LIMIT
   50

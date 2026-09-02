@@ -69,7 +69,7 @@ describe('generateOrderBy function', () => {
         },
         fieldConfig,
       });
-      expect(result?.sql).toEqual('ORDER BY (t."data"#>>\'{profile,priority}\')::int ASC');
+      expect(result?.sql).toEqual('ORDER BY (t."data"#>>?::text[])::int ASC');
     });
 
     it('should handle JSON aggregation in array', () => {
@@ -90,8 +90,8 @@ describe('generateOrderBy function', () => {
       });
       expect(result?.sql).toEqual(
         'ORDER BY t."name" ASC, (\n' +
-          "      SELECT MAX((elem#>>'{price}')::int)\n" +
-          '      FROM jsonb_array_elements((t."data"#>\'{items}\')::jsonb) AS elem\n' +
+          "      SELECT MAX((elem#>>?::text[])::int)\n" +
+          '      FROM jsonb_array_elements((t."data"#>?::text[])::jsonb) AS elem\n' +
           '    ) DESC',
       );
     });
@@ -115,7 +115,7 @@ describe('generateOrderBy function', () => {
         fieldConfig,
       });
       expect(result?.sql).toEqual(
-        'ORDER BY users."name" ASC, users."age" DESC, (users."data"#>>\'{profile,rating}\')::float DESC',
+        'ORDER BY users."name" ASC, users."age" DESC, (users."data"#>>?::text[])::float DESC',
       );
     });
   });
@@ -482,7 +482,7 @@ describe('generateOrderByClauses function', () => {
         },
         fieldConfig,
       });
-      expect(result?.sql).toEqual('(t."data"#>>\'{profile,priority}\')::int ASC');
+      expect(result?.sql).toEqual('(t."data"#>>?::text[])::int ASC');
     });
 
     it('should handle JSON aggregation in array', () => {
@@ -503,8 +503,8 @@ describe('generateOrderByClauses function', () => {
       });
       expect(result?.sql).toEqual(
         't."name" ASC, (\n' +
-          "      SELECT MAX((elem#>>'{price}')::int)\n" +
-          '      FROM jsonb_array_elements((t."data"#>\'{items}\')::jsonb) AS elem\n' +
+          "      SELECT MAX((elem#>>?::text[])::int)\n" +
+          '      FROM jsonb_array_elements((t."data"#>?::text[])::jsonb) AS elem\n' +
           '    ) DESC',
       );
     });
@@ -528,7 +528,7 @@ describe('generateOrderByClauses function', () => {
         fieldConfig,
       });
       expect(result?.sql).toEqual(
-        'users."name" ASC, users."age" DESC, (users."data"#>>\'{profile,rating}\')::float DESC',
+        'users."name" ASC, users."age" DESC, (users."data"#>>?::text[])::float DESC',
       );
     });
   });
