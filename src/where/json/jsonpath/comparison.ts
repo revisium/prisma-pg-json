@@ -53,7 +53,7 @@ export function generateJsonPathCondition(
 
     // If segments contain 'last', use jsonb_path_exists instead
     if (!pathSegments.includes('last')) {
-      const pathExpression = Prisma.sql`${fieldRef}#>'{${Prisma.raw(pathSegments.join(','))}}'`;
+      const pathExpression = Prisma.sql`${fieldRef}#>${pathSegments}::text[]`;
       const jsonbValue = generateJsonbValue(value);
 
       if (operator === 'equals') {

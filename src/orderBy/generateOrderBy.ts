@@ -163,7 +163,7 @@ function processJsonFieldParts(
       }
       return segment;
     });
-  const jsonPathExpression = Prisma.sql`${fieldRef}#>>'{${Prisma.raw(pathSegments.join(','))}}'`;
+  const jsonPathExpression = Prisma.sql`${fieldRef}#>>${pathSegments}::text[]`;
   const typedExpression = Prisma.sql`(${jsonPathExpression})::${Prisma.raw(type)}`;
 
   return { expression: typedExpression, direction };
@@ -189,7 +189,6 @@ function buildAggregationExpression(
 
     const pathSegments = beforeWildcard.split('.').filter((s) => s.length > 0);
     const aggregationFunc = aggregation.toUpperCase();
-    const basePathSql = `{${pathSegments.join(',')}}`;
 
     let elemAccess: PrismaSql;
     if (afterWildcard.startsWith('.')) {
@@ -197,14 +196,14 @@ function buildAggregationExpression(
         .substring(1)
         .split('.')
         .filter((s) => s.length > 0);
-      elemAccess = Prisma.sql`elem#>>'{${Prisma.raw(subPathSegments.join(','))}}'`;
+      elemAccess = Prisma.sql`elem#>>${subPathSegments}::text[]`;
     } else {
       elemAccess = Prisma.sql`elem#>>'{}'`;
     }
 
     return Prisma.sql`(
       SELECT ${Prisma.raw(aggregationFunc)}((${elemAccess})::${Prisma.raw(type)})
-      FROM jsonb_array_elements((${fieldRef}#>'${Prisma.raw(basePathSql)}')::jsonb) AS elem
+      FROM jsonb_array_elements((${fieldRef}#>${pathSegments}::text[])::jsonb) AS elem
     )`;
   }
 
@@ -223,11 +222,10 @@ function buildAggregationExpression(
     .split(/[.[\]]/)
     .filter((s) => s.length > 0);
 
-  const basePathSql = `{${pathSegments.join(',')}}`;
   const aggregationFunc = aggregation.toUpperCase();
 
   return Prisma.sql`(
     SELECT ${Prisma.raw(aggregationFunc)}((elem#>>'{}')::${Prisma.raw(type)})
-    FROM jsonb_array_elements((${fieldRef}#>'${Prisma.raw(basePathSql)}')::jsonb) AS elem
+    FROM jsonb_array_elements((${fieldRef}#>${pathSegments}::text[])::jsonb) AS elem
   )`;
 }

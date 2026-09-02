@@ -401,4 +401,43 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
       }
     });
   });
+
+  describe('JSON path (data.path) injection', () => {
+    // A malicious path segment that, if spliced raw into `#>'{...}'`, breaks
+    // out of the array literal and injects SQL. After the fix the segment is
+    // bound as a text[] parameter, so it is treated as a (non-existent) key:
+    // the query runs safely and simply matches nothing.
+    const BREAKOUT = "x'}') OR '1'='1";
+
+    it('WHERE equals: malicious path does not inject, returns no rows, does not throw', async () => {
+      const results = await testQuery({
+        data: { path: [BREAKOUT], equals: 'anything' },
+      });
+      // If injection happened, `OR '1'='1'` would return ALL rows (2).
+      expect(results).toHaveLength(0);
+    });
+
+    it('WHERE not: malicious path does not inject, matches nothing, does not throw', async () => {
+      const results = await testQuery({
+        data: { path: [BREAKOUT], not: 'anything' },
+      });
+      // The non-existent (parameterized) key yields NULL, so `!= value` is
+      // never true and no row matches. If injection regressed via `OR '1'='1'`,
+      // this would return all fixture rows — so an exact 0 is the real guard.
+      expect(results).toHaveLength(0);
+    });
+
+    it('ORDER BY json path: malicious path does not inject and does not throw', async () => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        orderBy: {
+          data: { path: [BREAKOUT], direction: 'asc', type: 'text' },
+        },
+      });
+      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
+      // Sorting by a non-existent (parameterized) key just yields all rows.
+      expect(results).toHaveLength(2);
+    });
+  });
 });
