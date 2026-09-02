@@ -57,7 +57,7 @@ function handleOptimizedEqualsNot(
     return null;
   }
 
-  const pathExpression = Prisma.sql`${fieldRef}#>'{${Prisma.raw(pathSegments.join(','))}}'`;
+  const pathExpression = Prisma.sql`${fieldRef}#>${pathSegments}::text[]`;
   const jsonbValue = generateJsonbValue(value);
 
   if (operator === 'equals') {
