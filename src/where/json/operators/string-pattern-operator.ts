@@ -1,7 +1,7 @@
 import { PrismaSql } from '../../../prisma-adapter';
 import { escapeRegex } from '../jsonpath/utils';
 import { BaseOperator } from './base-operator';
-import { generateJsonPathLikeRegex } from '../../../utils/sql-jsonpath';
+import { generateJsonPathLikeRegex } from '../../../postgres/jsonpath-expressions';
 
 type StringPatternKey = 'string_contains' | 'string_starts_with' | 'string_ends_with';
 

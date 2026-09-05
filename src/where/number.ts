@@ -1,6 +1,6 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import { NumberFilter } from '../types';
-import { bindSqlNumber } from '../utils/sql-number';
+import { bindSqlNumber } from '../postgres/number';
 
 /**
  * Generate a WHERE condition for a numeric column.

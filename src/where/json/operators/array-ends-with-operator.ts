@@ -4,7 +4,7 @@ import { BaseOperator } from './base-operator';
 import {
   generateJsonPathLikeRegex,
   generateJsonPathExistsWithParam,
-} from '../../../utils/sql-jsonpath';
+} from '../../../postgres/jsonpath-expressions';
 
 export class ArrayEndsWithOperator extends BaseOperator<unknown> {
   readonly key = 'array_ends_with' as const;

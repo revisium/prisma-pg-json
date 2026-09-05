@@ -2,7 +2,8 @@ import { Prisma, PrismaSql } from '../prisma-adapter';
 import { JsonOrderByInput, GenerateOrderByParams, FieldConfig, OrderByPart } from '../types';
 import { convertToJsonPath, jsonPathToTextSegments } from '../postgres/json-path';
 import { validateQueryInput } from '../utils/query-validation';
-import { quoteIdentifier, resolveFieldType } from '../utils/sql-identifiers';
+import { quoteIdentifier } from '../postgres/identifiers';
+import { resolveFieldType } from '../utils/field-config';
 import { validateSqlIdentifier } from '../sub-schema/validation';
 
 /**

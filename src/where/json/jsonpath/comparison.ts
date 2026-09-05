@@ -4,7 +4,7 @@ import { parseJsonPath } from '../../../paths/json-path';
 import {
   generateJsonPathLikeRegex,
   generateJsonPathExistsWithParam,
-} from '../../../utils/sql-jsonpath';
+} from '../../../postgres/jsonpath-expressions';
 
 function handleObjectComparison(
   fieldRef: PrismaSql,

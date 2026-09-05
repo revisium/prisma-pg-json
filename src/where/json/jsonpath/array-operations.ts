@@ -5,7 +5,7 @@ import {
   generateJsonPathExistsWithParams,
   generateJsonPathExistsWithParam,
   generateJsonBuildObject,
-} from '../../../utils/sql-jsonpath';
+} from '../../../postgres/jsonpath-expressions';
 
 export function generateArrayCondition(
   fieldRef: PrismaSql,

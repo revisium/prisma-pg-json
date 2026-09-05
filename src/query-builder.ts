@@ -14,7 +14,8 @@ import { generateDateFilter } from './where/date';
 import { generateJsonFilter } from './where/json/json-filter';
 import { generateOrderBy } from './orderBy';
 import { validatePagination, validateQueryInput } from './utils/query-validation';
-import { quoteIdentifier, resolveFieldType } from './utils/sql-identifiers';
+import { quoteIdentifier } from './postgres/identifiers';
+import { resolveFieldType } from './utils/field-config';
 import { validateSqlIdentifier } from './sub-schema/validation';
 
 const DEFAULT_FIELD_CONFIG: FieldConfig = {};
