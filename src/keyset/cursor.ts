@@ -16,11 +16,7 @@ interface CursorPayload {
  * @param sortHash - Hash from `computeSortHash()` to detect sort order changes
  * @returns Opaque cursor string to pass as `after` parameter
  */
-export function encodeCursor(
-  values: CursorValue[],
-  tiebreaker: string,
-  sortHash: string,
-): string {
+export function encodeCursor(values: CursorValue[], tiebreaker: string, sortHash: string): string {
   const payload: CursorPayload = { v: values, t: tiebreaker, h: sortHash };
   return Buffer.from(JSON.stringify(payload)).toString('base64url');
 }
@@ -62,7 +58,12 @@ export function decodeCursor(cursor: string): {
 }
 
 function isValidCursorValue(value: unknown): value is CursorValue {
-  return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+  return (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  );
 }
 
 /**
@@ -94,7 +95,10 @@ export function computeSortHash(parts: OrderByPart[]): string {
  * Extract cursor values from a result row based on the sort configuration.
  *
  * For JSON fields, walks the JSON data using the configured path.
- * Wildcard `*` segments return null (aggregation is computed in SQL).
+ * Array aggregations are evaluated for scalar first/last and numeric min/max.
+ * AVG is extracted only for safe integer inputs with an exact binary average.
+ * Database-dependent aggregates require projecting OrderByPart.expression in SQL
+ * and passing its value to encodeCursor instead.
  *
  * @param row - Result row object
  * @param parts - OrderByPart array from `generateOrderByParts()`
@@ -119,27 +123,139 @@ function toCursorValue(value: unknown): CursorValue {
   if (value === null || value === undefined) {
     return null;
   }
-  if (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }
   return null;
 }
 
-function extractJsonValue(
-  data: unknown,
-  jsonConfig: JsonOrderByInput,
-): CursorValue {
+function extractJsonValue(data: unknown, jsonConfig: JsonOrderByInput): CursorValue {
   if (data === null || data === undefined) {
     return null;
   }
 
-  const pathSegments = parseJsonPath(jsonConfig.path);
-  const resolved = resolveJsonPath(data, pathSegments);
-  return toCursorValue(resolved);
+  const pathSegments = jsonConfig.path === '$' ? [] : parseJsonPath(jsonConfig.path);
+  if (!jsonConfig.aggregation) {
+    return toCursorValue(resolveJsonPath(data, pathSegments));
+  }
+
+  if (pathSegments.some((segment) => /[.[\]"\\]/.test(segment))) {
+    throw new Error('Automatic aggregate cursor extraction requires unambiguous path segments.');
+  }
+
+  const wildcard = pathSegments.indexOf('*');
+  const arrayPath = wildcard < 0 ? pathSegments : pathSegments.slice(0, wildcard);
+  const elementPath = wildcard < 0 ? [] : pathSegments.slice(wildcard + 1);
+  if (elementPath.includes('*')) {
+    throw new Error(
+      'Automatic aggregate cursor extraction supports at most one wildcard. Nested-wildcard aggregation requires a supported SQL ordering expression.',
+    );
+  }
+  const array = resolveJsonPath(data, arrayPath);
+  if (array === null || array === undefined) {
+    return null;
+  }
+  if (!Array.isArray(array)) {
+    throw projectedCursorRequired();
+  }
+  if (array.length === 0) {
+    return null;
+  }
+  const { aggregation, type = 'text' } = jsonConfig;
+  if (aggregation === 'first' || aggregation === 'last') {
+    const element = array[aggregation === 'first' ? 0 : array.length - 1];
+    return castCursorValue(resolveJsonPath(element, elementPath), type);
+  }
+
+  if (type !== 'int' && type !== 'float') {
+    throw projectedCursorRequired();
+  }
+
+  const values = array
+    .map((element) => castCursorValue(resolveJsonPath(element, elementPath), type))
+    .filter((value): value is Exclude<CursorValue, null> => value !== null);
+  if (values.length === 0) {
+    return null;
+  }
+  if (aggregation === 'avg') {
+    return exactAverage(values.map(Number));
+  }
+  return values.reduce((selected, value) => {
+    const smaller = value < selected;
+    return (aggregation === 'min' ? smaller : value > selected) ? value : selected;
+  });
+}
+
+function projectedCursorRequired(): Error {
+  return new Error(
+    'Cannot extract this aggregate cursor exactly in JavaScript. Project the OrderByPart.expression in SQL and pass its database value to encodeCursor().',
+  );
+}
+
+function exactAverage(values: number[]): number {
+  let sum = 0;
+  for (const value of values) {
+    sum += value;
+    if (!Number.isSafeInteger(value) || !Number.isSafeInteger(sum)) {
+      throw projectedCursorRequired();
+    }
+  }
+  // After removing powers of two, the denominator must divide the numerator
+  // for the average to have an exact binary floating-point representation.
+  let denominator = values.length;
+  while (denominator % 2 === 0) {
+    denominator /= 2;
+  }
+  if (sum % denominator !== 0) {
+    throw projectedCursorRequired();
+  }
+  return sum / values.length;
+}
+
+function castCursorValue(value: unknown, type: JsonOrderByInput['type']): CursorValue {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'object') {
+    throw projectedCursorRequired();
+  }
+  if (type === 'int' || type === 'float') {
+    if (typeof value !== 'number' && typeof value !== 'string') {
+      throw projectedCursorRequired();
+    }
+    if (
+      typeof value === 'string' &&
+      !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())
+    ) {
+      throw projectedCursorRequired();
+    }
+    if (type === 'int' && typeof value === 'string' && !/^[+-]?\d+$/.test(value.trim())) {
+      throw projectedCursorRequired();
+    }
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || String(value).trim() === '') {
+      throw projectedCursorRequired();
+    }
+    if (type === 'float') {
+      return numeric;
+    }
+    // JSON parsing may already have rounded a database decimal across a half
+    // boundary. Only PostgreSQL can safely cast fractional JSON numbers to int.
+    if (!Number.isInteger(numeric) || numeric < -2147483648 || numeric > 2147483647) {
+      throw projectedCursorRequired();
+    }
+    return numeric;
+  }
+  if (type === 'boolean') {
+    const text = String(value).trim().toLowerCase();
+    if (['true', 't', 'yes', 'y', 'on', '1'].includes(text)) return true;
+    if (['false', 'f', 'no', 'n', 'off', '0'].includes(text)) return false;
+    throw projectedCursorRequired();
+  }
+  if (typeof value !== 'string' && !(type === 'text' && typeof value === 'boolean')) {
+    throw projectedCursorRequired();
+  }
+  return String(value);
 }
 
 function resolveJsonPath(data: unknown, pathSegments: string[]): unknown {
@@ -153,11 +269,11 @@ function resolveJsonPath(data: unknown, pathSegments: string[]): unknown {
       return null;
     }
     if (Array.isArray(current)) {
-      const index = Number.parseInt(segment, 10);
-      if (Number.isNaN(index)) {
+      if (segment !== 'last' && !/^-?\d+$/.test(segment)) {
         return null;
       }
-      current = current[index];
+      const index = segment === 'last' ? -1 : Number(segment);
+      current = current[index < 0 ? current.length + index : index];
     } else {
       current = (current as Record<string, unknown>)[segment];
     }

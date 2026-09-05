@@ -445,10 +445,8 @@ exports[`buildQuery SQL Generation logical operators should generate query with 
 FROM
   "users" u
 WHERE
-  NOT (
-    u."email" LIKE '%spam%'
-    AND u."email" LIKE '%test%'
-  )
+  NOT (u."email" LIKE '%spam%')
+  AND NOT (u."email" LIKE '%test%')
 LIMIT
   50
 OFFSET

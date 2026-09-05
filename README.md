@@ -584,6 +584,25 @@ const whereClause = generateWhere({
 });
 ```
 
+### Compatibility details
+
+- `NOT: [a, b]` excludes rows matching either condition: each child is negated,
+  then the results are combined with AND. `NOT: { age: 18, name: 'Alice' }`
+  negates the whole conjunction, so it excludes only rows matching both fields.
+- Wildcard operators each require any matching element. For example,
+  `{ path: 'items[*].value', gte: 18, lt: 19 }` matches values `[17, 19]`:
+  different elements may satisfy the two comparisons. Likewise, `not: 19`
+  matches that array because it contains an unequal element.
+- JSON sorting with `type: 'timestamp'` compares wall-clock values; it does not
+  normalize timezone offsets to UTC. For example, `10:00+02:00` sorts after
+  `09:00Z`. Use values normalized to a common timezone when ordering instants.
+- `array_contains` object requirements match fields on one array element.
+  A nested object or array used as a field value is compared as a complete JSON
+  value. For example, `{ profile: { role: 'admin' } }` does not match a profile
+  containing additional properties; this is not recursive partial containment.
+- Sub-schema paths use the documented dot and `[*]` notation. They do not have
+  a quoted-member grammar for literal keys containing dots, such as `"a.b"`.
+
 ## Advantages over Standard Prisma
 
 ### JSON Path Operations
@@ -686,6 +705,61 @@ const sortHash = computeSortHash(parts);
 const cursorValues = extractCursorValues(lastRow, parts);
 const cursor = encodeCursor(cursorValues, lastRow.id, sortHash);
 ```
+
+#### Aggregate cursor values
+
+`extractCursorValues` can compute first/last scalar casts and numeric min/max
+from row JSON. Automatic integer extraction accepts only integral numbers or
+integer strings in PostgreSQL's 32-bit range. Fractional JSON-number first/last
+casts must use SQL projection: JSON parsing can round a decimal across an integer
+cast's halfway boundary. PostgreSQL still performs its original rounding when
+ordering; the helper does not approximate it. Numeric casts must be finite. Text endpoints accept strings and booleans; JSON numbers
+and objects require SQL projection because their original database text can be
+lost when JSON is parsed. Timestamp endpoints preserve the source string for the
+database to cast.
+
+Automatic average extraction requires safe integer inputs and every intermediate
+sum to remain safe, with an average exactly representable in binary. It rejects
+unsafe intermediate sums even when cancellation would produce a safe final sum.
+Other aggregate domains, such as text/timestamp min/max, fractional averages or
+non-array inputs, require PostgreSQL to compute the cursor value; the helper
+throws an actionable error. Indexed aggregate paths support `0` and `-1` (last)
+in both string and segment-array forms. Other negative indices remain rejected.
+Automatic aggregate extraction rejects ambiguous literal path segments and more
+than one wildcard. Nested-wildcard aggregate ordering is unsupported; projecting
+its current expression does not repair that unsupported SQL ordering.
+
+For scalar database values represented by Prisma `Decimal`, also use the SQL
+projection below. Automatic extraction does not convert arbitrary scalar objects
+into cursor values.
+
+Project the same `OrderByPart.expression` used for sorting as text to preserve
+PostgreSQL precision and timestamp representation:
+
+```typescript
+const params = {
+  tableAlias: 'r',
+  fieldConfig: { data: 'json' },
+  orderBy: { data: { path: 'scores[*]', type: 'float', aggregation: 'avg', direction: 'asc' } },
+} as const;
+const parts = generateOrderByParts(params);
+const page = await prisma.$queryRaw<Array<{ id: string; sortValue: string | null }>>(Prisma.sql`
+  SELECT r.id, (${parts[0].expression})::text AS "sortValue"
+  FROM rows r
+  ${generateOrderBy(params)}, r.id DESC
+  LIMIT ${take}
+`);
+const last = page.at(-1);
+const cursor = last
+  ? encodeCursor([last.sortValue], last.id, computeSortHash(parts))
+  : undefined;
+```
+
+For subsequent pages, pass the decoded values to `buildKeysetCondition` with the
+same sort parts and ID tiebreaker. For multiple sort parts, project and encode
+one value per part in the same order. If projecting a PostgreSQL numeric value
+without the text cast, convert a returned Prisma `Decimal` to a string before
+encoding; avoid conversion through JavaScript `number`, which may lose precision.
 
 ### Universal Design
 Works with any table structure - just define your field types and start querying.

@@ -3,6 +3,7 @@ import { generateJsonbValue, escapeRegex } from './utils';
 import {
   generateJsonPathLikeRegex,
   generateJsonPathExistsWithParams,
+  generateJsonPathExistsWithParam,
   generateJsonBuildObject,
 } from '../../../utils/sql-jsonpath';
 
@@ -34,12 +35,34 @@ export function generateArrayCondition(
     if (isInsensitive && typeof val === 'string') {
       const pattern = `^${escapeRegex(val)}$`;
       return generateJsonPathLikeRegex(fieldRef, `${jsonPath}[*]`, pattern, true);
-    } else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+    } else if (Array.isArray(val)) {
+      return Prisma.sql`EXISTS (
+        SELECT 1 FROM jsonb_path_query(${fieldRef}, ${`${jsonPath}[*]`}::jsonpath) AS element(value)
+        WHERE element.value = ${generateJsonbValue(val)}
+      )`;
+    } else if (typeof val === 'object' && val !== null) {
       // For complex objects, check if a single array element contains all key-value pairs
       const propertyChecks = Object.entries(val).map(([key, objValue], keyIndex) => {
         const paramName = `val${index}${keyIndex}`;
         return { key, objValue, paramName };
       });
+
+      if (propertyChecks.some(({ objValue }) => isJsonContainer(objValue))) {
+        const memberConditions = propertyChecks.map(({ key, objValue }) => {
+          if (isJsonContainer(objValue)) {
+            return Prisma.sql`element.value -> ${key}::text = ${generateJsonbValue(objValue)}`;
+          }
+          return generateJsonPathExistsWithParam(
+            Prisma.sql`element.value`,
+            `$ ? (@.${JSON.stringify(key)} == $val)`,
+            generateJsonbValue(objValue),
+          );
+        });
+        return Prisma.sql`EXISTS (
+          SELECT 1 FROM jsonb_path_query(${fieldRef}, ${`${jsonPath}[*]`}::jsonpath) AS element(value)
+          WHERE ${Prisma.join(memberConditions, ' AND ')}
+        )`;
+      }
 
       const propertyConditions = propertyChecks.map(
         ({ key, paramName }) => `@.${JSON.stringify(key)} == $${paramName}`,
@@ -65,4 +88,8 @@ export function generateArrayCondition(
     }
   });
   return Prisma.join(conditions, ' AND ');
+}
+
+function isJsonContainer(value: unknown): boolean {
+  return value !== null && typeof value === 'object';
 }

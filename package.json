@@ -50,7 +50,8 @@
     "prisma:generate": "prisma generate && npm run prisma:postgenerate",
     "prisma:postgenerate": "echo \"export * from './client';\" > src/generated/client/index.ts",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy"
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "test:contract": "NODE_ENV=test jest --runInBand --runTestsByPath src/__tests__/integration/query-cases.spec.ts src/__tests__/integration/consumer-workflows.spec.ts src/__tests__/unit/consumer-contract.spec.ts src/__tests__/integration/numeric-precision.spec.ts"
   },
   "peerDependencies": {
     "@prisma/client": "^5.0.0 || ^6.0.0 || ^7.0.0"

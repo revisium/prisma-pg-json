@@ -1,5 +1,6 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import { OrderByPart, CursorValue } from '../types';
+import { bindSqlNumber } from '../utils/sql-number';
 
 /**
  * Build a multi-column WHERE condition for keyset (cursor-based) pagination.
@@ -30,10 +31,7 @@ export function buildKeysetCondition(
       direction: tiebreakerDirection,
     },
   ];
-  const allValues: CursorValue[] = [
-    ...cursorValues,
-    tiebreaker,
-  ];
+  const allValues: CursorValue[] = [...cursorValues, tiebreaker];
 
   const orClauses: PrismaSql[] = [];
 
@@ -41,9 +39,7 @@ export function buildKeysetCondition(
     const andClauses: PrismaSql[] = [];
 
     for (let i = 0; i < depth; i++) {
-      andClauses.push(
-        buildEqualityClause(allParts[i].expression, allValues[i]),
-      );
+      andClauses.push(buildEqualityClause(allParts[i].expression, allValues[i]));
     }
 
     andClauses.push(
@@ -60,14 +56,12 @@ export function buildKeysetCondition(
   return Prisma.sql`(${Prisma.join(orClauses, ' OR ')})`;
 }
 
-function buildEqualityClause(
-  expression: PrismaSql,
-  value: CursorValue,
-): PrismaSql {
+function buildEqualityClause(expression: PrismaSql, value: CursorValue): PrismaSql {
   if (value === null) {
     return Prisma.sql`${expression} IS NULL`;
   }
-  return Prisma.sql`${expression} = ${value}`;
+  const parameter = typeof value === 'number' ? bindSqlNumber(value) : value;
+  return Prisma.sql`${expression} = ${parameter}`;
 }
 
 // Assumes PostgreSQL default NULL ordering: ASC = NULLS LAST, DESC = NULLS FIRST.
@@ -87,8 +81,9 @@ function buildComparisonClause(
     return Prisma.sql`FALSE`;
   }
 
+  const parameter = typeof value === 'number' ? bindSqlNumber(value) : value;
   if (direction === 'DESC') {
-    return Prisma.sql`${expression} < ${value}`;
+    return Prisma.sql`${expression} < ${parameter}`;
   }
-  return Prisma.sql`${expression} > ${value}`;
+  return Prisma.sql`(${expression} > ${parameter} OR ${expression} IS NULL)`;
 }

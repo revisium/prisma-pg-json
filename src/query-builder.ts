@@ -201,9 +201,9 @@ function processLogicalOperators<TConfig extends FieldConfig>(
 
   if (where.NOT) {
     const notConditions = Array.isArray(where.NOT) ? where.NOT : [where.NOT];
-    const notClauses = notConditions.map((cond) =>
-      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
+    const notClauses = notConditions.map(
+      (cond) => Prisma.sql`NOT (${generateWhereClause({ where: cond, fieldConfig, tableAlias })})`,
     );
-    conditions.push(Prisma.sql`NOT (${Prisma.join(notClauses, ' AND ')})`);
+    conditions.push(Prisma.join(notClauses, ' AND '));
   }
 }
