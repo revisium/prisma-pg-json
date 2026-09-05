@@ -1,1 +1,1 @@
-export { parseJsonPath } from '../utils/parseJsonPath';
+export { parseJsonPath } from '../paths/json-path';
