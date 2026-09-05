@@ -49,16 +49,6 @@ export function generateJsonPathExistsWithParams(
 }
 
 /**
- * Generate negated jsonb_path_exists expression
- * @param fieldRef - Field reference
- * @param condition - JSONPath condition string
- * @returns PrismaSql expression
- */
-export function generateJsonPathNotExists(fieldRef: PrismaSql, condition: string): PrismaSql {
-  return Prisma.sql`NOT jsonb_path_exists(${fieldRef}, ${condition}::jsonpath)`;
-}
-
-/**
  * Generate jsonb_path_exists expression with like_regex using parameterized queries
  * @param fieldRef - Field reference
  * @param jsonPath - JSONPath string
