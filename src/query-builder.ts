@@ -1,21 +1,13 @@
 import {
   QueryBuilderOptions,
   FieldConfig,
-  FieldType,
-  JsonFilter,
   GenerateWhereParams,
-  WhereConditionsTyped,
 } from './types';
 import { Prisma, PrismaSql } from './prisma-adapter';
-import { generateStringFilter } from './where/string';
-import { generateNumberFilter } from './where/number';
-import { generateBooleanFilter } from './where/boolean';
-import { generateDateFilter } from './where/date';
-import { generateJsonFilter } from './where/json/json-filter';
+import { compileWhere } from './postgres/where';
 import { generateOrderBy } from './orderBy';
 import { validatePagination, validateQueryInput } from './utils/query-validation';
 import { quoteIdentifier } from './postgres/identifiers';
-import { resolveFieldType } from './utils/field-config';
 import { validateSqlIdentifier } from './sub-schema/validation';
 
 const DEFAULT_FIELD_CONFIG: FieldConfig = {};
@@ -70,7 +62,7 @@ export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
   let sql = Prisma.sql`SELECT ${fieldList} FROM ${quoteIdentifier(tableName)} ${Prisma.raw(tableAlias)}`;
 
   if (where) {
-    const whereClause = generateWhereClause({
+    const whereClause = compileWhere({
       where,
       fieldConfig: fieldConfig as TConfig,
       tableAlias,
@@ -115,96 +107,7 @@ export function generateWhere<TConfig extends FieldConfig = FieldConfig>(
 ): PrismaSql {
   validateQueryInput(params.where);
   validateSqlIdentifier(params.tableAlias, 'tableAlias');
-  return generateWhereClause(params);
+  return compileWhere(params);
 }
 
 export { generateOrderBy, generateOrderByClauses } from './orderBy';
-
-function generateWhereClause<TConfig extends FieldConfig = FieldConfig>(
-  params: GenerateWhereParams<TConfig>,
-): PrismaSql {
-  const { where, fieldConfig, tableAlias } = params;
-  const conditions: PrismaSql[] = [];
-
-  for (const [key, value] of Object.entries(where)) {
-    if (key === 'AND' || key === 'OR' || key === 'NOT') {
-      continue;
-    }
-
-    if (value === undefined || value === null) {
-      continue;
-    }
-
-    const fieldType = resolveFieldType(key, fieldConfig);
-    const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}.${quoteIdentifier(key)}`;
-
-    const condition = generateFieldCondition(fieldRef, value, fieldType, key, tableAlias);
-    if (condition) {
-      conditions.push(condition);
-    }
-  }
-
-  processLogicalOperators(where, fieldConfig, tableAlias, conditions);
-
-  if (conditions.length === 0) {
-    return Prisma.sql`TRUE`;
-  }
-
-  if (conditions.length === 1) {
-    return conditions[0];
-  }
-
-  return Prisma.join(conditions, ' AND ');
-}
-
-function generateFieldCondition(
-  fieldRef: PrismaSql,
-  value: unknown,
-  fieldType: FieldType,
-  fieldName: string,
-  tableAlias: string,
-): PrismaSql | null {
-  switch (fieldType) {
-    case 'string':
-      return generateStringFilter(fieldRef, value as string);
-    case 'number':
-      return generateNumberFilter(fieldRef, value as number);
-    case 'boolean':
-      return generateBooleanFilter(fieldRef, value as boolean);
-    case 'date':
-      return generateDateFilter(fieldRef, value as string | Date);
-    case 'json':
-      return generateJsonFilter(fieldRef, value as JsonFilter, fieldName, tableAlias);
-    default:
-      throw new Error(`Unsupported field type: ${fieldType}`);
-  }
-}
-
-function processLogicalOperators<TConfig extends FieldConfig>(
-  where: WhereConditionsTyped<TConfig>,
-  fieldConfig: TConfig,
-  tableAlias: string,
-  conditions: PrismaSql[],
-): void {
-  if (where.AND && Array.isArray(where.AND) && where.AND.length > 0) {
-    const andConditions = where.AND.map((cond) =>
-      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
-    );
-    conditions.push(Prisma.sql`(${Prisma.join(andConditions, ' AND ')})`);
-  }
-
-  if (where.OR && Array.isArray(where.OR) && where.OR.length > 0) {
-    const orConditions = where.OR.map((cond) =>
-      generateWhereClause({ where: cond, fieldConfig, tableAlias }),
-    );
-    conditions.push(Prisma.sql`(${Prisma.join(orConditions, ' OR ')})`);
-  }
-
-  if (where.NOT) {
-    const notConditions = Array.isArray(where.NOT) ? where.NOT : [where.NOT];
-    const notClauses = notConditions.map(
-      (cond) => Prisma.sql`NOT (${generateWhereClause({ where: cond, fieldConfig, tableAlias })})`,
-    );
-    conditions.push(Prisma.join(notClauses, ' AND '));
-  }
-}

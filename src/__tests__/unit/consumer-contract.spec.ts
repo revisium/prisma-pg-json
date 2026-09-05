@@ -3,6 +3,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import {
   buildQuery,
+  generateWhere,
   configurePrisma,
   decodeCursor,
   encodeCursor,
@@ -108,6 +109,69 @@ describe('consumer contract: opaque values and public validation', () => {
       data: { equals: 1 },
     };
     expect(Object.keys(invalid)).toHaveLength(3);
+  });
+});
+
+describe('consumer contract: filter traversal compatibility', () => {
+  function compile(where: unknown) {
+    return generateWhere({
+      where: where as WhereConditionsTyped<typeof fieldConfig>,
+      fieldConfig,
+      tableAlias: 'u',
+    });
+  }
+
+  it.each([
+    [{}, 'TRUE'],
+    [{ AND: [], OR: [] }, 'TRUE'],
+    [{ AND: { name: 'ignored' }, OR: { name: 'ignored' } }, 'TRUE'],
+    [{ NOT: {} }, 'NOT (TRUE)'],
+    [{ NOT: 1 }, 'NOT (TRUE)'],
+    [{ NOT: 0 }, 'TRUE'],
+    [{ name: null, age: undefined }, 'TRUE'],
+  ])('preserves empty and ignored input %j', (where, sql) => {
+    expect(compile(where).sql).toBe(sql);
+    expect(compile(where).values).toEqual([]);
+  });
+
+  it.each([null, { AND: [null] }, { NOT: [] }])(
+    'preserves the failure for malformed input %j',
+    (where) => {
+      expect(() => compile(where)).toThrow(TypeError);
+    },
+  );
+
+  it.each([
+    { data: { path: 'x' }, unknown: 'x' },
+    { data: { path: 'x' }, AND: [null] },
+    { OR: [null], data: { path: 'x' } },
+    { data: { path: 'x' }, NOT: [] },
+  ])('reports the first field error before later clauses: %j', (where) => {
+    expect(() => compile(where)).toThrow('No valid operations found for field: data');
+  });
+
+  it('compiles fields in insertion order, followed by AND, OR, then NOT', () => {
+    const query = compile({
+      NOT: [{ name: 'excluded-1' }, { name: 'excluded-2' }],
+      OR: [{ name: 'choice' }],
+      age: 21,
+      AND: [{ name: 'required' }],
+      name: 'first',
+    });
+    expect(query.sql).toBe(
+      'u."age" = ? AND u."name" = ? AND (u."name" = ?) AND (u."name" = ?) AND NOT (u."name" = ?) AND NOT (u."name" = ?)',
+    );
+    expect(query.values).toEqual([21, 'first', 'required', 'choice', 'excluded-1', 'excluded-2']);
+  });
+
+  it.each(['AND', 'OR', 'NOT'])('preserves sparse %s array slots', (operator) => {
+    const children = new Array(2);
+    children[1] = { name: 'second' };
+    const query = compile({ [operator]: children });
+    expect(query.values).toEqual([undefined, 'second']);
+    expect(query.sql).toBe(
+      operator === 'NOT' ? '? AND NOT (u."name" = ?)' : `(? ${operator} u."name" = ?)`,
+    );
   });
 });
 
