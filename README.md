@@ -687,6 +687,11 @@ const cursorValues = extractCursorValues(lastRow, parts);
 const cursor = encodeCursor(cursorValues, lastRow.id, sortHash);
 ```
 
+For aggregate sorting, select each `OrderByPart.expression` as text and pass the
+returned values to `encodeCursor` in sort order. `extractCursorValues` reads
+scalar fields only; wildcard paths and arrays/objects return `null`.
+Use string values for PostgreSQL numeric/Decimal cursors to preserve precision.
+
 ### Universal Design
 Works with any table structure - just define your field types and start querying.
 
@@ -813,71 +818,13 @@ validateJsonPath('')              // { isValid: false, error: 'JSON path cannot 
 
 `parseJsonPath` accepts both string and array input — if passed an array, it returns it unchanged.
 
-## Architecture
+## Input Limits and Access Control
 
-```text
-src/
-├── index.ts                  # Public exports
-├── prisma-adapter.ts         # Proxy pattern — no direct @prisma/client dependency
-├── query-builder.ts          # buildQuery() — complete SELECT builder
-├── types.ts                  # Filter, OrderBy, FieldConfig types
-│
-├── where/                    # WHERE clause generation
-│   ├── string.ts             # String filters (equals, contains, startsWith, ...)
-│   ├── number.ts             # Number filters (gt, gte, lt, lte, in, ...)
-│   ├── boolean.ts            # Boolean filters (equals, not)
-│   ├── date.ts               # Date filters (gt, gte, lt, lte, in, ...)
-│   └── json/                 # JSON/JSONB filters — strategy pattern
-│       ├── json-filter.ts    # Entry point, path validation
-│       ├── operator-manager.ts  # Operator registry and routing
-│       ├── operators/        # 14 operator classes (equals, gt, search, ...)
-│       │   └── base-operator.ts # Abstract base class
-│       └── jsonpath/         # PostgreSQL jsonpath SQL helpers
-│
-├── orderBy/                  # ORDER BY clause generation
-│   └── generateOrderBy.ts    # generateOrderBy, generateOrderByClauses, generateOrderByParts
-│
-├── keyset/                   # Cursor-based pagination
-│   ├── cursor.ts             # encodeCursor, decodeCursor, computeSortHash, extractCursorValues
-│   └── condition.ts          # buildKeysetCondition — multi-column WHERE
-│
-├── sub-schema/               # CTE queries for nested JSON schemas
-│   ├── sub-schema-builder.ts # buildSubSchemaCte, buildSubSchemaWhere, buildSubSchemaOrderBy, ...
-│   └── types.ts              # SubSchemaTableConfig, SubSchemaWhereInput, ...
-│
-└── utils/
-    ├── parseJsonPath.ts      # parseJsonPath, arrayToJsonPath, validateJsonPath
-    └── sql-jsonpath.ts       # jsonb_path_exists SQL helpers
-```
-
-### Data Flow
-
-```text
-buildQuery(options)
-  ├── generateWhere(where, fieldConfig, tableAlias)
-  │     ├── generateStringFilter(fieldRef, filter)
-  │     ├── generateNumberFilter(fieldRef, filter)
-  │     ├── generateBooleanFilter(fieldRef, filter)
-  │     ├── generateDateFilter(fieldRef, filter)
-  │     └── generateJsonFilter(fieldRef, filter)
-  │           └── OperatorManager → BaseOperator subclasses
-  │
-  ├── generateOrderBy(orderBy, fieldConfig, tableAlias)
-  │     └── processJsonOrder → type casting + aggregation subqueries
-  │
-  └── Prisma.sql`SELECT ... WHERE ... ORDER BY ... LIMIT ... OFFSET ...`
-```
-
-### Security Model
-
-- Values and JSON paths are bound through `Prisma.sql`. Object keys in `array_contains` are escaped as JSONPath member names, so they cannot introduce predicates.
-- Table and column names are quoted as individual PostgreSQL identifiers, including embedded double quotes. Aliases must match `[a-zA-Z_][a-zA-Z0-9_]*`. Sort directions, casts, aggregations and search languages use runtime allowlists.
-- A nonempty `fieldConfig` restricts `where` and `orderBy` to its own keys, including nested conditions. Unknown fields throw; WHERE entries with `null` or `undefined` values retain their existing omission behavior. With an omitted or empty config, the legacy string-field fallback remains, with identifier escaping. This is a compatibility change for consumers that previously supplied incomplete configurations.
-- `tableName`, `tableAlias`, `fields` and `fieldConfig` are application configuration. Quoting protects SQL syntax; the application must still decide which tables and projected columns a caller may access. Projection fields are not restricted by `fieldConfig`.
-- `buildQuery` accepts integer `take` from 0 to 10,000 and `skip` from 0 to 1,000,000. Omitted values retain defaults of 50 and 0; explicit `null` is rejected.
-- `buildQuery`, `generateWhere`, the main `generateOrderBy*` builders and sub-schema WHERE builders reject plain JSON inputs deeper than 100 levels, larger than 10,000 visited values, or containing cycles. Each input (`where`, `orderBy`, `fields`) is checked separately; the root has depth 0 and arrays count as nesting levels. These limits do not cover direct scalar-filter helpers, string byte sizes or database execution cost. Applications should also limit request size and configure query timeouts.
-- Filters are query expressions, not an authorization boundary. Keep mandatory access restrictions under application control.
-- Regression tests cover identifier injection, JSONPath member injection, pagination and query complexity, including PostgreSQL execution tests.
+- Define `tableName`, `tableAlias`, `fields` and `fieldConfig` in application code. Table aliases must match `[a-zA-Z_][a-zA-Z0-9_]*`.
+- A nonempty `fieldConfig` restricts filters and sorting to its declared fields; unknown fields throw. It does not restrict projected columns. An omitted or empty configuration uses the string-field fallback.
+- `buildQuery` accepts integer `take` from 0 to 10,000 and `skip` from 0 to 1,000,000. Defaults are 50 and 0; explicit `null` is rejected.
+- Query builders reject cyclic inputs, nesting beyond 100 levels, and more than 10,000 visited values per input. Direct scalar-filter helpers do not apply these limits.
+- Enforce access permissions, request-size limits and query timeouts in your application. Filters do not provide authorization.
 
 ## License
 

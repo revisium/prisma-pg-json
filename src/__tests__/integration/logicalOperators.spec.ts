@@ -278,13 +278,21 @@ describe('Logical Operators', () => {
       );
     });
 
-    it('should handle array of NOT conditions', async () => {
-      await testQuery(
-        {
-          NOT: [{ age: { lt: 27 } }, { name: 'Charlie' }],
-        },
-        [ids.logic1, ids.logic2, ids.logic3, ids.logic4],
-      );
+    it('excludes Alice and Charlie independently from a NOT array', async () => {
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        fields: ['name', 'age'],
+        orderBy: { createdAt: 'asc' },
+        where: { NOT: [{ age: { lt: 27 } }, { name: 'Charlie' }] },
+      });
+      const results = await prisma.$queryRaw<Array<{ name: string; age: number }>>(query);
+      // Each child is negated: age >= 27 AND name != Charlie.
+      // Negating their conjunction would incorrectly retain all four fixtures.
+      expect(results).toEqual([
+        { name: 'Bob', age: 30 },
+        { name: 'Diana', age: 28 },
+      ]);
     });
   });
 });

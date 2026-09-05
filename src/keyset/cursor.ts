@@ -16,11 +16,7 @@ interface CursorPayload {
  * @param sortHash - Hash from `computeSortHash()` to detect sort order changes
  * @returns Opaque cursor string to pass as `after` parameter
  */
-export function encodeCursor(
-  values: CursorValue[],
-  tiebreaker: string,
-  sortHash: string,
-): string {
+export function encodeCursor(values: CursorValue[], tiebreaker: string, sortHash: string): string {
   const payload: CursorPayload = { v: values, t: tiebreaker, h: sortHash };
   return Buffer.from(JSON.stringify(payload)).toString('base64url');
 }
@@ -62,7 +58,12 @@ export function decodeCursor(cursor: string): {
 }
 
 function isValidCursorValue(value: unknown): value is CursorValue {
-  return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+  return (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  );
 }
 
 /**
@@ -119,20 +120,13 @@ function toCursorValue(value: unknown): CursorValue {
   if (value === null || value === undefined) {
     return null;
   }
-  if (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }
   return null;
 }
 
-function extractJsonValue(
-  data: unknown,
-  jsonConfig: JsonOrderByInput,
-): CursorValue {
+function extractJsonValue(data: unknown, jsonConfig: JsonOrderByInput): CursorValue {
   if (data === null || data === undefined) {
     return null;
   }
@@ -153,15 +147,19 @@ function resolveJsonPath(data: unknown, pathSegments: string[]): unknown {
       return null;
     }
     if (Array.isArray(current)) {
-      const index = Number.parseInt(segment, 10);
-      if (Number.isNaN(index)) {
-        return null;
-      }
-      current = current[index];
+      current = resolveArraySegment(current, segment);
     } else {
       current = (current as Record<string, unknown>)[segment];
     }
   }
 
   return current;
+}
+
+function resolveArraySegment(array: unknown[], segment: string): unknown {
+  if (segment !== 'last' && !/^-?\d+$/.test(segment)) {
+    return null;
+  }
+  const index = segment === 'last' ? -1 : Number(segment);
+  return array[index < 0 ? array.length + index : index];
 }

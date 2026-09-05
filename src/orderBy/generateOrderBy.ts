@@ -1,6 +1,6 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import { JsonOrderByInput, GenerateOrderByParams, FieldConfig, OrderByPart } from '../types';
-import { convertToJsonPath } from '../utils/parseJsonPath';
+import { convertToJsonPath, parseJsonPath } from '../utils/parseJsonPath';
 import { validateQueryInput } from '../utils/query-validation';
 import { quoteIdentifier, resolveFieldType } from '../utils/sql-identifiers';
 import { validateSqlIdentifier } from '../sub-schema/validation';
@@ -165,10 +165,7 @@ function processJsonFieldParts(
     };
   }
 
-  const pathSegments = jsonPath
-    .replace('$.', '')
-    .split(/[.[\]]/)
-    .filter((s) => s.length > 0);
+  const pathSegments = jsonPathToTextSegments(jsonPath);
   const jsonPathExpression = Prisma.sql`${fieldRef}#>>${pathSegments}::text[]`;
   const typedExpression = Prisma.sql`(${jsonPathExpression})::${Prisma.raw(type)}`;
 
@@ -186,26 +183,16 @@ function buildAggregationExpression(
   if (hasWildcard) {
     if (aggregation === 'first' || aggregation === 'last') {
       const modifiedPath = jsonPath.replace('[*]', aggregation === 'first' ? '[0]' : '[last]');
-      return Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
+      return castJsonEndpoint(fieldRef, modifiedPath, type);
     }
 
-    const parts = jsonPath.split('[*]');
-    const beforeWildcard = parts[0].replace('$.', '');
-    const afterWildcard = parts[1] || '';
-
-    const pathSegments = beforeWildcard.split('.').filter((s) => s.length > 0);
+    const [beforeWildcard, afterWildcard = ''] = jsonPath.split('[*]');
+    const pathSegments = jsonPathToTextSegments(beforeWildcard);
+    const subPathSegments = jsonPathToTextSegments(afterWildcard);
     const aggregationFunc = aggregation.toUpperCase();
-
-    let elemAccess: PrismaSql;
-    if (afterWildcard.startsWith('.')) {
-      const subPathSegments = afterWildcard
-        .substring(1)
-        .split('.')
-        .filter((s) => s.length > 0);
-      elemAccess = Prisma.sql`elem#>>${subPathSegments}::text[]`;
-    } else {
-      elemAccess = Prisma.sql`elem#>>'{}'`;
-    }
+    const elemAccess = subPathSegments.length
+      ? Prisma.sql`elem#>>${subPathSegments}::text[]`
+      : Prisma.sql`elem#>>'{}'`;
 
     return Prisma.sql`(
       SELECT ${Prisma.raw(aggregationFunc)}((${elemAccess})::${Prisma.raw(type)})
@@ -218,19 +205,16 @@ function buildAggregationExpression(
     const modifiedPath = jsonPath.endsWith('$')
       ? jsonPath.replace(/\$$/, suffix)
       : jsonPath + suffix;
-    return Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
+    return castJsonEndpoint(fieldRef, modifiedPath, type);
   } else if (aggregation === 'first') {
     const suffix = '[0]';
     const modifiedPath = jsonPath.endsWith('$')
       ? jsonPath.replace(/\$$/, suffix)
       : jsonPath + suffix;
-    return Prisma.sql`(jsonb_path_query_first(${fieldRef}, ${modifiedPath}::jsonpath))::${Prisma.raw(type)}`;
+    return castJsonEndpoint(fieldRef, modifiedPath, type);
   }
 
-  const pathSegments = jsonPath
-    .replace('$.', '')
-    .split(/[.[\]]/)
-    .filter((s) => s.length > 0);
+  const pathSegments = jsonPathToTextSegments(jsonPath);
 
   const aggregationFunc = aggregation.toUpperCase();
 
@@ -238,4 +222,19 @@ function buildAggregationExpression(
     SELECT ${Prisma.raw(aggregationFunc)}((elem#>>'{}')::${Prisma.raw(type)})
     FROM jsonb_array_elements((${fieldRef}#>${pathSegments}::text[])::jsonb) AS elem
   )`;
+}
+
+function castJsonEndpoint(fieldRef: PrismaSql, jsonPath: string, type: string): PrismaSql {
+  const value = Prisma.sql`jsonb_path_query_first(${fieldRef}, ${jsonPath}::jsonpath)`;
+  if (type === 'int') {
+    // Retain JSON number rounding while also accepting integer strings.
+    return Prisma.sql`CASE WHEN jsonb_typeof(${value}) = 'number'
+      THEN (${value})::int ELSE (${value}#>>'{}')::int END`;
+  }
+  return Prisma.sql`(${value}#>>'{}')::${Prisma.raw(type)}`;
+}
+
+function jsonPathToTextSegments(jsonPath: string): string[] {
+  if (!jsonPath) return [];
+  return parseJsonPath(jsonPath).map((segment) => (segment === 'last' ? '-1' : segment));
 }

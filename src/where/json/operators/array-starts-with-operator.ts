@@ -1,4 +1,4 @@
-import { PrismaSql } from '../../../prisma-adapter';
+import { Prisma, PrismaSql } from '../../../prisma-adapter';
 import { generateJsonbValue, escapeRegex } from '../jsonpath/utils';
 import { BaseOperator } from './base-operator';
 import {
@@ -20,6 +20,15 @@ export class ArrayStartsWithOperator extends BaseOperator<unknown> {
     isInsensitive: boolean,
   ): PrismaSql {
     const fullPath = `${jsonPath}[0]`;
+
+    // Compare structured endpoints as JSONB; JSONPath equality unwraps nested arrays.
+    if (value !== null && typeof value === 'object') {
+      return Prisma.sql`EXISTS (
+        SELECT 1 FROM jsonb_path_query(${fieldRef}, ${jsonPath}::jsonpath) AS container(value)
+        WHERE jsonb_typeof(container.value) = 'array'
+          AND container.value -> 0 = ${generateJsonbValue(value)}
+      )`;
+    }
 
     if (isInsensitive && typeof value === 'string') {
       const escapedValue = escapeRegex(value);
