@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { JsonOrderByInput, OrderByPart, CursorValue } from '../types';
-import { parseJsonPath } from '../utils/parseJsonPath';
+import { parseJsonPath } from '../paths/json-path';
 
 interface CursorPayload {
   v: CursorValue[];

@@ -41,6 +41,24 @@ describe('consumer contract: opaque values and public validation', () => {
     expect(parseJsonPath(arrayToJsonPath(segments))).toEqual(segments);
   });
 
+  it('public JSON path parser returns the supplied segments without copying or rewriting them', () => {
+    const segments = ['items', '-1', 'name'];
+    expect(parseJsonPath(segments)).toBe(segments);
+    expect(segments).toEqual(['items', '-1', 'name']);
+  });
+
+  it.each(['$.items[ 0 ].price', '$."profile.data".rank'])(
+    'preserves an explicitly prefixed PostgreSQL path in the bound query: %s',
+    (jsonPath) => {
+      const query = buildQuery({
+        tableName: 'users',
+        fieldConfig,
+        where: { data: { path: jsonPath, gt: 10 } },
+      });
+      expect(query.values).toContain(`${jsonPath} ? (@ > $val)`);
+    },
+  );
+
   it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])('rejects invalid take %s', (take) => {
     expect(() => buildQuery({ tableName: 'users', take })).toThrow();
   });

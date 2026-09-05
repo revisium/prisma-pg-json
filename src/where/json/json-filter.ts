@@ -1,6 +1,6 @@
 import { Prisma, PrismaSql } from '../../prisma-adapter';
 import type { JsonFilter } from '../../types';
-import { convertToJsonPath } from '../../utils/parseJsonPath';
+import { convertToJsonPath } from '../../postgres/json-path';
 import { OperatorManager } from './operator-manager';
 
 interface PathValidationResult {

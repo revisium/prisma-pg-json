@@ -1,6 +1,6 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import { JsonOrderByInput, GenerateOrderByParams, FieldConfig, OrderByPart } from '../types';
-import { convertToJsonPath, parseJsonPath } from '../utils/parseJsonPath';
+import { convertToJsonPath, jsonPathToTextSegments } from '../postgres/json-path';
 import { validateQueryInput } from '../utils/query-validation';
 import { quoteIdentifier, resolveFieldType } from '../utils/sql-identifiers';
 import { validateSqlIdentifier } from '../sub-schema/validation';
@@ -232,9 +232,4 @@ function castJsonEndpoint(fieldRef: PrismaSql, jsonPath: string, type: string): 
       THEN (${value})::int ELSE (${value}#>>'{}')::int END`;
   }
   return Prisma.sql`(${value}#>>'{}')::${Prisma.raw(type)}`;
-}
-
-function jsonPathToTextSegments(jsonPath: string): string[] {
-  if (!jsonPath) return [];
-  return parseJsonPath(jsonPath).map((segment) => (segment === 'last' ? '-1' : segment));
 }
