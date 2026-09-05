@@ -36,7 +36,7 @@ export function compileWhere<TConfig extends FieldConfig = FieldConfig>(
       const groupConditions = clause.conditions.map((cond) =>
         compileWhere({ where: cond, fieldConfig, tableAlias }),
       );
-      conditions.push(Prisma.sql`(${Prisma.join(groupConditions, ` ${clause.kind} `)})`);
+      conditions.push(Prisma.sql`(${Prisma.join(groupConditions, ' ' + clause.kind + ' ')})`);
     }
   }
 
