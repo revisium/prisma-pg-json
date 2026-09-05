@@ -30,6 +30,16 @@ const strings: Array<{ name: string; filter: Omit<JsonFilter, 'path'>; ids: stri
     ids: ['literal', 'lookalike'],
   },
 ];
+const controlCharacters = [
+  { name: 'newline', value: '\n', escaped: String.raw`\n` },
+  { name: 'carriage return', value: '\r', escaped: String.raw`\r` },
+  { name: 'tab', value: '\t', escaped: String.raw`\t` },
+];
+const controlCharacterOperators = [
+  { operator: 'string_contains', ids: ['exact', 'prefixed', 'suffixed'] },
+  { operator: 'string_starts_with', ids: ['exact', 'suffixed'] },
+  { operator: 'string_ends_with', ids: ['exact', 'prefixed'] },
+] as const;
 const searches: Array<{ name: string; filter: Omit<JsonFilter, 'path'>; ids: string[] }> = [
   {
     name: 'plain search requires all words without adjacency',
@@ -64,6 +74,33 @@ export const jsonStringSearchCases: QueryCase[] = [
       query: { ...query, where: { data: { path: 'title', ...filter } } },
       expected: { rows: ids.map((id) => ({ id })) },
     }),
+  ),
+  ...controlCharacters.flatMap(({ name, value, escaped }) =>
+    controlCharacterOperators.flatMap(({ operator, ids }) =>
+      (['default', 'insensitive'] as const).map(
+        (mode): QueryCase => ({
+          name: `JSON ${operator} matches literal ${name} in ${mode} mode`,
+          rows: [
+            { id: 'exact', data: { title: `a${value}b` } },
+            { id: 'prefixed', data: { title: `prefix a${value}b` } },
+            { id: 'suffixed', data: { title: `a${value}b suffix` } },
+            { id: 'uppercase', data: { title: `A${value}B` } },
+            { id: 'escaped', data: { title: `a${escaped}b` } },
+            { id: 'space', data: { title: 'a b' } },
+            { id: 'absent', data: { title: 'ab' } },
+          ],
+          query: {
+            ...query,
+            where: { data: { path: 'title', [operator]: `a${value}b`, mode } },
+          },
+          expected: {
+            rows: [...ids, ...(mode === 'insensitive' ? ['uppercase'] : [])].map((id) => ({
+              id,
+            })),
+          },
+        }),
+      ),
+    ),
   ),
   ...searches.map(
     ({ name, filter, ids }): QueryCase => ({

@@ -1,6 +1,6 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import { OrderByPart, CursorValue } from '../types';
-import { bindSqlNumber } from '../utils/sql-number';
+import { bindSqlNumber } from '../postgres/number';
 
 /**
  * Build a multi-column WHERE condition for keyset (cursor-based) pagination.
