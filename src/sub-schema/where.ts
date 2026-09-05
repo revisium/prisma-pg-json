@@ -3,6 +3,7 @@ import { generateStringFilter } from '../where/string';
 import { generateJsonFilter } from '../where/json';
 import { SubSchemaWhereInput } from './types';
 import { validateSqlIdentifier } from './validation';
+import { validateQueryInput } from '../utils/query-validation';
 import { getColumnRef } from './helpers';
 
 export interface SubSchemaWhereParams {
@@ -21,6 +22,7 @@ function isSubSchemaWhereParams(params: unknown): params is SubSchemaWhereParams
 }
 
 export function buildSubSchemaWhere(params?: SubSchemaWhereInput | SubSchemaWhereParams): PrismaSql {
+  validateQueryInput(params);
   if (!params) {
     return Prisma.empty;
   }
@@ -41,6 +43,7 @@ function toWhereClause(conditions: PrismaSql[]): PrismaSql {
 }
 
 export function buildWhereClause(where: SubSchemaWhereInput): PrismaSql {
+  validateQueryInput(where);
   const conditions = buildWhereConditions(where);
   if (conditions.length === 0) {
     return Prisma.empty;

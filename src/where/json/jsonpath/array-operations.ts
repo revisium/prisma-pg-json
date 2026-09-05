@@ -42,7 +42,7 @@ export function generateArrayCondition(
       });
 
       const propertyConditions = propertyChecks.map(
-        ({ key, paramName }) => `@.${key} == $${paramName}`,
+        ({ key, paramName }) => `@.${JSON.stringify(key)} == $${paramName}`,
       );
       const condition = `${jsonPath}[*] ? (${propertyConditions.join(' && ')})`;
 

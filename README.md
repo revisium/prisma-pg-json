@@ -870,10 +870,14 @@ buildQuery(options)
 
 ### Security Model
 
-- All user values parameterized via `Prisma.sql` tagged templates
-- `Prisma.raw()` used for SQL identifiers (table aliases, field names, sort directions) — validated at runtime against whitelists where applicable (`VALID_DIRECTIONS`, `VALID_TYPES`, `VALID_AGGREGATIONS`, `SEARCH_LANGUAGES`). Table/field names come from consumer-provided `fieldConfig`, not user input.
-- Path traversal (`..`) rejected in JSON path validation
-- 40+ SQL injection attack test scenarios
+- Values and JSON paths are bound through `Prisma.sql`. Object keys in `array_contains` are escaped as JSONPath member names, so they cannot introduce predicates.
+- Table and column names are quoted as individual PostgreSQL identifiers, including embedded double quotes. Aliases must match `[a-zA-Z_][a-zA-Z0-9_]*`. Sort directions, casts, aggregations and search languages use runtime allowlists.
+- A nonempty `fieldConfig` restricts `where` and `orderBy` to its own keys, including nested conditions. Unknown fields throw; WHERE entries with `null` or `undefined` values retain their existing omission behavior. With an omitted or empty config, the legacy string-field fallback remains, with identifier escaping. This is a compatibility change for consumers that previously supplied incomplete configurations.
+- `tableName`, `tableAlias`, `fields` and `fieldConfig` are application configuration. Quoting protects SQL syntax; the application must still decide which tables and projected columns a caller may access. Projection fields are not restricted by `fieldConfig`.
+- `buildQuery` accepts integer `take` from 0 to 10,000 and `skip` from 0 to 1,000,000. Omitted values retain defaults of 50 and 0; explicit `null` is rejected.
+- `buildQuery`, `generateWhere`, the main `generateOrderBy*` builders and sub-schema WHERE builders reject plain JSON inputs deeper than 100 levels, larger than 10,000 visited values, or containing cycles. Each input (`where`, `orderBy`, `fields`) is checked separately; the root has depth 0 and arrays count as nesting levels. These limits do not cover direct scalar-filter helpers, string byte sizes or database execution cost. Applications should also limit request size and configure query timeouts.
+- Filters are query expressions, not an authorization boundary. Keep mandatory access restrictions under application control.
+- Regression tests cover identifier injection, JSONPath member injection, pagination and query complexity, including PostgreSQL execution tests.
 
 ## License
 

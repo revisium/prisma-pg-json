@@ -13,6 +13,9 @@ import { generateBooleanFilter } from './where/boolean';
 import { generateDateFilter } from './where/date';
 import { generateJsonFilter } from './where/json/json-filter';
 import { generateOrderBy } from './orderBy';
+import { validatePagination, validateQueryInput } from './utils/query-validation';
+import { quoteIdentifier, resolveFieldType } from './utils/sql-identifiers';
+import { validateSqlIdentifier } from './sub-schema/validation';
 
 const DEFAULT_FIELD_CONFIG: FieldConfig = {};
 
@@ -49,15 +52,21 @@ export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
     orderBy,
   } = options;
 
+  validatePagination(take, skip);
+  validateQueryInput(where);
+  validateQueryInput(orderBy);
+  validateQueryInput(fields);
+  validateSqlIdentifier(tableAlias, 'tableAlias');
+
   const fieldList =
     fields[0] === '*'
       ? Prisma.sql`${Prisma.raw(tableAlias)}.*`
       : Prisma.join(
-          fields.map((f) => Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(f)}"`),
+          fields.map((f) => Prisma.sql`${Prisma.raw(tableAlias)}.${quoteIdentifier(f)}`),
           ', ',
         );
 
-  let sql = Prisma.sql`SELECT ${fieldList} FROM "${Prisma.raw(tableName)}" ${Prisma.raw(tableAlias)}`;
+  let sql = Prisma.sql`SELECT ${fieldList} FROM ${quoteIdentifier(tableName)} ${Prisma.raw(tableAlias)}`;
 
   if (where) {
     const whereClause = generateWhereClause({
@@ -103,6 +112,8 @@ export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
 export function generateWhere<TConfig extends FieldConfig = FieldConfig>(
   params: GenerateWhereParams<TConfig>,
 ): PrismaSql {
+  validateQueryInput(params.where);
+  validateSqlIdentifier(params.tableAlias, 'tableAlias');
   return generateWhereClause(params);
 }
 
@@ -123,8 +134,8 @@ function generateWhereClause<TConfig extends FieldConfig = FieldConfig>(
       continue;
     }
 
-    const fieldType = fieldConfig[key] || 'string';
-    const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(key)}"`;
+    const fieldType = resolveFieldType(key, fieldConfig);
+    const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}.${quoteIdentifier(key)}`;
 
     const condition = generateFieldCondition(fieldRef, value, fieldType, key, tableAlias);
     if (condition) {
