@@ -5,7 +5,7 @@ const MAX_QUERY_NODES = 10000;
 
 function paginationNumber(value: unknown): number {
   if (value === undefined) return 0;
-  return typeof value === 'number' ? value : NaN;
+  return typeof value === 'number' ? value : Number.NaN;
 }
 
 export function validatePagination(take: unknown, skip: unknown): void {
@@ -21,7 +21,7 @@ function isContainer(value: unknown): value is Record<string, unknown> | unknown
 
 function* childValues(value: Record<string, unknown> | unknown[]): Generator<unknown> {
   if (Array.isArray(value)) {
-    for (let index = 0; index < value.length; index++) yield value[index];
+    for (const element of value) yield element;
   } else {
     for (const key in value) {
       if (Object.hasOwn(value, key)) yield value[key];
@@ -37,7 +37,7 @@ export function validateQueryInput(value: unknown): void {
   let nodeCount = 0;
 
   while (stack.length > 0) {
-    const frame = stack[stack.length - 1];
+    const frame = stack.at(-1)!;
     const next = frame.values.next();
     if (next.done) {
       if (frame.container) ancestors.delete(frame.container);
