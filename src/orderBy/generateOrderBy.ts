@@ -1,6 +1,9 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import { JsonOrderByInput, GenerateOrderByParams, FieldConfig, OrderByPart } from '../types';
 import { convertToJsonPath } from '../utils/parseJsonPath';
+import { validateQueryInput } from '../utils/query-validation';
+import { quoteIdentifier, resolveFieldType } from '../utils/sql-identifiers';
+import { validateSqlIdentifier } from '../sub-schema/validation';
 
 /**
  * Parse ORDER BY configuration into structured parts.
@@ -16,6 +19,8 @@ export function generateOrderByParts<TConfig extends FieldConfig = FieldConfig>(
   params: GenerateOrderByParams<TConfig>,
 ): OrderByPart[] {
   const { tableAlias, orderBy, fieldConfig } = params;
+  validateQueryInput(orderBy);
+  validateSqlIdentifier(tableAlias, 'tableAlias');
   if (!orderBy) {
     return [];
   }
@@ -44,10 +49,11 @@ function processFieldOrderBy(
   orderValue: unknown,
   fieldConfig: FieldConfig,
 ): OrderByPart | null {
+  const fieldType = resolveFieldType(fieldName, fieldConfig);
   if (typeof orderValue === 'string') {
     return processStringOrder(tableAlias, fieldName, orderValue);
   }
-  if (typeof orderValue === 'object' && orderValue && fieldConfig[fieldName] === 'json') {
+  if (typeof orderValue === 'object' && orderValue && fieldType === 'json') {
     return processJsonOrder(tableAlias, fieldName, orderValue as JsonOrderByInput);
   }
   return null;
@@ -61,7 +67,7 @@ function processStringOrder(
   if (orderValue !== 'asc' && orderValue !== 'desc') {
     return null;
   }
-  const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
+  const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}.${quoteIdentifier(fieldName)}`;
   const direction = orderValue.toUpperCase() as 'ASC' | 'DESC';
   return { expression: fieldRef, direction, fieldName, isJson: false };
 }
@@ -71,7 +77,7 @@ function processJsonOrder(
   fieldName: string,
   jsonOrder: JsonOrderByInput,
 ): OrderByPart | null {
-  const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(fieldName)}"`;
+  const fieldRef = Prisma.sql`${Prisma.raw(tableAlias)}.${quoteIdentifier(fieldName)}`;
   const result = processJsonFieldParts(fieldRef, jsonOrder);
   if (!result) {
     return null;
