@@ -708,26 +708,15 @@ const cursor = encodeCursor(cursorValues, lastRow.id, sortHash);
 
 #### Aggregate cursor values
 
-`extractCursorValues` can compute first/last scalar casts and numeric min/max
-from row JSON. Automatic integer extraction accepts only integral numbers or
-integer strings in PostgreSQL's 32-bit range. Fractional JSON-number first/last
-casts must use SQL projection: JSON parsing can round a decimal across an integer
-cast's halfway boundary. PostgreSQL still performs its original rounding when
-ordering; the helper does not approximate it. Numeric casts must be finite. Text endpoints accept strings and booleans; JSON numbers
-and objects require SQL projection because their original database text can be
-lost when JSON is parsed. Timestamp endpoints preserve the source string for the
-database to cast.
+`extractCursorValues` preserves its existing behavior: it walks the configured
+JSON path and returns scalar values without applying SQL casts or aggregations.
+Wildcard paths and resolved arrays/objects return `null`; the helper does not
+throw merely because an aggregation is configured. Aggregate pagination uses
+values computed by PostgreSQL through the existing projection API below.
 
-Automatic average extraction requires safe integer inputs and every intermediate
-sum to remain safe, with an average exactly representable in binary. It rejects
-unsafe intermediate sums even when cancellation would produce a safe final sum.
-Other aggregate domains, such as text/timestamp min/max, fractional averages or
-non-array inputs, require PostgreSQL to compute the cursor value; the helper
-throws an actionable error. Indexed aggregate paths support `0` and `-1` (last)
-in both string and segment-array forms. Other negative indices remain rejected.
-Automatic aggregate extraction rejects ambiguous literal path segments and more
-than one wildcard. Nested-wildcard aggregate ordering is unsupported; projecting
-its current expression does not repair that unsupported SQL ordering.
+Indexed aggregate paths support `0` and `-1` (last) in string and segment-array
+forms. Other negative indices remain rejected. Nested-wildcard aggregate ordering
+is unsupported; projecting its current expression does not repair that SQL ordering.
 
 For scalar database values represented by Prisma `Decimal`, also use the SQL
 projection below. Automatic extraction does not convert arbitrary scalar objects
@@ -886,6 +875,15 @@ validateJsonPath('')              // { isValid: false, error: 'JSON path cannot 
 ```
 
 `parseJsonPath` accepts both string and array input — if passed an array, it returns it unchanged.
+
+## Testing
+
+`npm run test:contract` runs the public API contract tests against PostgreSQL
+using the configured `DATABASE_URL`. The integration cases use SELECT-only
+fixture CTEs and assert returned rows, ordering and pagination. Their typed case
+DSL lives in `src/__tests__/dsl`; scenarios live in `src/__tests__/cases`.
+The full `npm run test:cov` suite also changes database fixtures, so run it on a
+disposable test database.
 
 ## Architecture
 

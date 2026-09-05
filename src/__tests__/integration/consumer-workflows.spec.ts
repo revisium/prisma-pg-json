@@ -93,6 +93,7 @@ async function traverse(
 ): Promise<string[]> {
   const params = { tableAlias: 'r', fieldConfig, orderBy };
   const parts = generateOrderByParts(params);
+  const projections = parts.map((part) => Prisma.sql`(${part.expression})::text`);
   let cursor: string | undefined;
   const seen: string[] = [];
   for (let page = 0; page <= fixture.length; page++) {
@@ -100,14 +101,14 @@ async function traverse(
     const condition = decoded
       ? buildKeysetCondition(parts, decoded.values, decoded.tiebreaker, Prisma.sql`r.id`)
       : Prisma.sql`TRUE`;
-    const result = await queryRows(
-      Prisma.sql`SELECT r.* FROM rows r WHERE ${condition} ${generateOrderBy(params)}, r.id DESC LIMIT ${take}`,
+    const result = await queryRows<Row & { cursorValues: (string | null)[] }>(
+      Prisma.sql`SELECT r.*, ARRAY[${Prisma.join(projections)}] AS "cursorValues" FROM rows r WHERE ${condition} ${generateOrderBy(params)}, r.id DESC LIMIT ${take}`,
       fixture,
     );
     if (!result.length) break;
     const row = result[result.length - 1];
     seen.push(...result.map((item) => item.id));
-    cursor = encodeCursor(extractCursorValues(row, parts), row.id, computeSortHash(parts));
+    cursor = encodeCursor(row.cursorValues, row.id, computeSortHash(parts));
   }
   return seen;
 }
@@ -279,12 +280,12 @@ describe('consumer keyset workflow', () => {
   });
 
   describe.each([
-    { aggregation: 'first' as const, expected: [3], ids: ['b', 'a'] },
-    { aggregation: 'last' as const, expected: [1], ids: ['a', 'b'] },
-    { aggregation: 'min' as const, expected: [1], ids: ['a', 'b'] },
-    { aggregation: 'max' as const, expected: [3], ids: ['b', 'a'] },
-    { aggregation: 'avg' as const, expected: [2], ids: ['a', 'b'] },
-  ])('aggregate $aggregation cursor', ({ aggregation, expected, ids }) => {
+    { aggregation: 'first' as const, ids: ['b', 'a'] },
+    { aggregation: 'last' as const, ids: ['a', 'b'] },
+    { aggregation: 'min' as const, ids: ['a', 'b'] },
+    { aggregation: 'max' as const, ids: ['b', 'a'] },
+    { aggregation: 'avg' as const, ids: ['a', 'b'] },
+  ])('aggregate $aggregation cursor', ({ aggregation, ids }) => {
     const fixture = [
       { id: 'a', data: { scores: [3, 1] } },
       { id: 'b', data: { scores: [2, 3] } },
@@ -306,8 +307,8 @@ describe('consumer keyset workflow', () => {
     it('orders actual data by the aggregate', () => {
       expect(sortedIds).toEqual(ids);
     });
-    it('extracts the same aggregate value for the cursor', () => {
-      expect(cursorValues).toEqual(expected);
+    it('preserves wildcard extraction as null', () => {
+      expect(cursorValues).toEqual([null]);
     });
   });
 
@@ -348,14 +349,12 @@ describe('consumer keyset workflow', () => {
       type: 'int' as const,
       values: [-2.5, 3.5],
       expected: -3,
-      projected: true,
     },
     {
       aggregation: 'last' as const,
       type: 'int' as const,
       values: [-2.5, 3.5],
       expected: 4,
-      projected: true,
     },
     {
       aggregation: 'first' as const,
@@ -400,7 +399,6 @@ describe('consumer keyset workflow', () => {
       type: 'float' as const,
       values: [null, '3.5', '-1'],
       expected: 1.25,
-      projected: true,
     },
     { aggregation: 'avg' as const, type: 'int' as const, values: ['1', '2'], expected: 1.5 },
     {
@@ -408,19 +406,17 @@ describe('consumer keyset workflow', () => {
       type: 'text' as const,
       values: ['z', 'a'],
       expected: 'a',
-      projected: true,
     },
     {
       aggregation: 'max' as const,
       type: 'text' as const,
       values: ['z', 'a'],
       expected: 'z',
-      projected: true,
     },
     { aggregation: 'min' as const, type: 'float' as const, values: [null, null], expected: null },
   ])(
     '$aggregation $type cursor cast for $values matches the public sort value',
-    async ({ aggregation, type, values, expected, projected }) => {
+    async ({ aggregation, type, values, expected }) => {
       const fixture = [{ id: 'a', data: { scores: values } }];
       const params = {
         tableAlias: 'r',
@@ -436,14 +432,8 @@ describe('consumer keyset workflow', () => {
       expect(
         typeof sqlValue === 'object' && sqlValue !== null ? Number(sqlValue) : sqlValue,
       ).toEqual(expected);
-      if (projected) {
-        expect(() => extractCursorValues(fixture[0], parts)).toThrow(
-          'Project the OrderByPart.expression',
-        );
-      } else {
-        expect(extractCursorValues(fixture[0], parts)).toEqual([expected]);
-        expect(await traverse(params.orderBy, fixture)).toEqual(['a']);
-      }
+      expect(extractCursorValues(fixture[0], parts)).toEqual([null]);
+      expect(await traverse(params.orderBy, fixture)).toEqual(['a']);
     },
   );
 
@@ -501,9 +491,7 @@ describe('consumer keyset workflow', () => {
         orderBy: { data: { path: 'scores[*]', type, aggregation, direction } },
       };
       const parts = generateOrderByParts(params);
-      expect(() => extractCursorValues(fixture[0], parts)).toThrow(
-        'Project the OrderByPart.expression',
-      );
+      expect(extractCursorValues(fixture[0], parts)).toEqual([null]);
       let cursor: string | undefined;
       const seen: string[] = [];
       for (let page = 0; page <= fixture.length; page++) {
@@ -539,16 +527,14 @@ describe('consumer keyset workflow', () => {
       values: [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, -Number.MAX_SAFE_INTEGER],
     },
   ])(
-    'rejects automatic $aggregation $type extraction for $values with a projection instruction',
+    'preserves null wildcard extraction for $aggregation $type with $values',
     ({ aggregation, type, values }) => {
       const parts = generateOrderByParts({
         tableAlias: 'r',
         fieldConfig,
         orderBy: { data: { path: 'scores[*]', type, aggregation } },
       });
-      expect(() => extractCursorValues({ data: { scores: values } }, parts)).toThrow(
-        'Project the OrderByPart.expression',
-      );
+      expect(extractCursorValues({ data: { scores: values } }, parts)).toEqual([null]);
     },
   );
 
@@ -604,9 +590,7 @@ describe('consumer keyset workflow', () => {
         const row = result[0];
         if (row.id === 'a') {
           expect(row.sortValue).toBe(rounded);
-          expect(() => extractCursorValues(row, parts)).toThrow(
-            'Project the OrderByPart.expression',
-          );
+          expect(extractCursorValues(row, parts)).toEqual([null]);
         }
         seen.push(row.id);
         cursor = encodeCursor([row.sortValue], row.id, computeSortHash(parts));
@@ -644,7 +628,12 @@ describe('consumer keyset workflow', () => {
       ];
       const orderBy = { data: { path, aggregation, direction, type: 'float' as const } };
       const parts = generateOrderByParts({ tableAlias: 'r', fieldConfig, orderBy });
-      expect(extractCursorValues(fixture[0], parts)).toEqual([expected[aggregation]]);
+      const projected = await queryRows<{ value: unknown }>(
+        Prisma.sql`SELECT ${parts[0].expression} AS value FROM rows r WHERE r.id = 'a'`,
+        fixture,
+      );
+      expect(Number(projected[0].value)).toBe(expected[aggregation]);
+      expect(extractCursorValues(fixture[0], parts)).toEqual([null]);
       expect(await traverse(orderBy, fixture, take)).toEqual(
         direction === 'asc' ? ['a', 'c', 'b', 'z', 'y'] : ['z', 'y', 'c', 'b', 'a'],
       );
@@ -658,15 +647,13 @@ describe('consumer keyset workflow', () => {
       ['literal"key', '*'],
       ['literal\\key', '*'],
     ].map((path) => ({ path })),
-  )('requires an unambiguous automatic aggregate path for $path', ({ path }) => {
+  )('preserves null wildcard extraction with literal member $path', ({ path }) => {
     const parts = generateOrderByParts({
       tableAlias: 'r',
       fieldConfig,
       orderBy: { data: { path, aggregation: 'min', type: 'float' } },
     });
-    expect(() => extractCursorValues({ data: { [path[0]]: [1, 2] } }, parts)).toThrow(
-      'unambiguous',
-    );
+    expect(extractCursorValues({ data: { [path[0]]: [1, 2] } }, parts)).toEqual([null]);
   });
 
   it.each(['groups[-2].score', ['groups', '-2', 'score']].map((path) => ({ path })))(
@@ -706,15 +693,13 @@ describe('consumer keyset workflow', () => {
     ]);
   });
 
-  it('rejects automatic aggregation across multiple wildcards', () => {
+  it('preserves null extraction across multiple wildcards', () => {
     const parts = generateOrderByParts({
       tableAlias: 'r',
       fieldConfig,
       orderBy: { data: { path: 'groups[*].scores[*]', aggregation: 'min', type: 'float' } },
     });
-    expect(() => extractCursorValues({ data: { groups: [{ scores: [1, 2] }] } }, parts)).toThrow(
-      'at most one wildcard',
-    );
+    expect(extractCursorValues({ data: { groups: [{ scores: [1, 2] }] } }, parts)).toEqual([null]);
   });
 
   it.each(['0x', '0abc', '1e0'])(
@@ -741,10 +726,59 @@ describe('consumer keyset workflow', () => {
         { id: 'b', sortValue: 4 },
       ]);
       expect(extractCursorValues(fixture[0], parts)).toEqual([null]);
-      expect(extractCursorValues(fixture[1], parts)).toEqual([4]);
+      expect(extractCursorValues(fixture[1], parts)).toEqual([null]);
       expect(await traverse(orderBy, fixture)).toEqual(['b', 'a']);
     },
   );
+
+  it.each(
+    (['first', 'last', 'min', 'max', 'avg'] as const).flatMap((aggregation) =>
+      [
+        { path: 'scores[*]', value: [1, 3], expected: null },
+        { path: 'scores', value: [1, 3], expected: null },
+        { path: 'scores', value: 3, expected: 3 },
+        { path: 'scores', value: '3', expected: '3' },
+        { path: 'scores', value: null, expected: null },
+        { path: 'scores', value: undefined, expected: null },
+        { path: 'scores', value: { score: 3 }, expected: null },
+      ].map((scenario) => ({ ...scenario, aggregation })),
+    ),
+  )(
+    'legacy extraction $aggregation $path from $value returns $expected',
+    ({ aggregation, path, value, expected }) => {
+      const parts = generateOrderByParts({
+        tableAlias: 'r',
+        fieldConfig,
+        orderBy: { data: { path, aggregation, type: 'float' } },
+      });
+      expect(extractCursorValues({ data: { scores: value } }, parts)).toEqual([expected]);
+    },
+  );
+
+  it.each(
+    [
+      { member: '0x', expected: null },
+      { member: '0abc', expected: null },
+      { member: '1e0', expected: null },
+      { member: '0', expected: 4 },
+      { member: '1', expected: 8 },
+      { member: '-1', expected: 8 },
+      { member: '2', expected: null },
+      { member: 'missing', expected: null },
+    ].flatMap(({ member, expected }) => [
+      { path: ['groups', member, 'score'], expected },
+      { path: `groups.${member}.score`, expected },
+    ]),
+  )('scalar cursor path $path resolves complete array indices', ({ path, expected }) => {
+    const parts = generateOrderByParts({
+      tableAlias: 'r',
+      fieldConfig,
+      orderBy: { data: { path, type: 'float' } },
+    });
+    expect(extractCursorValues({ data: { groups: [{ score: 4 }, { score: 8 }] } }, parts)).toEqual([
+      expected,
+    ]);
+  });
 
   it('supports an explicit ascending tiebreaker', async () => {
     const parts = generateOrderByParts({ tableAlias: 'r', fieldConfig, orderBy: { age: 'asc' } });
