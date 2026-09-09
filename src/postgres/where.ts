@@ -1,13 +1,13 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import type { FieldConfig, FieldType, GenerateWhereParams, JsonFilter } from '../types';
 import { describeFilter } from '../where/filter-description';
-import { generateStringFilter } from '../where/string';
-import { generateDateFilter } from '../where/date';
 import { generateJsonFilter } from '../where/json/json-filter';
 import { resolveFieldType } from '../utils/field-config';
 import { quoteIdentifier } from './identifiers';
 import { compileNumberFilter } from './number-filter';
 import { compileBooleanFilter } from './boolean-filter';
+import { compileStringFilter } from './string-filter';
+import { compileDateFilter } from './date-filter';
 
 export function compileWhere<TConfig extends FieldConfig = FieldConfig>(
   params: GenerateWhereParams<TConfig>,
@@ -54,13 +54,13 @@ function generateFieldCondition(
 ): PrismaSql | null {
   switch (fieldType) {
     case 'string':
-      return generateStringFilter(fieldRef, value as string);
+      return compileStringFilter(fieldRef, value as string);
     case 'number':
       return compileNumberFilter(fieldRef, value as number);
     case 'boolean':
       return compileBooleanFilter(fieldRef, value as boolean);
     case 'date':
-      return generateDateFilter(fieldRef, value as string | Date);
+      return compileDateFilter(fieldRef, value as string | Date);
     case 'json':
       return generateJsonFilter(fieldRef, value as JsonFilter, fieldName, tableAlias);
     default:

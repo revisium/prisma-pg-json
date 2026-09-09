@@ -6,6 +6,8 @@ import {
   generateWhere,
   generateNumberFilter,
   generateBooleanFilter,
+  generateStringFilter,
+  generateDateFilter,
   configurePrisma,
   decodeCursor,
   encodeCursor,
@@ -245,6 +247,107 @@ describe('consumer contract: filter traversal compatibility', () => {
     expect(numericQuery.values).toEqual([2]);
     expect(booleanRead).toBe(3);
     expect(booleanQuery.values).toEqual([false]);
+  });
+
+  it('preserves string mode, pattern construction, and array conversion order', () => {
+    const query = generateStringFilter(Prisma.sql`u."name"`, {
+      mode: 'insensitive',
+      equals: 'MiXeD',
+      contains: 'part',
+      startsWith: 'prefix',
+      endsWith: 'suffix',
+      in: ['Alpha', 'Beta'],
+      notIn: ['Gamma'],
+      gt: 'a',
+      gte: 'b',
+      lt: 'y',
+      lte: 'z',
+      search: 'term',
+    });
+
+    expect(query.sql).toBe(
+      'LOWER(u."name") = LOWER(?) AND LOWER(u."name") LIKE LOWER(?) AND LOWER(u."name") LIKE LOWER(?) AND LOWER(u."name") LIKE LOWER(?) AND LOWER(u."name") IN (?, ?) AND LOWER(u."name") NOT IN (?) AND u."name" > ? AND u."name" >= ? AND u."name" < ? AND u."name" <= ? AND to_tsvector(\'english\', u."name") @@ plainto_tsquery(\'english\', ?)',
+    );
+    expect(query.values).toEqual([
+      'MiXeD',
+      '%part%',
+      'prefix%',
+      '%suffix',
+      'alpha',
+      'beta',
+      'gamma',
+      'a',
+      'b',
+      'y',
+      'z',
+      'term',
+    ]);
+  });
+
+  it('preserves string getter rereads and nested NOT mode ownership', () => {
+    let modeReads = 0;
+    let equalsReads = 0;
+    const filter = {
+      get mode(): 'insensitive' {
+        modeReads += 1;
+        return 'insensitive';
+      },
+      get equals(): string {
+        equalsReads += 1;
+        return equalsReads === 1 ? 'first' : 'second';
+      },
+      not: { equals: 'MiXeD' },
+    };
+
+    const query = generateStringFilter(Prisma.sql`u."name"`, filter);
+
+    expect(modeReads).toBe(1);
+    expect(equalsReads).toBe(2);
+    expect(query.values).toEqual(['second', 'MiXeD']);
+    expect(query.sql).toContain('NOT (u."name" = ?)');
+    expect(query.sql).not.toContain('NOT (LOWER(');
+  });
+
+  it('preserves empty and malformed string and date filter errors', () => {
+    expect(() => generateStringFilter(Prisma.sql`u."name"`, {})).toThrow(
+      'String filter must have at least one condition',
+    );
+    expect(() => generateStringFilter(Prisma.sql`u."name"`, { in: 'invalid' as never })).toThrow(
+      'String filter must have at least one condition',
+    );
+    expect(() => generateDateFilter(Prisma.sql`u."createdAt"`, {})).toThrow(
+      'Date filter must have at least one condition',
+    );
+    expect(() => generateDateFilter(Prisma.sql`u."createdAt"`, { in: 'invalid' as never })).toThrow(
+      'Date filter must have at least one condition',
+    );
+  });
+
+  it('preserves date object identity and invalid date conversion', () => {
+    const date = new Date('2025-01-01T00:00:00.000Z');
+    const dateQuery = generateDateFilter(Prisma.sql`u."createdAt"`, date);
+    const invalidQuery = generateDateFilter(Prisma.sql`u."createdAt"`, 'invalid-date');
+
+    expect(dateQuery.values[0]).toBe(date);
+    expect(invalidQuery.values[0]).toBeInstanceOf(Date);
+    expect(Number.isNaN((invalidQuery.values[0] as Date).getTime())).toBe(true);
+  });
+
+  it('preserves date comparison getter rereads and nested NOT compilation', () => {
+    let equalsReads = 0;
+    const filter = {
+      get equals(): string {
+        equalsReads += 1;
+        return equalsReads === 1 ? '2025-01-01T00:00:00.000Z' : '2025-01-02T00:00:00.000Z';
+      },
+      not: { equals: '2025-01-03T00:00:00.000Z' },
+    };
+
+    const query = generateDateFilter(Prisma.sql`u."createdAt"`, filter);
+
+    expect(equalsReads).toBe(2);
+    expect((query.values[0] as Date).toISOString()).toBe('2025-01-02T00:00:00.000Z');
+    expect(query.sql).toContain('NOT (u."createdAt" = ?)');
   });
 
   it.each(['AND', 'OR', 'NOT'])('preserves sparse %s array slots', (operator) => {
