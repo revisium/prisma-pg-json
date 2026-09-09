@@ -1,6 +1,7 @@
 import './setup';
 import { generateOrderBy, generateOrderByClauses } from '../../query-builder';
 import { generateOrderByParts } from '../../orderBy/generateOrderBy';
+import { JsonOrderByInput } from '../../types';
 
 describe('generateOrderBy function', () => {
   const fieldConfig = {
@@ -220,6 +221,47 @@ describe('generateOrderByParts function', () => {
   });
 
   describe('JSON fields', () => {
+    it('preserves JSON config identity and metadata getter order', () => {
+      const reads: string[] = [];
+      const jsonOrder = {
+        get path() {
+          reads.push('path');
+          return 'profile.score';
+        },
+        get direction() {
+          reads.push('direction');
+          return 'asc';
+        },
+        get aggregation() {
+          reads.push('aggregation');
+          return undefined;
+        },
+        get type() {
+          reads.push('type');
+          return 'int';
+        },
+      } as JsonOrderByInput;
+
+      const parts = generateOrderByParts({
+        tableAlias: 't',
+        orderBy: { data: jsonOrder },
+        fieldConfig,
+      });
+
+      expect(parts[0].jsonConfig).toBe(jsonOrder);
+      expect(reads).toEqual([
+        'path',
+        'direction',
+        'aggregation',
+        'type',
+        'path',
+        'direction',
+        'aggregation',
+        'type',
+        'type',
+      ]);
+    });
+
     it('should return part with isJson=true and jsonConfig', () => {
       const parts = generateOrderByParts({
         tableAlias: 't',
