@@ -93,7 +93,6 @@
     ],
     "collectCoverageFrom": [
       "src/**/*.ts",
-      "eslint-rules/**/*.cjs",
       "!src/**/__tests__/**",
       "!src/**/index.ts",
       "!src/generated/**"
