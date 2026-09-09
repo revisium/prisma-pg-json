@@ -25,6 +25,39 @@ import { fieldConfig } from '../dsl/query-case';
 beforeAll(() => configurePrisma(Prisma));
 
 describe('consumer contract: opaque values and public validation', () => {
+  it('preserves buildQuery defaults before pagination validation', () => {
+    const reads: string[] = [];
+    const options = {
+      get tableName() {
+        reads.push('tableName');
+        return 'users';
+      },
+      get fields() {
+        reads.push('fields');
+        return ['*'];
+      },
+      get take() {
+        reads.push('take');
+        return -1;
+      },
+      get skip() {
+        reads.push('skip');
+        return 0;
+      },
+      get where() {
+        reads.push('where');
+        return undefined;
+      },
+      get orderBy() {
+        reads.push('orderBy');
+        return undefined;
+      },
+    };
+
+    expect(() => buildQuery(options)).toThrow('take must be an integer');
+    expect(reads).toEqual(['tableName', 'fields', 'take', 'skip', 'where', 'orderBy']);
+  });
+
   it('preserves the live SEARCH_LANGUAGES export used by public search filters', () => {
     const language = 'codex_live_language';
     const languages = SEARCH_LANGUAGES as unknown as string[];
