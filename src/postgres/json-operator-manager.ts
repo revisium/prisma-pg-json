@@ -1,19 +1,17 @@
 import { PrismaSql } from '../prisma-adapter';
 import type { JsonFilter } from '../types';
 import { describeJsonFilter, describeSpecialPathFilter } from '../where/json/filter-description';
-import { BaseOperator } from '../where/json/operators/base-operator';
-import {
-  EqualsOperator,
-  NotOperator,
-  ComparisonOperator,
-  StringPatternOperator,
-  ArrayContainsOperator,
-  ArrayStartsWithOperator,
-  ArrayEndsWithOperator,
-  InOperator,
-  NotInOperator,
-  SearchOperator,
-} from '../where/json/operators';
+import { BaseOperator } from './json/operators/base-operator';
+import { EqualsOperator } from './json/operators/equals-operator';
+import { NotOperator } from './json/operators/not-operator';
+import { ComparisonOperator } from './json/operators/comparison-operator';
+import { InOperator } from './json/operators/in-operator';
+import { NotInOperator } from './json/operators/not-in-operator';
+import { StringPatternOperator } from '../where/json/operators/string-pattern-operator';
+import { ArrayContainsOperator } from '../where/json/operators/array-contains-operator';
+import { ArrayStartsWithOperator } from '../where/json/operators/array-starts-with-operator';
+import { ArrayEndsWithOperator } from '../where/json/operators/array-ends-with-operator';
+import { SearchOperator } from '../where/json/operators/search-operator';
 
 export class OperatorManager {
   private readonly operators = new Map<keyof JsonFilter, BaseOperator>();

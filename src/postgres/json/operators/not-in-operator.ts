@@ -1,0 +1,40 @@
+import { Prisma, PrismaSql } from '../../../prisma-adapter';
+import { prepareJsonMembershipOperand } from '../../../where/json/comparison-description';
+import { generateJsonPathCondition } from '../comparison';
+import { BaseOperator } from './base-operator';
+
+export class NotInOperator extends BaseOperator<unknown[]> {
+  readonly key = 'notIn' as const;
+
+  validate(value: unknown[]): boolean {
+    return Array.isArray(value);
+  }
+
+  preprocessValue(value: unknown): unknown[] {
+    return prepareJsonMembershipOperand(value, 'notIn');
+  }
+
+  generateCondition(
+    fieldRef: PrismaSql,
+    jsonPath: string,
+    value: unknown[],
+    isInsensitive: boolean,
+  ): PrismaSql {
+    if (value.length === 0) {
+      return Prisma.sql`TRUE`;
+    }
+
+    const notInConditions = value.map((v) =>
+      generateJsonPathCondition(fieldRef, jsonPath, 'not', v, isInsensitive),
+    );
+
+    return Prisma.sql`(${Prisma.join(notInConditions, ' AND ')})`;
+  }
+
+  getErrorMessage(context: string): string {
+    if (context === 'validation failed') {
+      return 'notIn operator requires an array value';
+    }
+    return super.getErrorMessage(context);
+  }
+}

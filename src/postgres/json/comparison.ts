@@ -1,10 +1,8 @@
-import { Prisma, PrismaSql } from '../../../prisma-adapter';
+import { Prisma, PrismaSql } from '../../prisma-adapter';
+import { parseJsonPath } from '../../paths/json-path';
+import { nestJsonComparisonValue } from '../../where/json/comparison-description';
+import { generateJsonPathExistsWithParam, generateJsonPathLikeRegex } from '../jsonpath-expressions';
 import { generateJsonbValue, getComparisonOperator, escapeRegex } from './utils';
-import { parseJsonPath } from '../../../paths/json-path';
-import {
-  generateJsonPathLikeRegex,
-  generateJsonPathExistsWithParam,
-} from '../../../postgres/jsonpath-expressions';
 
 function handleObjectComparison(
   fieldRef: PrismaSql,
@@ -13,11 +11,7 @@ function handleObjectComparison(
   value: object,
 ): PrismaSql | null {
   const pathSegments = parseJsonPath(jsonPath);
-
-  let nestedValue: unknown = value;
-  for (let i = pathSegments.length - 1; i >= 0; i--) {
-    nestedValue = { [pathSegments[i]]: nestedValue };
-  }
+  const nestedValue = nestJsonComparisonValue(pathSegments, value);
 
   if (operator === 'equals') {
     return Prisma.sql`${fieldRef} @> ${JSON.stringify(nestedValue)}::jsonb`;

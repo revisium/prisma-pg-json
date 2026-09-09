@@ -281,6 +281,16 @@ describe('consumer contract: filter traversal compatibility', () => {
     expect(query.values).toEqual([['profile', 'name'], 'Ada']);
   });
 
+  it('preserves sparse JSON membership values and parameter order', () => {
+    const values = new Array<number>(3);
+    values[0] = 1;
+    values[2] = 3;
+
+    const query = generateJsonFilter(Prisma.sql`u."data"`, { path: 'score', in: values }, 'data', 'u');
+
+    expect(query.values).toEqual([['score'], 1, undefined, ['score'], 3]);
+  });
+
   it('rejects an invalid JSON path before reading operator entries', () => {
     let pathReads = 0;
     let equalsReads = 0;

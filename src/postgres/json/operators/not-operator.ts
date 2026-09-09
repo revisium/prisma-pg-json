@@ -1,12 +1,13 @@
 import { PrismaSql } from '../../../prisma-adapter';
-import { generateJsonPathCondition } from '../jsonpath';
+import { isJsonOperand } from '../../../where/json/comparison-description';
+import { generateJsonPathCondition } from '../comparison';
 import { BaseOperator } from './base-operator';
 
 export class NotOperator extends BaseOperator<unknown> {
   readonly key = 'not' as const;
 
   validate(value: unknown): boolean {
-    return value !== undefined;
+    return isJsonOperand(value);
   }
 
   generateCondition(

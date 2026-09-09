@@ -1,6 +1,6 @@
 import { Prisma, PrismaSql } from '../../../prisma-adapter';
-import { generateJsonbValue, escapeRegex } from '../jsonpath/utils';
-import { BaseOperator } from './base-operator';
+import { generateJsonbValue, escapeRegex } from '../../../postgres/json/utils';
+import { BaseOperator } from '../../../postgres/json/operators/base-operator';
 import {
   generateJsonPathLikeRegex,
   generateJsonPathExistsWithParam,

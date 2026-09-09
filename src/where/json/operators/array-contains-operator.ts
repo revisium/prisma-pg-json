@@ -1,6 +1,6 @@
 import { PrismaSql } from '../../../prisma-adapter';
-import { generateArrayCondition } from '../jsonpath';
-import { BaseOperator } from './base-operator';
+import { generateArrayCondition } from '../jsonpath/array-operations';
+import { BaseOperator } from '../../../postgres/json/operators/base-operator';
 
 export class ArrayContainsOperator extends BaseOperator<unknown[]> {
   readonly key = 'array_contains';

@@ -1,6 +1,6 @@
 import { Prisma, PrismaSql } from '../../../prisma-adapter';
 import type { JsonFilter } from '../../../types';
-import { BaseOperator } from './base-operator';
+import { BaseOperator } from '../../../postgres/json/operators/base-operator';
 
 export const SEARCH_LANGUAGES = [
   'simple',
