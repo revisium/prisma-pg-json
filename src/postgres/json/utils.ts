@@ -1,4 +1,4 @@
-import { Prisma, PrismaSql } from '../../../prisma-adapter';
+import { Prisma, PrismaSql } from '../../prisma-adapter';
 
 export function generateJsonbValue(value: unknown): PrismaSql {
   if (typeof value === 'string') {
