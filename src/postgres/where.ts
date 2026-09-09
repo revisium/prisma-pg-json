@@ -1,7 +1,7 @@
 import { Prisma, PrismaSql } from '../prisma-adapter';
 import type { FieldConfig, FieldType, GenerateWhereParams, JsonFilter } from '../types';
 import { describeFilter } from '../where/filter-description';
-import { generateJsonFilter } from '../where/json/json-filter';
+import { compileJsonFilter } from './json-filter';
 import { resolveFieldType } from '../utils/field-config';
 import { quoteIdentifier } from './identifiers';
 import { compileNumberFilter } from './number-filter';
@@ -62,7 +62,7 @@ function generateFieldCondition(
     case 'date':
       return compileDateFilter(fieldRef, value as string | Date);
     case 'json':
-      return generateJsonFilter(fieldRef, value as JsonFilter, fieldName, tableAlias);
+      return compileJsonFilter(fieldRef, value as JsonFilter, fieldName, tableAlias);
     default:
       throw new Error(`Unsupported field type: ${fieldType}`);
   }

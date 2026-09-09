@@ -8,6 +8,7 @@ import {
   generateBooleanFilter,
   generateStringFilter,
   generateDateFilter,
+  generateJsonFilter,
   configurePrisma,
   decodeCursor,
   encodeCursor,
@@ -247,6 +248,89 @@ describe('consumer contract: filter traversal compatibility', () => {
     expect(numericQuery.values).toEqual([2]);
     expect(booleanRead).toBe(3);
     expect(booleanQuery.values).toEqual([false]);
+  });
+
+  it('captures JSON operator values before execution can mutate another operand', () => {
+    const filter = {
+      path: 'profile',
+      equals: 'before',
+      get gt(): number {
+        filter.equals = 'after';
+        return 2;
+      },
+    };
+
+    const query = generateJsonFilter(Prisma.sql`u."data"`, filter, 'data', 'u');
+
+    expect(query.values).toEqual([['profile'], 'before', '$.profile ? (@ > $val)', 2]);
+  });
+
+  it('preserves JSON path getter ordering across classification, conversion, and execution', () => {
+    let pathReads = 0;
+    const filter = {
+      get path(): string {
+        pathReads += 1;
+        return 'profile.name';
+      },
+      equals: 'Ada',
+    };
+
+    const query = generateJsonFilter(Prisma.sql`u."data"`, filter, 'data', 'u');
+
+    expect(pathReads).toBe(3);
+    expect(query.values).toEqual([['profile', 'name'], 'Ada']);
+  });
+
+  it('rejects an invalid JSON path before reading operator entries', () => {
+    let pathReads = 0;
+    let equalsReads = 0;
+    const filter = {
+      get path(): string {
+        pathReads += 1;
+        return 'profile..name';
+      },
+      get equals(): string {
+        equalsReads += 1;
+        return 'Ada';
+      },
+    };
+
+    expect(() => generateJsonFilter(Prisma.sql`u."data"`, filter, 'data', 'u')).toThrow(
+      'Invalid path',
+    );
+    expect(pathReads).toBe(1);
+    expect(equalsReads).toBe(0);
+  });
+
+  it('runs special-path preflight before reading mode directly', () => {
+    const reads: string[] = [];
+    const filter = {
+      get path(): string {
+        reads.push('path');
+        return '';
+      },
+      get mode(): 'default' {
+        reads.push('mode');
+        return 'default';
+      },
+      get search(): string {
+        reads.push('search');
+        return 'Ada';
+      },
+    };
+
+    generateJsonFilter(Prisma.sql`u."data"`, filter, 'data', 'u');
+
+    expect(reads).toEqual([
+      'path',
+      'path',
+      'mode',
+      'search',
+      'mode',
+      'path',
+      'mode',
+      'search',
+    ]);
   });
 
   it('preserves string mode, pattern construction, and array conversion order', () => {
