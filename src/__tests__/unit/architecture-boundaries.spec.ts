@@ -41,12 +41,19 @@ function lintFixtures(fixtures: BoundaryFixture[]): Map<string, string[]> {
     import path from 'node:path';
     import { ESLint } from 'eslint';
     const fixtures = JSON.parse(process.env.BOUNDARY_FIXTURES);
-    const eslint = new ESLint({ overrideConfigFile: path.resolve(process.cwd(), 'eslint.config.mjs') });
+    const eslint = new ESLint({
+      overrideConfigFile: path.resolve(process.cwd(), 'eslint.config.mjs'),
+      overrideConfig: { languageOptions: { parserOptions: { project: null } } },
+    });
     const messages = {};
     for (const fixture of fixtures) {
       const [result] = await eslint.lintText(fixture.source, {
         filePath: path.resolve(process.cwd(), fixture.filePath),
       });
+      const diagnostics = result.messages.filter(({ fatal, ruleId, severity }) => fatal || (ruleId === null && severity === 2));
+      if (diagnostics.length > 0) {
+        throw new Error(fixture.id + ': ' + diagnostics.map(({ message }) => message).join('; '));
+      }
       messages[fixture.id] = result.messages
         .filter(({ ruleId }) => ruleId === 'no-restricted-imports' || ruleId === 'architecture/layer-boundary')
         .map(({ message }) => message);
