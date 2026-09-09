@@ -11,10 +11,7 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     createdAt: 'date',
   } as const;
 
-  const testQuery = async (
-    where: WhereConditionsTyped<typeof fieldConfig>,
-    shouldNotThrow: boolean = true,
-  ) => {
+  const testQuery = async (where: WhereConditionsTyped<typeof fieldConfig>) => {
     const query = buildQuery({
       tableName: 'test_tables',
       fieldConfig,
@@ -22,12 +19,7 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
       orderBy: { createdAt: 'asc' },
     });
 
-    if (shouldNotThrow) {
-      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
-      return results;
-    } else {
-      await expect(prisma.$queryRaw(query)).rejects.toThrow();
-    }
+    return prisma.$queryRaw<Array<{ id: string }>>(query);
   };
 
   beforeEach(async () => {
@@ -79,34 +71,34 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle quotes in string_contains patterns safely', async () => {
       const maliciousPattern = 'test") || true'; // Attempt to break out of JSONPath
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           string_contains: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle backslashes in string_contains patterns safely', async () => {
       const maliciousPattern = String.raw`test\") || true`;
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           string_contains: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle regex special characters in string_contains patterns safely', async () => {
       const maliciousPattern = 'test.*"; DROP TABLE test_tables; --';
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           string_contains: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
   });
 
@@ -114,23 +106,23 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle quotes in string_starts_with patterns safely', async () => {
       const maliciousPattern = 'test") || true';
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           string_starts_with: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle complex injection attempts in string_starts_with', async () => {
       const maliciousPattern = 'test" ? (@ == @) : "fake';
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           string_starts_with: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
   });
 
@@ -138,23 +130,23 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle quotes in string_ends_with patterns safely', async () => {
       const maliciousPattern = 'test") || true';
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'email',
           string_ends_with: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle JSONPath escape sequences in string_ends_with', async () => {
       const maliciousPattern = '.com") ? @ : "malicious';
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'email',
           string_ends_with: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
   });
 
@@ -162,24 +154,24 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle quotes in array_contains patterns safely', async () => {
       const maliciousPattern = ['Product") || true'];
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'products[*].name',
           array_contains: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle complex injection in array_contains with case insensitive mode', async () => {
       const maliciousPattern = ['product") ? @ : "fake'];
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'products[*].name',
           array_contains: maliciousPattern,
           mode: 'insensitive',
         },
-      });
+      })).toEqual([]);
     });
   });
 
@@ -187,23 +179,33 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle SQL injection attempts in regex patterns', async () => {
       const maliciousPattern = "'; DROP TABLE test_tables; --";
 
-      await testQuery({
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        where: { data: { path: 'name', string_contains: maliciousPattern } },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(query.text).not.toContain(maliciousPattern);
+      expect(JSON.stringify(query.values)).toContain(maliciousPattern);
+      expect(await prisma.$queryRaw<Array<{ id: string }>>(query)).toEqual([]);
+
+      expect(await testQuery({
         data: {
           path: 'name',
           string_contains: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle nested JSONPath injection attempts', async () => {
       const maliciousPattern = 'test" ? ($.nonexistent == "trigger") : "safe';
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           string_contains: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
   });
 
@@ -211,36 +213,37 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle malicious JSON paths with special characters', async () => {
       const maliciousPath = 'profile["user.name"] || $.nonexistent';
 
-      // This might throw due to invalid path, but should not cause injection
-      try {
-        await testQuery({
-          data: {
-            path: maliciousPath,
-            equals: 'test',
-          },
-        });
-      } catch (error) {
-        // Expected to throw due to invalid path syntax, not SQL injection
-        expect(error).toBeDefined();
-      }
+      expect(await testQuery({
+        data: {
+          path: maliciousPath,
+          equals: 'test',
+        },
+      })).toEqual([]);
+
+      expect((await testQuery({
+        data: {
+          path: 'name',
+          equals: 'John',
+        },
+      })).map(({ id }) => id)).toEqual([ids.user1]);
     });
 
     it('should handle quoted keys with special characters safely', async () => {
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'profile["user.name"]',
           equals: 'Special Key with Dots',
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle quoted keys with quotes safely', async () => {
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: String.raw`profile["user\"name"]`,
           equals: 'Key with Quotes',
         },
-      });
+      })).toEqual([]);
     });
   });
 
@@ -248,23 +251,23 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle quotes in comparison values safely', async () => {
       const maliciousValue = 'test") || true || ("fake" == "';
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           equals: maliciousValue,
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle regex patterns in like operations safely', async () => {
       const maliciousPattern = '.*") || true || ("fake" like ".*';
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           string_contains: maliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
   });
 
@@ -284,23 +287,23 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle very long malicious patterns', async () => {
       const longMaliciousPattern = 'x'.repeat(1000) + '" || true || "' + 'y'.repeat(1000);
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           string_contains: longMaliciousPattern,
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle unicode characters in patterns', async () => {
       const unicodePattern = 'test🔥") || true || ("fake" == "';
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: 'name',
           string_contains: unicodePattern,
         },
-      });
+      })).toEqual([]);
     });
   });
 
@@ -308,94 +311,73 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     it('should handle SQL injection attempts in tsquery search type', async () => {
       const maliciousQuery = "'; DROP TABLE test_tables; --";
 
-      try {
-        await testQuery(
-          {
-            data: {
-              path: '',
-              search: maliciousQuery,
-              searchType: 'tsquery',
-            },
-          },
-          false,
-        );
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
+      await expect(testQuery({
+        data: {
+          path: '',
+          search: maliciousQuery,
+          searchType: 'tsquery',
+        },
+      })).rejects.toThrow(/syntax error in tsquery/);
     });
 
     it('should handle quotes in tsquery search safely', async () => {
       const maliciousQuery = 'test") || true || ("fake';
 
-      try {
-        await testQuery(
-          {
-            data: {
-              path: '',
-              search: maliciousQuery,
-              searchType: 'tsquery',
-            },
-          },
-          false,
-        );
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
+      await expect(testQuery({
+        data: {
+          path: '',
+          search: maliciousQuery,
+          searchType: 'tsquery',
+        },
+      })).rejects.toThrow(/syntax error in tsquery/);
     });
 
     it('should handle prefix search type injection attempts safely', async () => {
       const maliciousInput = "test'; DROP TABLE test_tables; --";
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: '',
           search: maliciousInput,
           searchType: 'prefix',
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle phrase search type injection attempts safely', async () => {
       const maliciousPhrase = "test'; DROP TABLE test_tables; --";
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: '',
           search: maliciousPhrase,
           searchType: 'phrase',
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle plain search type injection attempts safely', async () => {
       const maliciousSearch = "'; SELECT * FROM pg_tables; --";
 
-      await testQuery({
+      expect(await testQuery({
         data: {
           path: '',
           search: maliciousSearch,
           searchType: 'plain',
         },
-      });
+      })).toEqual([]);
     });
 
     it('should handle complex tsquery injection with operators', async () => {
       const maliciousQuery = 'test:* & (SELECT 1)';
 
-      try {
-        await testQuery(
-          {
-            data: {
-              path: '',
-              search: maliciousQuery,
-              searchType: 'tsquery',
-            },
-          },
-          false,
-        );
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
+      await expect(testQuery({
+        data: {
+          path: '',
+          search: maliciousQuery,
+          searchType: 'tsquery',
+        },
+      })).rejects.toThrow(/syntax error in tsquery/);
     });
   });
 
@@ -407,11 +389,17 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
     const BREAKOUT = "x'}') OR '1'='1";
 
     it('WHERE equals: malicious path does not inject, returns no rows, does not throw', async () => {
-      const results = await testQuery({
-        data: { path: [BREAKOUT], equals: 'anything' },
+      const query = buildQuery({
+        tableName: 'test_tables',
+        fieldConfig,
+        where: { data: { path: [BREAKOUT], equals: 'anything' } },
+        orderBy: { createdAt: 'asc' },
       });
+      expect(query.text).not.toContain(BREAKOUT);
+      expect(query.values).toContainEqual([BREAKOUT]);
+      const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
       // If injection happened, `OR '1'='1'` would return ALL rows (2).
-      expect(results).toHaveLength(0);
+      expect(results).toEqual([]);
     });
 
     it('WHERE not: malicious path does not inject, matches nothing, does not throw', async () => {
@@ -421,7 +409,7 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
       // The non-existent (parameterized) key yields NULL, so `!= value` is
       // never true and no row matches. If injection regressed via `OR '1'='1'`,
       // this would return all fixture rows — so an exact 0 is the real guard.
-      expect(results).toHaveLength(0);
+      expect(results).toEqual([]);
     });
 
     it('ORDER BY json path: malicious path does not inject and does not throw', async () => {
@@ -434,7 +422,7 @@ describe('Security: JSONPath Injection Vulnerabilities', () => {
       });
       const results = await prisma.$queryRaw<Array<{ id: string }>>(query);
       // Sorting by a non-existent (parameterized) key just yields all rows.
-      expect(results).toHaveLength(2);
+      expect(results.map(({ id }) => id)).toEqual([ids.user1, ids.user2]);
     });
   });
 });

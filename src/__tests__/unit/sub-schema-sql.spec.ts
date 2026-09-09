@@ -17,6 +17,7 @@ import {
   SubSchemaOrderByItem,
 } from '../../sub-schema/types';
 import { configurePrisma, PrismaSql } from '../../prisma-adapter';
+import { getColumnRef } from '../../postgres/sub-schema/helpers';
 import { Prisma } from '@prisma/client';
 
 configurePrisma(Prisma);
@@ -45,6 +46,14 @@ function sqlToString(sql: PrismaSql): string {
 }
 
 describe('SubSchema SQL Generation', () => {
+  it('escapes sub-schema column references before raw SQL assembly', () => {
+    const sql = getColumnRef('display"name', 's') as { text: string; values: unknown[] };
+
+    expect(sql.text).toBe('s."display""name"');
+    expect(sql.values).toEqual([]);
+    expect(() => getColumnRef('invalid\0column')).toThrow('Invalid SQL identifier');
+  });
+
   describe('buildSubSchemaCte', () => {
     it('preserves lazy path parsing and repeated table reads for array paths', () => {
       const reads: string[] = [];
