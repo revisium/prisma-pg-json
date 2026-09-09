@@ -1,5 +1,6 @@
 import { Prisma, PrismaSql } from '../../prisma-adapter';
 import { unquoteSegment } from '../../sub-schema/path';
+import { escapeIdentifier } from '../identifiers';
 
 export function getEmptyCteSelect(): PrismaSql {
   return Prisma.sql`SELECT NULL as "tableId", NULL as "tableVersionId", NULL as "rowId", NULL as "rowVersionId", NULL as "fieldPath", NULL as "data" WHERE false`;
@@ -23,8 +24,9 @@ export function buildItemJsonPathAccess(itemPath: string): PrismaSql {
 }
 
 export function getColumnRef(column: string, tableAlias?: string): PrismaSql {
+  const escapedColumn = escapeIdentifier(column);
   if (tableAlias) {
-    return Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(column)}"`;
+    return Prisma.sql`${Prisma.raw(tableAlias)}."${Prisma.raw(escapedColumn)}"`;
   }
-  return Prisma.sql`"${Prisma.raw(column)}"`;
+  return Prisma.sql`"${Prisma.raw(escapedColumn)}"`;
 }
