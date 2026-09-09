@@ -1,11 +1,11 @@
-import { Prisma, PrismaSql } from '../../../prisma-adapter';
-import { generateJsonbValue, escapeRegex } from '../../../postgres/json/utils';
+import { Prisma, PrismaSql } from '../../prisma-adapter';
 import {
-  generateJsonPathLikeRegex,
-  generateJsonPathExistsWithParams,
-  generateJsonPathExistsWithParam,
-  generateJsonBuildObject,
-} from '../../../postgres/jsonpath-expressions';
+  describeArrayObjectMembers,
+  isJsonContainer,
+  prepareArrayContainsOperand,
+} from '../../where/json/array-description';
+import { generateJsonPathLikeRegex, generateJsonPathExistsWithParams, generateJsonPathExistsWithParam, generateJsonBuildObject } from '../jsonpath-expressions';
+import { generateJsonbValue, escapeRegex } from './utils';
 
 export function generateArrayCondition(
   fieldRef: PrismaSql,
@@ -18,20 +18,21 @@ export function generateArrayCondition(
     throw new Error(`Unsupported array operator: ${operator}`);
   }
 
-  if (!Array.isArray(value)) {
-    throw new TypeError('processArrayContains: value must be an array');
-  }
-  if (value.length === 0) {
+  const preparedValue = prepareArrayContainsOperand(
+    value,
+    'processArrayContains: value must be an array',
+  );
+  if (preparedValue.length === 0) {
     throw new Error('processArrayContains: value array cannot be empty');
   }
 
-  if (isInsensitive && value.length > 1) {
+  if (isInsensitive && preparedValue.length > 1) {
     throw new Error(
       'processArrayContains: insensitive mode with multiple elements not supported yet',
     );
   }
 
-  const conditions = value.map((val, index) => {
+  const conditions = preparedValue.map((val, index) => {
     if (isInsensitive && typeof val === 'string') {
       const pattern = `^${escapeRegex(val)}$`;
       return generateJsonPathLikeRegex(fieldRef, `${jsonPath}[*]`, pattern, true);
@@ -42,10 +43,11 @@ export function generateArrayCondition(
       )`;
     } else if (typeof val === 'object' && val !== null) {
       // For complex objects, check if a single array element contains all key-value pairs
-      const propertyChecks = Object.entries(val).map(([key, objValue], keyIndex) => {
-        const paramName = `val${index}${keyIndex}`;
-        return { key, objValue, paramName };
-      });
+      const propertyChecks = describeArrayObjectMembers(val).map(({ key, objValue, keyIndex }) => ({
+        key,
+        objValue,
+        paramName: `val${index}${keyIndex}`,
+      }));
 
       if (propertyChecks.some(({ objValue }) => isJsonContainer(objValue))) {
         const memberConditions = propertyChecks.map(({ key, objValue }) => {
@@ -88,8 +90,4 @@ export function generateArrayCondition(
     }
   });
   return Prisma.join(conditions, ' AND ');
-}
-
-function isJsonContainer(value: unknown): boolean {
-  return value !== null && typeof value === 'object';
 }
