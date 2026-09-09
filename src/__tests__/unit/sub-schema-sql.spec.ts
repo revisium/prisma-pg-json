@@ -46,6 +46,38 @@ function sqlToString(sql: PrismaSql): string {
 
 describe('SubSchema SQL Generation', () => {
   describe('buildSubSchemaCte', () => {
+    it('preserves lazy path parsing and repeated table reads for array paths', () => {
+      const reads: string[] = [];
+      const table = {
+        get tableId() {
+          reads.push('tableId');
+          return 'items';
+        },
+        get tableVersionId() {
+          reads.push('tableVersionId');
+          return 'ver_items_001';
+        },
+        paths: [
+          {
+            get path() {
+              reads.push('path');
+              return 'items[*].file';
+            },
+          },
+        ],
+      } as SubSchemaTableConfig;
+
+      buildSubSchemaCte({ tables: [table] });
+
+      expect(reads).toEqual([
+        'path',
+        'tableId',
+        'tableVersionId',
+        'tableId',
+        'tableVersionId',
+      ]);
+    });
+
     it('should generate CTE for single path', () => {
       const params: SubSchemaCteParams = {
         tables: [

@@ -1,18 +1,8 @@
-import { Prisma, PrismaSql } from '../prisma-adapter';
+import { Prisma, PrismaSql } from '../../prisma-adapter';
+import { unquoteSegment } from '../../sub-schema/path';
 
 export function getEmptyCteSelect(): PrismaSql {
   return Prisma.sql`SELECT NULL as "tableId", NULL as "tableVersionId", NULL as "rowId", NULL as "rowVersionId", NULL as "fieldPath", NULL as "data" WHERE false`;
-}
-
-export function unquoteSegment(segment: string): string {
-  if (segment.startsWith('"') && segment.endsWith('"')) {
-    return segment.slice(1, -1);
-  }
-  return segment;
-}
-
-export function unquotePath(path: string): string {
-  return path.split('.').map(unquoteSegment).join('.');
 }
 
 export function buildPathAccess(base: PrismaSql, path: string): PrismaSql {

@@ -8,6 +8,17 @@ export interface PathSegment {
   isArray: boolean;
 }
 
+export function unquoteSegment(segment: string): string {
+  if (segment.startsWith('"') && segment.endsWith('"')) {
+    return segment.slice(1, -1);
+  }
+  return segment;
+}
+
+export function unquotePath(path: string): string {
+  return path.split('.').map(unquoteSegment).join('.');
+}
+
 export function parsePath(path: string): ParsedPath {
   if (!path.includes('[*]')) {
     return { isArray: false, segments: [{ path, isArray: false }] };
