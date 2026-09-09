@@ -1,4 +1,12 @@
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { Linter, type Rule } from 'eslint';
+import tseslint from 'typescript-eslint';
+
+const layerBoundaryPlugin = createRequire(__filename)('../../../eslint-rules/layer-boundary.cjs') as {
+  rules: { 'layer-boundary': Rule.RuleModule };
+};
 
 interface BoundaryFixture {
   id: string;
@@ -71,6 +79,21 @@ function lintFixtures(fixtures: BoundaryFixture[]): Map<string, string[]> {
   return new Map(Object.entries(JSON.parse(result.stdout) as Record<string, string[]>));
 }
 
+function lintWithExtractedRule(fixture: BoundaryFixture, layer: 'pure' | 'postgres') {
+  const linter = new Linter({ configType: 'eslintrc' });
+  linter.defineParser('typescript-eslint', tseslint.parser);
+  linter.defineRule('architecture/layer-boundary', layerBoundaryPlugin.rules['layer-boundary']);
+  return linter.verify(
+    fixture.source,
+    {
+      parser: 'typescript-eslint',
+      parserOptions: { ecmaVersion: 2022, project: null, sourceType: 'module' },
+      rules: { 'architecture/layer-boundary': ['error', layer] },
+    },
+    { filename: path.resolve(process.cwd(), fixture.filePath) },
+  );
+}
+
 describe('architecture import boundaries', () => {
   let messages: Map<string, string[]>;
 
@@ -84,5 +107,17 @@ describe('architecture import boundaries', () => {
 
   it.each(allowedFixtures.map((fixture) => [fixture.id, fixture] as const))('allows intended boundary import %s', (_id, fixture) => {
     expect(messages.get(fixture.id)).toEqual([]);
+  });
+
+  it.each(
+    [...forbiddenFixtures, ...allowedFixtures]
+      .filter(({ filePath, id }) => !id.includes('prisma-client') && (filePath.startsWith('src/query-description.ts') || filePath.startsWith('src/postgres/')))
+      .map((fixture) => [fixture.id, fixture] as const),
+  )('exercises the extracted rule for %s', (_id, fixture) => {
+    const layer = fixture.filePath.startsWith('src/postgres/') ? 'postgres' : 'pure';
+    const lintMessages = lintWithExtractedRule(fixture, layer);
+    expect(lintMessages.filter(({ fatal, ruleId, severity }) => fatal || (ruleId === null && severity === 2))).toEqual([]);
+    const expectedCount = forbiddenFixtures.some(({ id }) => id === fixture.id) ? 1 : 0;
+    expect(lintMessages.filter(({ ruleId }) => ruleId === 'architecture/layer-boundary')).toHaveLength(expectedCount);
   });
 });
