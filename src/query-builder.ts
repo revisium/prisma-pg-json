@@ -3,14 +3,12 @@ import {
   FieldConfig,
   GenerateWhereParams,
 } from './types';
-import { Prisma, PrismaSql } from './prisma-adapter';
+import type { PrismaSql } from './prisma-adapter';
 import { compileWhere } from './postgres/where';
-import { generateOrderBy } from './orderBy';
-import { validatePagination, validateQueryInput } from './utils/query-validation';
-import { quoteIdentifier } from './postgres/identifiers';
+import { prepareQuery } from './query-description';
+import { compileQuery } from './postgres/query';
+import { validateQueryInput } from './utils/query-validation';
 import { validateSqlIdentifier } from './sub-schema/validation';
-
-const DEFAULT_FIELD_CONFIG: FieldConfig = {};
 
 /**
  * Build a complete SELECT query with WHERE, ORDER BY, LIMIT, and OFFSET.
@@ -34,56 +32,7 @@ const DEFAULT_FIELD_CONFIG: FieldConfig = {};
 export function buildQuery<TConfig extends FieldConfig = FieldConfig>(
   options: QueryBuilderOptions<TConfig>,
 ): PrismaSql {
-  const {
-    tableName,
-    tableAlias = tableName.substring(0, 1),
-    fields = ['*'],
-    fieldConfig = DEFAULT_FIELD_CONFIG,
-    take = 50,
-    skip = 0,
-    where,
-    orderBy,
-  } = options;
-
-  validatePagination(take, skip);
-  validateQueryInput(where);
-  validateQueryInput(orderBy);
-  validateQueryInput(fields);
-  validateSqlIdentifier(tableAlias, 'tableAlias');
-
-  const fieldList =
-    fields[0] === '*'
-      ? Prisma.sql`${Prisma.raw(tableAlias)}.*`
-      : Prisma.join(
-          fields.map((f) => Prisma.sql`${Prisma.raw(tableAlias)}.${quoteIdentifier(f)}`),
-          ', ',
-        );
-
-  let sql = Prisma.sql`SELECT ${fieldList} FROM ${quoteIdentifier(tableName)} ${Prisma.raw(tableAlias)}`;
-
-  if (where) {
-    const whereClause = compileWhere({
-      where,
-      fieldConfig: fieldConfig as TConfig,
-      tableAlias,
-    });
-    sql = Prisma.sql`${sql} WHERE ${whereClause}`;
-  }
-
-  if (orderBy) {
-    const orderByClause = generateOrderBy({
-      tableAlias,
-      orderBy,
-      fieldConfig: fieldConfig as TConfig,
-    });
-    if (orderByClause) {
-      sql = Prisma.sql`${sql} ${orderByClause}`;
-    }
-  }
-
-  sql = Prisma.sql`${sql} LIMIT ${take} OFFSET ${skip}`;
-
-  return sql;
+  return compileQuery(prepareQuery(options));
 }
 
 /**
