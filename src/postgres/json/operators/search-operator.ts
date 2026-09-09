@@ -1,50 +1,11 @@
 import { Prisma, PrismaSql } from '../../../prisma-adapter';
 import type { JsonFilter } from '../../../types';
-import { BaseOperator } from '../../../postgres/json/operators/base-operator';
-
-export const SEARCH_LANGUAGES = [
-  'simple',
-  'arabic',
-  'armenian',
-  'basque',
-  'catalan',
-  'danish',
-  'dutch',
-  'english',
-  'finnish',
-  'french',
-  'german',
-  'greek',
-  'hindi',
-  'hungarian',
-  'indonesian',
-  'irish',
-  'italian',
-  'lithuanian',
-  'nepali',
-  'norwegian',
-  'portuguese',
-  'romanian',
-  'russian',
-  'serbian',
-  'spanish',
-  'swedish',
-  'tamil',
-  'turkish',
-  'yiddish',
-] as const;
-
-export type SearchLanguage = (typeof SEARCH_LANGUAGES)[number];
-
-function validateLanguage(language: string): SearchLanguage {
-  if (SEARCH_LANGUAGES.includes(language as SearchLanguage)) {
-    return language as SearchLanguage;
-  }
-  throw new Error(`Invalid search language: ${language}. Allowed: ${SEARCH_LANGUAGES.join(', ')}`);
-}
+import { extractSearchContext, type SearchContext } from '../../../where/json/search-description';
+import { prepareJsonString, isNonEmptyJsonString } from '../../../where/json/string-description';
+import { BaseOperator } from './base-operator';
 
 function getSearchInParameter(
-  searchIn: 'all' | 'values' | 'keys' | 'strings' | 'numbers' | 'booleans',
+  searchIn: SearchContext['searchIn'],
 ): string {
   switch (searchIn) {
     case 'all':
@@ -76,7 +37,7 @@ function toPrefixQuery(input: string): string {
 }
 
 function getQueryFuncAndValue(
-  searchType: 'plain' | 'phrase' | 'prefix' | 'tsquery',
+  searchType: SearchContext['searchType'],
   value: string,
 ): { func: string; value: string } {
   switch (searchType) {
@@ -92,31 +53,15 @@ function getQueryFuncAndValue(
   }
 }
 
-function extractContext(filter?: JsonFilter): {
-  language: SearchLanguage;
-  searchType: 'plain' | 'phrase' | 'prefix' | 'tsquery';
-  searchIn: 'all' | 'values' | 'keys' | 'strings' | 'numbers' | 'booleans';
-} {
-  const language = validateLanguage(filter?.searchLanguage || 'simple');
-  return {
-    language,
-    searchType: filter?.searchType || 'plain',
-    searchIn: filter?.searchIn || 'all',
-  };
-}
-
 export class SearchOperator extends BaseOperator<string> {
   readonly key = 'search';
 
   validate(value: string): boolean {
-    return typeof value === 'string' && value.length > 0;
+    return isNonEmptyJsonString(value);
   }
 
   preprocessValue(value: unknown): string {
-    if (typeof value !== 'string') {
-      throw new TypeError('search requires a string value');
-    }
-    return value;
+    return prepareJsonString(value, 'search');
   }
 
   supportsSpecialPath(): boolean {
@@ -137,7 +82,7 @@ export class SearchOperator extends BaseOperator<string> {
       throw new Error(this.getErrorMessage('validation failed'));
     }
 
-    const ctx = extractContext(filter);
+    const ctx = extractSearchContext(filter);
 
     if (isSpecialPath) {
       return this.buildSearchSql(fieldRef, null, processedValue, ctx);
@@ -147,7 +92,7 @@ export class SearchOperator extends BaseOperator<string> {
   }
 
   handleSpecialPath(fieldRef: PrismaSql, value: string): PrismaSql {
-    return this.buildSearchSql(fieldRef, null, value, extractContext());
+    return this.buildSearchSql(fieldRef, null, value, extractSearchContext());
   }
 
   generateCondition(
@@ -156,14 +101,14 @@ export class SearchOperator extends BaseOperator<string> {
     value: string,
     _isInsensitive: boolean,
   ): PrismaSql {
-    return this.buildSearchSql(fieldRef, jsonPath, value, extractContext());
+    return this.buildSearchSql(fieldRef, jsonPath, value, extractSearchContext());
   }
 
   private buildSearchSql(
     fieldRef: PrismaSql,
     jsonPath: string | null,
     value: string,
-    ctx: ReturnType<typeof extractContext>,
+    ctx: SearchContext,
   ): PrismaSql {
     const { language, searchType, searchIn } = ctx;
     const { func, value: queryValue } = getQueryFuncAndValue(searchType, value);

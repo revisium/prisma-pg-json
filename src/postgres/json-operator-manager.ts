@@ -10,8 +10,8 @@ import { NotInOperator } from './json/operators/not-in-operator';
 import { ArrayContainsOperator } from './json/operators/array-contains-operator';
 import { ArrayStartsWithOperator } from './json/operators/array-starts-with-operator';
 import { ArrayEndsWithOperator } from './json/operators/array-ends-with-operator';
-import { StringPatternOperator } from '../where/json/operators/string-pattern-operator';
-import { SearchOperator } from '../where/json/operators/search-operator';
+import { StringPatternOperator } from './json/operators/string-pattern-operator';
+import { SearchOperator } from './json/operators/search-operator';
 
 export class OperatorManager {
   private readonly operators = new Map<keyof JsonFilter, BaseOperator>();
