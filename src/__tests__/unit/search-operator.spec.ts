@@ -1,4 +1,4 @@
-import { SearchOperator } from '../../where/json/operators/search-operator';
+import { SearchOperator } from '../../postgres/json/operators/search-operator';
 import { Prisma } from '@prisma/client';
 import { configurePrisma } from '../../prisma-adapter';
 

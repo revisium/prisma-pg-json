@@ -1,7 +1,8 @@
 import { PrismaSql } from '../../../prisma-adapter';
-import { escapeRegex } from '../../../postgres/json/utils';
-import { BaseOperator } from '../../../postgres/json/operators/base-operator';
-import { generateJsonPathLikeRegex } from '../../../postgres/jsonpath-expressions';
+import { prepareJsonString, isNonEmptyJsonString } from '../../../where/json/string-description';
+import { escapeRegex } from '../utils';
+import { BaseOperator } from './base-operator';
+import { generateJsonPathLikeRegex } from '../../jsonpath-expressions';
 
 type StringPatternKey = 'string_contains' | 'string_starts_with' | 'string_ends_with';
 
@@ -27,14 +28,11 @@ export class StringPatternOperator extends BaseOperator<string> {
   }
 
   validate(value: string): boolean {
-    return typeof value === 'string' && value.length > 0;
+    return isNonEmptyJsonString(value);
   }
 
   preprocessValue(value: unknown): string {
-    if (typeof value !== 'string') {
-      throw new TypeError(`${this.key} requires a string value`);
-    }
-    return value;
+    return prepareJsonString(value, this.key);
   }
 
   generateCondition(

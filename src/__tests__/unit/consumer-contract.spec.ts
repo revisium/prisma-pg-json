@@ -9,6 +9,7 @@ import {
   generateStringFilter,
   generateDateFilter,
   generateJsonFilter,
+  SEARCH_LANGUAGES,
   configurePrisma,
   decodeCursor,
   encodeCursor,
@@ -24,6 +25,25 @@ import { fieldConfig } from '../dsl/query-case';
 beforeAll(() => configurePrisma(Prisma));
 
 describe('consumer contract: opaque values and public validation', () => {
+  it('preserves the live SEARCH_LANGUAGES export used by public search filters', () => {
+    const language = 'codex_live_language';
+    const languages = SEARCH_LANGUAGES as unknown as string[];
+    languages.push(language);
+
+    try {
+      const query = generateJsonFilter(
+        Prisma.sql`u."data"`,
+        { path: 'title', search: 'term', searchLanguage: language },
+        'data',
+        'u',
+      );
+
+      expect(query.sql).toContain(`'${language}'`);
+    } finally {
+      languages.pop();
+    }
+  });
+
   it.each<CursorValue[]>([
     [],
     [''],
