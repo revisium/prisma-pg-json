@@ -19,6 +19,34 @@ function buildAndStringify(
 }
 
 describe('buildKeysetCondition', () => {
+  it('snapshots part expressions before directions and cursor values', () => {
+    const reads: string[] = [];
+    const expression = Prisma.sql`r."createdAt"`;
+    const part = {
+      get expression() {
+        reads.push('expression');
+        return expression;
+      },
+      get direction() {
+        reads.push('direction');
+        return 'ASC' as const;
+      },
+      fieldName: 'createdAt',
+      isJson: false,
+    } as OrderByPart;
+    const values = [1] as CursorValue[];
+    Object.defineProperty(values, 0, {
+      get() {
+        reads.push('value');
+        return 1;
+      },
+    });
+
+    buildKeysetCondition([part], values, 'tid-1', tiebreakerExpr);
+
+    expect(reads).toEqual(['expression', 'direction', 'value']);
+  });
+
   const tiebreakerExpr = Prisma.sql`r."versionId"`;
 
   describe('single column', () => {
