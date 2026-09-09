@@ -1,6 +1,7 @@
-import { PrismaSql } from '../../prisma-adapter';
-import type { JsonFilter } from '../../types';
-import { BaseOperator } from './operators/base-operator';
+import { PrismaSql } from '../prisma-adapter';
+import type { JsonFilter } from '../types';
+import { describeJsonFilter, describeSpecialPathFilter } from '../where/json/filter-description';
+import { BaseOperator } from '../where/json/operators/base-operator';
 import {
   EqualsOperator,
   NotOperator,
@@ -12,7 +13,7 @@ import {
   InOperator,
   NotInOperator,
   SearchOperator,
-} from './operators';
+} from '../where/json/operators';
 
 export class OperatorManager {
   private readonly operators = new Map<keyof JsonFilter, BaseOperator>();
@@ -60,18 +61,7 @@ export class OperatorManager {
   ): PrismaSql[] {
     const conditions: PrismaSql[] = [];
 
-    for (const [key, value] of Object.entries(filter)) {
-      if (
-        key === 'path' ||
-        key === 'mode' ||
-        key === 'searchLanguage' ||
-        key === 'searchType' ||
-        key === 'searchIn' ||
-        value === undefined
-      ) {
-        continue;
-      }
-
+    for (const [key, value] of describeJsonFilter(filter)) {
       const operator = this.getOperator(key as keyof JsonFilter);
       if (operator) {
         try {
@@ -98,11 +88,7 @@ export class OperatorManager {
   }
 
   supportsSpecialPath(filter: JsonFilter): boolean {
-    for (const [key, value] of Object.entries(filter)) {
-      if (key === 'path' || key === 'mode' || value === undefined) {
-        continue;
-      }
-
+    for (const [key] of describeSpecialPathFilter(filter)) {
       const operator = this.getOperator(key as keyof JsonFilter);
       if (operator?.supportsSpecialPath()) {
         return true;

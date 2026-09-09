@@ -1,35 +1,6 @@
-import { Prisma, PrismaSql } from '../../prisma-adapter';
+import type { PrismaSql } from '../../prisma-adapter';
 import type { JsonFilter } from '../../types';
-import { convertToJsonPath } from '../../postgres/json-path';
-import { OperatorManager } from './operator-manager';
-
-interface PathValidationResult {
-  isValid: boolean;
-  isSpecialPath: boolean;
-}
-
-function validatePath(path: JsonFilter['path']): PathValidationResult {
-  if ((Array.isArray(path) && path.length === 0) || path === '') {
-    return {
-      isValid: true,
-      isSpecialPath: true,
-    };
-  }
-
-  if (typeof path === 'string' && path.includes('..')) {
-    return {
-      isValid: false,
-      isSpecialPath: false,
-    };
-  }
-
-  return {
-    isValid: true,
-    isSpecialPath: false,
-  };
-}
-
-const operatorManager = new OperatorManager();
+import { compileJsonFilter } from '../../postgres/json-filter';
 
 /**
  * Generate a WHERE condition for a JSONB column using path-based filtering.
@@ -53,49 +24,5 @@ export function generateJsonFilter(
   fieldName: string,
   _tableAlias: string,
 ): PrismaSql {
-  const pathValidation = validatePath(filter.path);
-  if (!pathValidation.isValid) {
-    throw new Error('Invalid path');
-  }
-
-  if (pathValidation.isSpecialPath) {
-    if (!operatorManager.supportsSpecialPath(filter)) {
-      throw new Error('No operators in filter support empty path operations');
-    }
-
-    const conditions = operatorManager.processFilter(
-      fieldRef,
-      '',
-      filter,
-      filter.mode === 'insensitive',
-      true,
-    );
-
-    return combineConditions(conditions, fieldName);
-  }
-
-  const jsonPath = convertToJsonPath(filter.path);
-
-  const isInsensitive = filter.mode === 'insensitive';
-  const conditions = operatorManager.processFilter(
-    fieldRef,
-    jsonPath,
-    filter,
-    isInsensitive,
-    false,
-  );
-
-  return combineConditions(conditions, fieldName);
-}
-
-function combineConditions(conditions: PrismaSql[], fieldName: string): PrismaSql {
-  if (conditions.length === 0) {
-    throw new Error(`No valid operations found for field: ${fieldName}`);
-  }
-
-  if (conditions.length === 1) {
-    return conditions[0];
-  }
-
-  return Prisma.sql`(${Prisma.join(conditions, ' AND ')})`;
+  return compileJsonFilter(fieldRef, filter, fieldName, _tableAlias);
 }
