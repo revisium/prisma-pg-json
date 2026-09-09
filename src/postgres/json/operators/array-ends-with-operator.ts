@@ -1,16 +1,17 @@
 import { Prisma, PrismaSql } from '../../../prisma-adapter';
-import { generateJsonbValue, escapeRegex } from '../../../postgres/json/utils';
-import { BaseOperator } from '../../../postgres/json/operators/base-operator';
+import { isJsonOperand } from '../../../where/json/comparison-description';
+import { generateJsonbValue, escapeRegex } from '../utils';
+import { BaseOperator } from './base-operator';
 import {
   generateJsonPathLikeRegex,
   generateJsonPathExistsWithParam,
-} from '../../../postgres/jsonpath-expressions';
+} from '../../jsonpath-expressions';
 
 export class ArrayEndsWithOperator extends BaseOperator<unknown> {
   readonly key = 'array_ends_with' as const;
 
   validate(value: unknown): boolean {
-    return value !== undefined;
+    return isJsonOperand(value);
   }
 
   generateCondition(

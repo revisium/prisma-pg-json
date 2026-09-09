@@ -7,10 +7,10 @@ import { NotOperator } from './json/operators/not-operator';
 import { ComparisonOperator } from './json/operators/comparison-operator';
 import { InOperator } from './json/operators/in-operator';
 import { NotInOperator } from './json/operators/not-in-operator';
+import { ArrayContainsOperator } from './json/operators/array-contains-operator';
+import { ArrayStartsWithOperator } from './json/operators/array-starts-with-operator';
+import { ArrayEndsWithOperator } from './json/operators/array-ends-with-operator';
 import { StringPatternOperator } from '../where/json/operators/string-pattern-operator';
-import { ArrayContainsOperator } from '../where/json/operators/array-contains-operator';
-import { ArrayStartsWithOperator } from '../where/json/operators/array-starts-with-operator';
-import { ArrayEndsWithOperator } from '../where/json/operators/array-ends-with-operator';
 import { SearchOperator } from '../where/json/operators/search-operator';
 
 export class OperatorManager {

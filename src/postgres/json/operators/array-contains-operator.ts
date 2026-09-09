@@ -1,19 +1,20 @@
 import { PrismaSql } from '../../../prisma-adapter';
-import { generateArrayCondition } from '../jsonpath/array-operations';
-import { BaseOperator } from '../../../postgres/json/operators/base-operator';
+import {
+  isNonEmptyArray,
+  prepareArrayContainsOperand,
+} from '../../../where/json/array-description';
+import { generateArrayCondition } from '../array-operations';
+import { BaseOperator } from './base-operator';
 
 export class ArrayContainsOperator extends BaseOperator<unknown[]> {
   readonly key = 'array_contains';
 
   validate(value: unknown[]): boolean {
-    return Array.isArray(value) && value.length > 0;
+    return isNonEmptyArray(value);
   }
 
   preprocessValue(value: unknown): unknown[] {
-    if (!Array.isArray(value)) {
-      throw new TypeError('array_contains value must be an array');
-    }
-    return value;
+    return prepareArrayContainsOperand(value);
   }
 
   generateCondition(
