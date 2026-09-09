@@ -4,6 +4,8 @@ import ts from 'typescript';
 import {
   buildQuery,
   generateWhere,
+  generateNumberFilter,
+  generateBooleanFilter,
   configurePrisma,
   decodeCursor,
   encodeCursor,
@@ -162,6 +164,87 @@ describe('consumer contract: filter traversal compatibility', () => {
       'u."age" = ? AND u."name" = ? AND (u."name" = ?) AND (u."name" = ?) AND NOT (u."name" = ?) AND NOT (u."name" = ?)',
     );
     expect(query.values).toEqual([21, 'first', 'required', 'choice', 'excluded-1', 'excluded-2']);
+  });
+
+  it('preserves scalar filter errors for empty and malformed public filters', () => {
+    expect(() => compile({ age: {} })).toThrow('Number filter must have at least one condition');
+    expect(() => compile({ isActive: {} })).toThrow('Boolean filter must have at least one condition');
+    expect(() => compile({ age: { in: 'invalid' } })).toThrow(
+      'Number filter must have at least one condition',
+    );
+    expect(() => compile({ isActive: { not: 'invalid' } })).toThrow(
+      'Boolean filter must have at least one condition',
+    );
+  });
+
+  it('preserves sparse numeric IN values through the public filter API', () => {
+    const values = new Array<number>(3);
+    values[0] = 1;
+    values[2] = 3;
+
+    const query = compile({ age: { in: values } });
+
+    expect(query.values).toEqual([1, undefined, 3]);
+  });
+
+  it('preserves nested numeric and boolean NOT composition', () => {
+    const query = compile({
+      age: { not: { not: { equals: 4 } } },
+      isActive: { not: { not: true } },
+    });
+
+    expect(query.sql).toContain('NOT (NOT (u."age" = ?))');
+    expect(query.sql).toContain('NOT (u."isActive" != ?)');
+    expect(query.values).toEqual([4, true]);
+  });
+
+  it('reports the first getter error in each scalar filter operation order', () => {
+    const numericFilter = {
+      get equals(): number {
+        throw new Error('numeric equals');
+      },
+      get gt(): number {
+        throw new Error('numeric gt');
+      },
+    };
+    const booleanFilter = {
+      get equals(): boolean {
+        throw new Error('boolean equals');
+      },
+      get not(): boolean {
+        throw new Error('boolean not');
+      },
+    };
+
+    expect(() => generateNumberFilter(Prisma.sql`u."age"`, numericFilter)).toThrow('numeric equals');
+    expect(() => generateBooleanFilter(Prisma.sql`u."isActive"`, booleanFilter)).toThrow(
+      'boolean equals',
+    );
+  });
+
+  it('preserves repeated public filter getter reads for comparison operands', () => {
+    const numericValues = [1, 2];
+    let numericRead = 0;
+    const numericFilter = {
+      get equals(): number {
+        return numericValues[numericRead++];
+      },
+    };
+    const booleanValues = [true, false, false];
+    let booleanRead = 0;
+    const booleanFilter = {
+      get not(): boolean {
+        return booleanValues[booleanRead++];
+      },
+    };
+
+    const numericQuery = generateNumberFilter(Prisma.sql`u."age"`, numericFilter);
+    const booleanQuery = generateBooleanFilter(Prisma.sql`u."isActive"`, booleanFilter);
+
+    expect(numericRead).toBe(2);
+    expect(numericQuery.values).toEqual([2]);
+    expect(booleanRead).toBe(3);
+    expect(booleanQuery.values).toEqual([false]);
   });
 
   it.each(['AND', 'OR', 'NOT'])('preserves sparse %s array slots', (operator) => {
